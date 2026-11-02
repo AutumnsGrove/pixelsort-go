@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Node / web (future SvelteKit app and the mockup tests)
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Go (future)
+*.test
+*.out
+/bin/
+
+# WASM build output (future) — built, not committed
+web/static/*.wasm
+
+# Local env and secrets — never commit these
+.env
+.env.*
+!.env.example

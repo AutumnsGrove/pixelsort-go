@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunsets for Mara · pixelsort-go</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/theater.css">
+<style>
+  /*
+   * The page a friend sees (served by the Cloudflare Worker, not the potato).
+   * Deliberately tiny: no app, no account, no sorting — just look, download, and copy the recipe.
+   */
+  .top{position:absolute}
+  .page{position:relative;z-index:5;min-height:100vh;display:grid;grid-template-columns:1fr 360px;grid-template-rows:1fr auto;gap:0}
+  .stage{display:grid;place-items:center;padding:96px 48px 18px;position:relative}
+  .stage img{max-width:100%;max-height:calc(100vh - 250px);box-shadow:0 0 0 1px var(--faint),0 40px 120px rgba(255,90,54,.2),0 20px 60px rgba(0,0,0,.7);animation:rise .6s var(--ease) both}
+  @keyframes rise{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+  .nav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border:1px solid var(--faint);font-size:19px}
+  .nav.l{left:10px}.nav.r{right:10px}
+  .cap{position:absolute;left:48px;bottom:-6px;font-family:var(--serif);font-style:italic;font-size:17px;color:var(--dim)}
+  .strip{grid-column:1;display:flex;gap:14px;justify-content:center;padding:6px 48px 30px}
+  .strip button{position:relative;opacity:.55;transition:.2s}
+  .strip button img{width:116px;height:72px;object-fit:cover;display:block;box-shadow:0 0 0 1px var(--faint)}
+  .strip button:hover{opacity:.9}
+  .strip button.on{opacity:1}
+  .strip button.on img{outline:2px solid var(--ver);outline-offset:4px}
+  .side{grid-row:1 / span 2;grid-column:2;border-left:1px solid var(--faint);padding:96px 32px 30px;display:flex;flex-direction:column;gap:22px;background:linear-gradient(90deg,rgba(255,255,255,.012),transparent)}
+  .side h1{font-size:46px;line-height:.95;margin-top:8px}
+  .meta{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;font-size:11px}
+  .meta span:nth-child(odd){color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;font-size:10px;padding-top:1px}
+  .acts{display:grid;gap:9px}
+  .acts .btn{text-align:center;padding:13px}
+  .acts .row{display:flex;gap:9px;flex-wrap:wrap}
+  .acts .row .btn{flex:1;padding:11px 12px}
+  .recipe{position:relative;border:1px solid var(--faint);border-radius:6px;padding:16px 16px 12px;font-size:11.5px;line-height:1.85;background:rgba(0,0,0,.25)}
+  .recipe::before{content:"RECIPE";position:absolute;top:-8px;left:12px;background:var(--ink);padding:0 8px;font-size:9px;letter-spacing:1.6px;color:var(--ver)}
+  .recipe .rows>div{display:flex;justify-content:space-between;gap:12px}
+  .recipe .rows>div span:first-child{color:var(--dim)}
+  .recipe button{margin-top:10px;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--gold);border-bottom:1px solid transparent}
+  .recipe button:hover{border-color:var(--gold)}
+  .note{color:var(--dim);font-size:10.5px;line-height:1.75;margin-top:auto}
+  .note a{color:var(--paper);text-decoration:none;border-bottom:1px solid var(--ver)}
+  .gone{position:fixed;inset:0;z-index:20;display:none;place-items:center;text-align:center;padding:30px}
+  .gone.on{display:grid}
+  .gone h1{font-size:clamp(52px,9vw,120px);margin:14px 0 18px}
+  .gone p{color:var(--dim);max-width:420px;margin:0 auto;line-height:1.8;font-size:12px}
+  .gone a{display:inline-block;margin-top:26px}
+  .page.hide{display:none}
+  @media (max-width:900px){.page{grid-template-columns:1fr}.side{grid-row:auto;grid-column:1;border-left:0;border-top:1px solid var(--faint);padding:26px 22px 40px}.stage{padding:84px 16px 10px}.nav{display:none}.strip{padding:6px 16px 22px;overflow-x:auto;justify-content:flex-start}.read{display:none}.cap{left:16px}}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<header class="top">
+  <a class="word" href="studio.html" title="pixelsort-go">pixelsort<i>GO</i></a>
+  <div class="read" id="read"><span>shared album</span><span><b>3</b> images</span><span id="exp">expires in <b>27 days</b></span></div>
+  <nav class="links"><a href="gallery.html">← back to mock archive</a></nav>
+</header>
+
+<div class="page" id="page">
+  <section class="stage">
+    <button class="round nav l" id="prev">←</button>
+    <img id="img" alt="">
+    <button class="round nav r" id="next">→</button>
+    <div class="cap" id="cap"></div>
+  </section>
+  <div class="strip" id="strip"></div>
+
+  <aside class="side">
+    <div>
+      <div class="eyebrow">A gallery from pixelsort-go</div>
+      <h1 class="display"><em>Sunsets</em> for Mara</h1>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="acts">
+      <button class="btn pri" id="dl">Download this image</button>
+      <div class="row"><button class="btn" id="dlAll">All 3 · .zip</button><button class="btn" id="cpLink">Copy image link</button></div>
+    </div>
+    <div class="recipe" id="recipeBox"><div class="rows" id="recipe"></div><button id="cpRecipe">Copy recipe JSON</button></div>
+    <p class="note">This link is unlisted — anyone who has it can view and download. Photos carry no location or camera data. <b>Image links work directly</b> inside any copy of <a href="#">pixelsort-go</a>: paste one into “load from a link” to sort it yourself.</p>
+  </aside>
+</div>
+
+<div class="gone" id="gone">
+  <div>
+    <div class="eyebrow">Link no longer works</div>
+    <h1 class="display">This gallery is <em>gone</em>.</h1>
+    <p>It was revoked by whoever made it, or it reached its expiry date. Nothing is kept here after that.</p>
+    <a class="btn" href="share.html">See a live one (mock)</a>
+  </div>
+</div>
+<div id="toast"></div>
+<div class="grain"></div><div class="vig"></div>
+
+<script src="shared/demo-engine.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+  function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},2000)}
+  var q=location.search;
+  if(q.indexOf('gone')>-1){$('#page').classList.add('hide');$('#gone').classList.add('on');$('#read').style.display='none';}
+  var withRecipe=q.indexOf('norecipe')<0;
+  var items=[
+    {t:'Ridge, threshold',mb:24.1,p:{mode:'threshold',lo:.3,hi:.7,angle:90,key:'luma',seed:3}},
+    {t:'Curtain, random',mb:26.8,p:{mode:'random',length:120,randomness:35,key:'intensity',angle:90,seed:2}},
+    {t:'Static, cellular 110',mb:21.2,p:{mode:'ca',rule:110,key:'value',seed:5,randomness:15}}
+  ];
+  items.forEach(function(it){it.p=Object.assign({randomness:10,length:40,angle:0,reverse:false},it.p);it.big=PixelDemo.thumb(it.p,960,600);it.th=PixelDemo.thumb(it.p,232,144)});
+  var i=0;
+  function show(n){i=(n+items.length)%items.length;var it=items[i];var im=$('#img');im.style.animation='none';void im.offsetWidth;im.style.animation='';im.src=it.big;
+    $('#cap').textContent=it.t+' — '+(i+1)+' of '+items.length;
+    $$('#strip button').forEach(function(b,k){b.classList.toggle('on',k===i)});
+    $('#meta').innerHTML=[['image',it.t],['size','4032 × 2520 · '+it.mb.toFixed(1)+' MB'],['format','PNG, lossless'],['made','3 days ago']].map(function(x){return '<span>'+x[0]+'</span><span>'+x[1]+'</span>'}).join('');
+    var p=it.p,rows=[['intervals',p.mode],['sort by',p.key],['angle',p.angle+'°']];if(p.mode==='random')rows.push(['length',p.length+' px']);if(p.mode==='threshold')rows.push(['band',p.lo+' – '+p.hi]);if(p.mode==='ca')rows.push(['rule',p.rule]);rows.push(['seed',p.seed]);
+    $('#recipe').innerHTML=rows.map(function(x){return '<div><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('');
+    $('#recipeBox').style.display=withRecipe?'block':'none'}
+  $('#strip').innerHTML=items.map(function(it,k){return '<button data-k="'+k+'"><img src="'+it.th+'" alt=""></button>'}).join('');
+  $('#strip').addEventListener('click',function(e){var b=e.target.closest('button');if(b)show(+b.dataset.k)});
+  $('#prev').onclick=function(){show(i-1)};$('#next').onclick=function(){show(i+1)};
+  document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')show(i-1);if(e.key==='ArrowRight')show(i+1)});
+  $('#dl').onclick=function(){toast('Downloading '+items[i].t+'.png')};
+  $('#dlAll').onclick=function(){toast('Zipping 3 images · 72 MB')};
+  $('#cpLink').onclick=function(){toast('Direct image link copied')};
+  $('#cpRecipe').onclick=function(){toast('Recipe copied · paste it into the app')};
+  show(0);
+})();
+</script>
+</body>
+</html>

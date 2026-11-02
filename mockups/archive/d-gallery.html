@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pixelsort-go · D · Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f1117;--surface:#1a1b26;--elev:#24283b;--primary:#7aa2f7;--primary-d:#5a7bd4;--secondary:#bb9af7;--ok:#9ece6a;--warn:#e0af68;--err:#f7768e;--info:#7dcfff;--muted:#565f89;--border:#414868;--text:#a9b1d6;--text2:#787c99;--inv:#0f1117;
+    --sans:'Quicksand',-apple-system,sans-serif;--mono:'IBM Plex Mono',monospace}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  header{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:20px;padding:0 20px;position:sticky;top:0;z-index:20}
+  .brand{font-weight:700;color:#c0caf5;display:flex;gap:9px;align-items:center}
+  .brand small{font-family:var(--mono);font-weight:400;color:var(--muted);font-size:11px}
+  .tabs{display:flex;gap:4px;margin-left:8px}
+  .tabs button{padding:7px 13px;border-radius:9px;font-weight:600;color:var(--text2);display:flex;gap:7px;align-items:center;transition:.15s}
+  .tabs button:hover{background:var(--elev);color:var(--text)}
+  .tabs button.on{background:var(--elev);color:var(--primary)}
+  .tabs i{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .tabs button.on i{color:var(--primary-d)}
+  .spacer{flex:1}
+  .search{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:7px 12px;width:240px;color:var(--text);font-family:var(--sans);outline:none}
+  .search:focus{border-color:var(--primary)}
+  .btn{padding:7px 13px;border-radius:8px;border:1px solid var(--border);font-weight:600;font-size:13px;transition:.15s;white-space:nowrap}
+  .btn:hover{background:var(--elev);border-color:var(--muted)}
+  .btn.pri{background:var(--primary);color:var(--inv);border-color:var(--primary)} .btn.pri:hover{background:var(--primary-d)}
+  .btn.err{color:var(--err);border-color:rgba(247,118,142,.45)} .btn.err:hover{background:rgba(247,118,142,.1)}
+  .btn.warn{color:var(--warn);border-color:rgba(224,175,104,.45)}
+
+  .usage{padding:18px 24px 6px;display:grid;gap:10px}
+  .urow{display:flex;align-items:baseline;gap:14px}
+  .urow b{font-size:22px;color:#c0caf5;font-weight:700} .urow span{color:var(--text2)}
+  .urow .mono{font-family:var(--mono);font-size:12px}
+  .meter{position:relative;height:12px;border-radius:12px;background:var(--elev);display:flex;overflow:hidden}
+  .meter i{display:block;height:100%}
+  .meter .trash{background:repeating-linear-gradient(45deg,#f7768e 0 4px,#c4566c 4px 8px)}
+  .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--warn);left:80%}
+  .mark::after{content:"80% · warn";position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;color:var(--warn);white-space:nowrap}
+  .legend{display:flex;gap:18px;font-family:var(--mono);font-size:11px;color:var(--text2);flex-wrap:wrap}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  .tools{display:flex;align-items:center;gap:10px;padding:14px 24px;position:relative;flex-wrap:wrap}
+  .menu{position:relative}
+  .pop{position:absolute;top:calc(100% + 8px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;min-width:290px;box-shadow:0 18px 50px rgba(0,0,0,.6);display:none;z-index:30}
+  .pop.on{display:block}
+  .pop button{display:flex;justify-content:space-between;width:100%;padding:9px 11px;border-radius:8px;text-align:left;font-weight:600}
+  .pop button:hover{background:var(--elev)}
+  .pop button em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--text2);font-weight:400}
+  .pop hr{border:0;border-top:1px solid var(--border);margin:5px 4px}
+  .pop .cap{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);padding:6px 11px 3px;font-weight:700}
+  .info{font-family:var(--mono);font-size:11.5px;color:var(--text2)}
+  .skip{color:var(--warn)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;padding:6px 24px 120px}
+  .card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:.15s;cursor:pointer}
+  .card:hover{border-color:var(--muted);transform:translateY(-2px)}
+  .card.sel{border-color:var(--primary);box-shadow:0 0 0 2px rgba(122,162,247,.35)}
+  .card img{width:100%;aspect-ratio:8/5;object-fit:cover;display:block;background:#000}
+  .card .cb{position:absolute;left:10px;top:10px;width:24px;height:24px;border-radius:8px;border:2px solid rgba(255,255,255,.7);background:rgba(15,17,23,.5);display:grid;place-items:center;opacity:0;transition:.12s;color:var(--inv);font-weight:800;font-size:14px}
+  .card:hover .cb,.selmode .card .cb{opacity:1}
+  .card.sel .cb{background:var(--primary);border-color:var(--primary);opacity:1}
+  .card .star{position:absolute;right:8px;top:6px;font-size:18px;color:rgba(255,255,255,.55);text-shadow:0 1px 3px #000;transition:.12s;opacity:0}
+  .card:hover .star{opacity:1}.card.starred .star{color:var(--warn);opacity:1}
+  .card .share{position:absolute;right:9px;bottom:62px;background:rgba(15,17,23,.85);border:1px solid var(--border);border-radius:7px;padding:2px 7px;font-family:var(--mono);font-size:10px;color:var(--info)}
+  .meta{padding:10px 12px 12px;display:grid;gap:3px}
+  .meta b{color:var(--text);font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta span{font-family:var(--mono);font-size:11px;color:var(--text2);display:flex;justify-content:space-between}
+  .card.gone img{filter:grayscale(.8) brightness(.55)}
+  .card .left{position:absolute;left:10px;bottom:62px;font-family:var(--mono);font-size:10.5px;background:rgba(247,118,142,.9);color:var(--inv);padding:2px 7px;border-radius:6px;font-weight:600}
+
+  .banner{margin:0 24px 6px;padding:12px 16px;border:1px solid rgba(247,118,142,.4);background:rgba(247,118,142,.07);border-radius:12px;display:none;align-items:center;gap:14px}
+  .banner.on{display:flex}
+  .banner p{flex:1;color:var(--text);line-height:1.5}
+  .empty{padding:80px 24px;text-align:center;color:var(--text2);display:none}
+
+  .bulk{position:fixed;left:50%;bottom:24px;transform:translate(-50%,120px);background:var(--surface);border:1px solid var(--primary-d);border-radius:16px;padding:10px 12px 10px 18px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.65);transition:.3s cubic-bezier(.2,.8,.2,1);z-index:25}
+  .bulk.on{transform:translate(-50%,0)}
+  .bulk b{color:#c0caf5;font-size:14px;margin-right:6px} .bulk .mono{font-family:var(--mono);font-size:12px;color:var(--text2);margin-right:10px}
+  .bulk .sep{width:1px;height:26px;background:var(--border);margin:0 4px}
+
+  .scrim{position:fixed;inset:0;background:rgba(5,6,10,.62);backdrop-filter:blur(3px);display:none;z-index:40;align-items:center;justify-content:center}
+  .scrim.on{display:flex}
+  .modal{width:520px;max-width:calc(100vw - 30px);background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;display:grid;gap:14px;box-shadow:0 30px 90px rgba(0,0,0,.7);max-height:calc(100vh - 40px);overflow:auto}
+  .modal h2{font-size:21px;color:#c0caf5}
+  .modal p.sub{color:var(--text2);line-height:1.5;font-size:13px}
+  .thumbs{display:flex;gap:6px;overflow:hidden}
+  .thumbs img{width:76px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+  .thumbs span{display:grid;place-items:center;width:76px;height:48px;border-radius:6px;background:var(--elev);font-family:var(--mono);font-size:12px;color:var(--text2)}
+  .tog{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--border);cursor:pointer}
+  .tog div b{display:block;color:var(--text);font-weight:600}
+  .tog div small{color:var(--text2);font-size:12px}
+  .sw{width:42px;height:24px;border-radius:24px;background:var(--elev);border:1px solid var(--border);position:relative;transition:.2s;flex:none}
+  .sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--text2);transition:.2s}
+  .sw.on{background:var(--primary-d);border-color:var(--primary)} .sw.on::after{left:21px;background:#fff}
+  .tog.lock{cursor:default;opacity:.55}
+  select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font:inherit;outline:none}
+  .linkbox{display:none;gap:8px;align-items:center;background:var(--bg);border:1px dashed var(--primary-d);border-radius:12px;padding:12px 14px}
+  .linkbox.on{display:flex}
+  .linkbox code{flex:1;font-family:var(--mono);font-size:12.5px;color:var(--info);word-break:break-all}
+  .row2{display:flex;gap:10px;justify-content:flex-end}
+  .warnbox{font-size:12.5px;color:var(--text2);line-height:1.5;background:var(--bg);border-left:3px solid var(--warn);padding:9px 12px;border-radius:0 8px 8px 0}
+
+  .drawer{position:fixed;right:0;top:0;bottom:0;width:430px;background:var(--surface);border-left:1px solid var(--border);z-index:45;transform:translateX(105%);transition:.35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;overflow-y:auto}
+  .drawer.on{transform:none}
+  .drawer img{width:100%;aspect-ratio:8/5;object-fit:cover;display:block}
+  .drawer .in{padding:18px 20px;display:grid;gap:14px}
+  .drawer h3{color:#c0caf5;font-size:19px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-family:var(--mono);font-size:12px}
+  .kv span:nth-child(odd){color:var(--text2)}
+  pre{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--info);overflow:auto}
+  .x{position:absolute;right:12px;top:12px;width:34px;height:34px;border-radius:50%;background:rgba(15,17,23,.8);display:grid;place-items:center;font-size:16px}
+  #toast{position:fixed;left:50%;top:70px;transform:translate(-50%,-10px);background:var(--elev);border:1px solid var(--border);padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;z-index:80;pointer-events:none;font-weight:600}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><svg width="22" height="22" viewBox="0 0 22 22"><rect x="1" y="3" width="20" height="2.4" rx="1.2" fill="#7aa2f7"/><rect x="1" y="7.5" width="14" height="2.4" rx="1.2" fill="#bb9af7"/><rect x="1" y="12" width="17" height="2.4" rx="1.2" fill="#9ece6a"/><rect x="1" y="16.5" width="9" height="2.4" rx="1.2" fill="#e0af68"/></svg>pixelsort<small>-go</small></div>
+  <div class="tabs" id="tabs">
+    <button data-t="all" class="on">All runs <i id="nAll">0</i></button>
+    <button data-t="starred">Starred <i id="nStar">0</i></button>
+    <button data-t="shared">Shared <i id="nShared">0</i></button>
+    <button data-t="trash">Trash <i id="nTrash">0</i></button>
+  </div>
+  <div class="spacer"></div>
+  <input class="search" placeholder="Search title, tag, mode…">
+  <button class="btn pri" onclick="location.href='a-darkroom.html'">New sort</button>
+</header>
+
+<section class="usage">
+  <div class="urow"><b id="uUsed">38.2 GB</b><span>of 50 GB used</span><span class="mono" id="uPct">76%</span><div class="spacer"></div><span class="mono" style="color:var(--text2)">214 runs · 7.6 GB originals · 1.4 GB in trash</span></div>
+  <div class="meter"><i style="width:58%;background:var(--primary)"></i><i style="width:15.2%;background:var(--secondary)"></i><i style="width:3%;background:var(--info)"></i><i class="trash" style="width:2.8%"></i><div class="mark"></div></div>
+  <div class="legend"><span><i style="background:var(--primary)"></i>results 29.1 GB</span><span><i style="background:var(--secondary)"></i>originals 7.6 GB</span><span><i style="background:var(--info)"></i>thumbs &amp; video 1.5 GB</span><span><i style="background:#f7768e"></i>trash 1.4 GB (empties automatically in ≤ 7 days)</span></div>
+</section>
+
+<div class="tools">
+  <button class="btn" id="selMode">Select</button>
+  <div class="menu">
+    <button class="btn" id="smartBtn">Free up space ▾</button>
+    <div class="pop" id="smart">
+      <div class="cap">Select by…</div>
+      <button data-s="old">Older than 30 days <em id="cOld"></em></button>
+      <button data-s="largest">Largest 6 <em id="cLarge"></em></button>
+      <button data-s="unstarred">Everything unstarred <em id="cUn"></em></button>
+      <button data-s="unshared">Not shared anywhere <em id="cUs"></em></button>
+      <hr>
+      <div class="cap">Starred runs are never swept in by these.</div>
+    </div>
+  </div>
+  <button class="btn" id="invBtn">Invert selection</button>
+  <span class="info" id="selInfo"></span>
+  <div class="spacer"></div>
+  <select id="sort"><option value="new">Newest first</option><option value="big">Largest first</option><option value="old">Oldest first</option></select>
+</div>
+
+<div class="banner" id="banner"><p><b style="color:var(--err)">Trash</b> keeps runs for 7 days, then deletes them for good. Space is only freed when the trash is emptied.</p><button class="btn" id="restoreAll">Restore all</button><button class="btn err" id="emptyBtn">Empty trash now</button></div>
+
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty">Nothing here.</div>
+
+<div class="bulk" id="bulk">
+  <b id="bN">0 selected</b><span class="mono" id="bMB"></span>
+  <button class="btn pri" id="bShare">Upload to a gallery</button>
+  <button class="btn" id="bZip">Download .zip</button>
+  <button class="btn" id="bStar">Star</button>
+  <div class="sep"></div>
+  <button class="btn err" id="bTrash">Move to trash</button>
+  <button class="btn" id="bRestore" style="display:none">Restore</button>
+  <button class="btn err" id="bForever" style="display:none">Delete forever</button>
+  <button class="btn" id="bClear" title="Clear selection">✕</button>
+</div>
+
+<div class="scrim" id="scrim">
+  <div class="modal" id="shareModal">
+    <h2 id="smTitle">Upload to a gallery</h2>
+    <p class="sub">Creates one unlisted link to a small album. Anyone with the link can view and download — they can’t sort. Revoke it any time from the Shared tab.</p>
+    <div class="thumbs" id="smThumbs"></div>
+    <div class="tog lock"><div><b>Result images</b><small>always included · EXIF/GPS never present</small></div><div class="sw on"></div></div>
+    <div class="tog" data-sw="recipe"><div><b>Include the recipe</b><small>settings + seed, so others can reproduce it in their own copy</small></div><div class="sw on"></div></div>
+    <div class="tog" data-sw="orig"><div><b>Include the original photos</b><small>off by default · metadata is stripped if you turn it on</small></div><div class="sw"></div></div>
+    <div class="tog" style="cursor:default"><div><b>Expires</b><small>keeps the shared bucket from filling quietly</small></div><select><option>Never</option><option selected>In 30 days</option><option>In 7 days</option><option>In 24 hours</option></select></div>
+    <div class="warnbox" id="smWarn" style="display:none"></div>
+    <div class="linkbox" id="linkbox"><code id="linkCode">https://share.pixelsort.example/a/k3J9xQ2vN8mT4wRz</code><button class="btn" id="copyBtn">Copy</button></div>
+    <div class="row2"><button class="btn" id="smClose">Cancel</button><button class="btn pri" id="smGo">Create link</button></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim2">
+  <div class="modal" style="width:440px">
+    <h2 id="cfTitle">Delete forever?</h2>
+    <p class="sub" id="cfBody"></p>
+    <div class="row2"><button class="btn" id="cfNo">Keep</button><button class="btn err" id="cfYes">Delete forever</button></div>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer">
+  <button class="x" id="dClose">✕</button>
+  <img id="dImg" alt="">
+  <div class="in">
+    <h3 id="dTitle"></h3>
+    <div class="kv" id="dKv"></div>
+    <div class="row2" style="justify-content:flex-start;flex-wrap:wrap">
+      <button class="btn pri" onclick="location.href='a-darkroom.html'">Open in editor</button>
+      <button class="btn" id="dBranch">Branch from here</button>
+      <button class="btn" id="dDl">Download PNG</button>
+    </div>
+    <div class="legend"><span>recipe</span></div>
+    <pre id="dJson"></pre>
+  </div>
+</aside>
+<div id="toast"></div>
+
+<script src="../shared/demo-engine.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+  function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},2100)}
+
+  var BASE=[
+    ['Ridge · threshold',{mode:'threshold',lo:.3,hi:.7,angle:90,key:'luma',seed:3},24.1,0,true],
+    ['Dusk · waves',{mode:'wave',length:60,key:'saturation',seed:9},18.6,1,false],
+    ['Static · cellular 110',{mode:'ca',rule:110,key:'value',seed:5,randomness:15},21.2,1,false],
+    ['Heat · edges',{mode:'edges',edge:22,key:'hue',seed:12},19.4,3,false],
+    ['Curtain · random',{mode:'random',length:120,randomness:35,key:'intensity',angle:90,seed:2},26.8,6,true],
+    ['Embers · random',{mode:'random',length:30,key:'hue',angle:180,seed:21},17.9,7,false],
+    ['Rain · cellular 26',{mode:'ca',rule:26,cell:6,key:'luma',angle:270,seed:8},22.3,9,false],
+    ['Kims · threshold',{mode:'threshold',lo:.15,hi:.9,key:'hue',seed:14},28.0,14,false],
+    ['Skyline · waves',{mode:'wave',length:30,key:'luma',angle:90,seed:17},16.7,18,true],
+    ['Ash · random',{mode:'random',length:200,randomness:50,key:'blue',seed:30},25.4,26,false],
+    ['Glass · edges',{mode:'edges',edge:40,key:'intensity',seed:33},20.8,33,false],
+    ['Tide · cellular 154',{mode:'ca',rule:154,cell:5,key:'saturation',seed:41},23.6,41,false],
+    ['Dune · threshold',{mode:'threshold',lo:.4,hi:.75,angle:180,key:'luma',seed:44},27.2,52,false],
+    ['Noise · random',{mode:'random',length:14,randomness:5,key:'red',seed:60},15.2,58,false],
+    ['Fall · random',{mode:'random',length:90,randomness:20,key:'green',angle:270,seed:63},24.9,70,true],
+    ['Ember rain · waves',{mode:'wave',length:45,key:'hue',angle:90,seed:71},19.1,81,false]
+  ];
+  var runs=BASE.map(function(r,i){return {id:i,name:r[0],p:Object.assign({randomness:10,length:40,angle:0,reverse:false},r[1]),mb:r[2],age:r[3],starred:r[4],shared:i%5===1||i===0,trashed:i===13||i===15?(i===13?2:5):0,img:null}});
+  runs.forEach(function(r){r.img=PixelDemo.thumb(r.p,200,125)});
+  var tab='all',sel={},selmode=false;
+
+  function visible(){
+    var list=runs.filter(function(r){return tab==='trash'?r.trashed:(!r.trashed&&(tab==='all'||(tab==='starred'&&r.starred)||(tab==='shared'&&r.shared)))});
+    var s=$('#sort').value;list.sort(function(a,b){return s==='big'?b.mb-a.mb:s==='old'?b.age-a.age:a.age-b.age});return list;
+  }
+  function ago(d){return d===0?'today':d===1?'yesterday':d<30?d+' days ago':Math.round(d/30)+' mo ago'}
+  function render(){
+    var list=visible();
+    $('#grid').innerHTML=list.map(function(r){return '<div class="card'+(sel[r.id]?' sel':'')+(r.starred?' starred':'')+(r.trashed?' gone':'')+'" data-id="'+r.id+'"><img src="'+r.img+'" alt=""><div class="cb">'+(sel[r.id]?'✓':'')+'</div>'+(!r.trashed?'<button class="star" data-star="'+r.id+'">'+(r.starred?'★':'☆')+'</button>':'')+(r.shared&&!r.trashed?'<div class="share">⛓ shared</div>':'')+(r.trashed?'<div class="left">'+(7-r.trashed)+'d left</div>':'')+'<div class="meta"><b>'+r.name+'</b><span><em style="font-style:normal">'+ago(r.age)+'</em><em style="font-style:normal">'+r.mb.toFixed(1)+' MB</em></span></div></div>'}).join('');
+    $('#empty').style.display=list.length?'none':'block';
+    $('#nAll').textContent=214;$('#nStar').textContent=runs.filter(function(r){return r.starred&&!r.trashed}).length+14;$('#nShared').textContent=runs.filter(function(r){return r.shared&&!r.trashed}).length+3;$('#nTrash').textContent=runs.filter(function(r){return r.trashed}).length+7;
+    $('#banner').classList.toggle('on',tab==='trash');
+    var n=Object.keys(sel).length;
+    $('#bulk').classList.toggle('on',n>0);$('#bN').textContent=n+' selected';
+    var mb=0;Object.keys(sel).forEach(function(k){mb+=runs[k].mb});$('#bMB').textContent=mb.toFixed(1)+' MB';
+    var tr=tab==='trash';['#bShare','#bZip','#bStar','#bTrash'].forEach(function(s){$(s).style.display=tr?'none':''});$('#bRestore').style.display=tr?'':'none';$('#bForever').style.display=tr?'':'none';
+    $('#grid').classList.toggle('selmode',selmode);document.body.classList.toggle('selmode',selmode);$('#selMode').classList.toggle('pri',selmode);$('#selMode').textContent=selmode?'Done selecting':'Select';
+    // smart counts
+    var live=runs.filter(function(r){return !r.trashed&&!r.starred});
+    $('#cOld').textContent=live.filter(function(r){return r.age>30}).length+' runs';$('#cLarge').textContent='';$('#cUn').textContent=live.length+' runs';$('#cUs').textContent=live.filter(function(r){return !r.shared}).length+' runs';
+    $('#selInfo').innerHTML=skipNote;
+  }
+  var skipNote='';
+  function pick(fn,label){selmode=true;sel={};var skipped=runs.filter(function(r){return r.starred&&!r.trashed}).length;runs.forEach(function(r){if(!r.trashed&&!r.starred&&fn(r))sel[r.id]=1});skipNote='<span class="skip">'+skipped+' starred skipped</span> · '+label;$('#smart').classList.remove('on');render()}
+  $('#smartBtn').onclick=function(e){e.stopPropagation();$('#smart').classList.toggle('on')};document.addEventListener('click',function(e){if(!e.target.closest('.menu'))$('#smart').classList.remove('on')});
+  $('#smart').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var s=b.dataset.s;
+    if(s==='old')pick(function(r){return r.age>30},'older than 30 days');
+    if(s==='unstarred')pick(function(){return true},'all unstarred');
+    if(s==='unshared')pick(function(r){return !r.shared},'not shared anywhere');
+    if(s==='largest'){var top=runs.filter(function(r){return !r.trashed&&!r.starred}).sort(function(a,b){return b.mb-a.mb}).slice(0,6).map(function(r){return r.id});pick(function(r){return top.indexOf(r.id)>-1},'largest 6')}});
+  $('#invBtn').onclick=function(){selmode=true;var o=sel;sel={};visible().forEach(function(r){if(!o[r.id]&&!r.starred)sel[r.id]=1});skipNote='';render()};
+  $('#selMode').onclick=function(){selmode=!selmode;if(!selmode){sel={};skipNote=''}render()};
+
+  $('#tabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;tab=b.dataset.t;$$('#tabs button').forEach(function(x){x.classList.toggle('on',x===b)});sel={};skipNote='';render()});
+  $('#sort').onchange=render;
+  $('#grid').addEventListener('click',function(e){
+    var st=e.target.closest('[data-star]');if(st){var r=runs[st.dataset.star];r.starred=!r.starred;render();return}
+    var c=e.target.closest('.card');if(!c)return;var id=c.dataset.id;
+    if(selmode||e.target.closest('.cb')||e.metaKey||e.shiftKey){selmode=true;if(sel[id])delete sel[id];else sel[id]=1;skipNote='';render()}else openDrawer(runs[id])});
+  $('#bClear').onclick=function(){sel={};selmode=false;skipNote='';render()};
+
+  /* trash / restore */
+  function move(list,fn){Object.keys(list).forEach(function(k){fn(runs[k])});sel={};selmode=false;skipNote='';render()}
+  $('#bTrash').onclick=function(){var shared=Object.keys(sel).filter(function(k){return runs[k].shared}).length,n=Object.keys(sel).length;move(sel,function(r){r.trashed=1;});toast(n+' moved to Trash · undo for 7 days'+(shared?' · '+shared+' shared links stay live':''))};
+  $('#bRestore').onclick=function(){var n=Object.keys(sel).length;move(sel,function(r){r.trashed=0});toast(n+' restored')};
+  $('#restoreAll').onclick=function(){runs.forEach(function(r){r.trashed=0});render();toast('Trash restored')};
+  function confirmDel(n,mb,cb){$('#cfTitle').textContent='Delete '+n+' run'+(n>1?'s':'')+' forever?';$('#cfBody').textContent='This frees '+mb.toFixed(1)+' MB and cannot be undone. Shared copies in the Worker bucket are not affected — revoke those separately.';$('#scrim2').classList.add('on');$('#cfYes').onclick=function(){$('#scrim2').classList.remove('on');cb()}}
+  $('#cfNo').onclick=function(){$('#scrim2').classList.remove('on')};
+  $('#bForever').onclick=function(){var ks=Object.keys(sel),mb=ks.reduce(function(a,k){return a+runs[k].mb},0);confirmDel(ks.length,mb,function(){runs=runs.filter(function(r){return !sel[r.id]});sel={};selmode=false;render();toast('Deleted · '+mb.toFixed(1)+' MB freed')})};
+  $('#emptyBtn').onclick=function(){var t=runs.filter(function(r){return r.trashed}),mb=t.reduce(function(a,r){return a+r.mb},0)+1400;confirmDel(t.length+7,mb,function(){runs=runs.filter(function(r){return !r.trashed});render();toast('Trash emptied · 1.4 GB freed');$('#uUsed').textContent='36.8 GB';$('#uPct').textContent='74%'})};
+  $('#bStar').onclick=function(){var n=Object.keys(sel).length;move(sel,function(r){r.starred=true});toast(n+' starred')};
+  $('#bZip').onclick=function(){toast('Zipping '+Object.keys(sel).length+' runs…')};
+
+  /* share modal */
+  var sw={recipe:true,orig:false};
+  $$('[data-sw]').forEach(function(t){t.addEventListener('click',function(){var k=t.dataset.sw;sw[k]=!sw[k];t.querySelector('.sw').classList.toggle('on',sw[k]);warn()})});
+  function warn(){var w=$('#smWarn');if(sw.orig){w.style.display='block';w.textContent='Originals will be re-encoded with all EXIF/GPS metadata stripped before upload.'}else w.style.display='none'}
+  var shareIds=[];
+  $('#bShare').onclick=function(){shareIds=Object.keys(sel);var n=shareIds.length;$('#smTitle').textContent='Upload '+n+' run'+(n>1?'s':'')+' to a gallery';
+    $('#smThumbs').innerHTML=shareIds.slice(0,5).map(function(k){return '<img src="'+runs[k].img+'">'}).join('')+(n>5?'<span>+'+(n-5)+'</span>':'');
+    $('#linkbox').classList.remove('on');$('#smGo').textContent='Create link';$('#smGo').dataset.done='';$('#scrim').classList.add('on');warn()};
+  $('#smClose').onclick=function(){$('#scrim').classList.remove('on')};
+  $('#smGo').onclick=function(){if($('#smGo').dataset.done){$('#scrim').classList.remove('on');return}$('#smGo').textContent='Uploading…';setTimeout(function(){$('#linkbox').classList.add('on');$('#smGo').textContent='Done';$('#smGo').dataset.done=1;shareIds.forEach(function(k){runs[k].shared=true});render();toast('Link ready · 3 images · 61 MB')},700)};
+  $('#copyBtn').onclick=function(){toast('Link copied')};
+  $('#scrim').addEventListener('click',function(e){if(e.target.id==='scrim')$('#scrim').classList.remove('on')});
+
+  /* detail drawer */
+  function openDrawer(r){$('#dImg').src=PixelDemo.thumb(r.p,640,400);$('#dTitle').textContent=r.name;
+    $('#dKv').innerHTML=[['created',ago(r.age)],['size',r.mb.toFixed(1)+' MB · 4032×2520'],['source','upload · sunset-ridge.jpg'],['engine','v0.1 · seed '+r.p.seed],['shared',r.shared?'yes · k3J9…TRz':'no'],['starred',r.starred?'yes':'no']].map(function(x){return '<span>'+x[0]+'</span><span>'+x[1]+'</span>'}).join('');
+    var j=JSON.stringify(Object.assign({engine:'0.1',seed:r.p.seed},r.p),null,2);$('#dJson').textContent=j;$('#drawer').classList.add('on')}
+  $('#dClose').onclick=function(){$('#drawer').classList.remove('on')};
+  $('#dBranch').onclick=function(){toast('Branched → opens in the editor with parent link kept')};
+  $('#dDl').onclick=function(){toast('Downloading full-res PNG')};
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){$('#drawer').classList.remove('on');$('#scrim').classList.remove('on');$('#scrim2').classList.remove('on')}});
+
+  render();
+})();
+</script>
+</body>
+</html>
