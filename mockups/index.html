@@ -73,6 +73,11 @@
       <p>The page the Cloudflare Worker serves for a share link: look, download, copy the direct image link (it works inside any copy of the app) and the recipe if you included it. No app, no account, no sorting. Plus the “this gallery is gone” page.</p>
       <div class="more"><span class="open">Open →</span><span onclick="event.preventDefault();location.href='share.html?gone'" style="cursor:pointer;color:var(--gold);font-size:10px;letter-spacing:1.4px;text-transform:uppercase">Revoked / expired</span></div>
     </a>
+    <a class="card" href="settings.html">
+      <h3>Settings</h3>
+      <p>Grain, motion and the other small switches, plus credits. Grain and motion really apply to every page here. The shortcut sheet (<b>?</b>) and the first-run tour live alongside it.</p>
+      <div class="more"><span class="open">Open →</span><span onclick="event.preventDefault();location.href='studio.html?tour'" style="cursor:pointer;color:var(--gold);font-size:10px;letter-spacing:1.4px;text-transform:uppercase">Take the tour</span></div>
+    </a>
   </div>
 
   <div class="sec"><h2>Things worth trying</h2></div>
@@ -83,6 +88,12 @@
     <div><b>Bring your own shape</b>In Pro, pick <em>custom</em>, then drop an <code>.svg</code> anywhere (or paste SVG code). A logo, a leaf, a doodle — it tiles the picture and only the shapes sort.</div>
     <div><b>Give a kind its own recipe</b>Open a region card, switch on <em>Own cutting</em>, and choose cellular, wave or threshold for just that kind. The one-line summary updates as you go.</div>
     <div><b>Protect the sun</b>In Pro → Protect, tap <em>Freeze the brightest spot</em> (or add an ellipse). Drag it, pull the squares to resize, turn it with the orange dot, or type exact numbers. Add a second shape and switch it to <em>cut a hole</em>.</div>
+    <div><b>Roll a preset</b>Open the preset knob in Studio (or the rail on the phone). Each of the eight built-ins re-rolls its random ranges every time you apply it; nudge a knob and an “edited” tag appears. Save your own, or delete it again.</div>
+    <div><b>See what can move</b>Press <kbd>T</kbd> to overlay which pixels the current cut and threshold allow to sort, before you run anything. The phone has the same overlay.</div>
+    <div><b>Export with a warning</b>Open Export and pick a size. The dialog plans memory per band, warns when a phone would run out, and offers “Export at 75%”. Watch the banded progress, or cancel part-way.</div>
+    <div><b>Punch holes in a shape</b>In Pro → custom shapes, start from Ring, Frame or Target. Holes use the even-odd rule, and “tidy this shape” lets you keep pieces, fill small holes or simplify.</div>
+    <div><b>Two thousand runs</b>Add <code>?runs=2000</code> to Studio, Archive or the phone. Rows are dated, virtualised and searchable, with a jump rail down the side.</div>
+    <div><b>Break things on purpose</b>Try <code>studio.html?used=40</code> (storage nearly full), <code>?offline</code>, or <code>?error=engine</code> (also <code>crash</code>, <code>save</code>, <code>share</code>). Pasting a link containing <em>blocked</em>, <em>notimage</em>, <em>huge</em> or <em>slow</em> triggers the link failures.</div>
     <div><b>Loop and snap</b>Press <kbd>P</kbd>, circle something with the brush, then tap <em>Snap</em> — your scribble becomes a shape you can keep editing.</div>
   </div>
 

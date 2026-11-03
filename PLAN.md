@@ -685,10 +685,22 @@ Erase tool switch; Size and Turn sliders for thumbs).
 and per-region overrides — foldable region cards with a one-line summary (“90° · cellular 110”), Own
 direction, Own sort key + direction, and a full Own cutting recipe.
 
-**Still to design:** holes / compound paths in custom shapes and a shape clean-up step; a per-region
-*animation algorithm*; own-cutting controls on the phone layout (it has frozen + direction today); how the
-filmstrip scales from 7 runs to 2,000; empty and error states beyond the intake; first-run onboarding hints;
-keyboard-shortcut discoverability.
+**Designed since (second batch):**
+
+- Holes and compound paths in custom shapes (even-odd fill), a "tidy this shape" panel (pieces, keep holes,
+  fill small holes, simplify), and Ring / Frame / Target starters.
+- A per-region *animation algorithm*; the engine's `step()` runs three families side by side and any mix ends
+  on the instant result.
+- Own-cutting on the phone: it now has the full region cards, shared with Studio's Pro panel
+  (`shared/region-cards.js`), plus threshold, edge and cellular controls on the Cut tab.
+- The filmstrip at scale: dated, virtualised, searchable rows with a jump rail, tested at 2,000 runs.
+- Empty, offline and storage-full states (80% warning, 100% still saves, never deletes), and an 11-code error
+  catalog with blocking dialogs and a non-blocking banner across every screen.
+- First-run tour, shortcut sheet (`?`) and Settings with credits.
+- Presets (the eight Python built-ins as rolled specs, plus user presets), the `T` "what can move" overlay,
+  and the export planner and dialog (8 B/px floor + 9 B/px scratch per band).
+
+Nothing is left on the design list; the mockup phase is finished and the next step is Phase 0 (§9).
 
 **Icons: Lucide** (Autumn's call). Use `@lucide/svelte` (Svelte 5; Svelte 4 projects would use `lucide-svelte`),
 importing one icon per file — `import Camera from '@lucide/svelte/icons/camera'` — so only the icons actually
