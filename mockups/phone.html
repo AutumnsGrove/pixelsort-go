@@ -28,7 +28,11 @@
   .stage{flex:1;min-height:0;display:grid;place-items:center;padding:4px 16px 24px;position:relative}
   .card{position:relative;height:min(100%,224px);aspect-ratio:480/300;box-shadow:0 0 0 1px var(--faint),0 30px 80px rgba(255,90,40,.2),0 14px 40px rgba(0,0,0,.7);transition:.25s}
   .card canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #rov,#ov{pointer-events:none}
+  #rov,#ov,#pk{pointer-events:none}
+  .peekchip{position:absolute;left:8px;top:8px;z-index:6;display:none;align-items:center;gap:10px;padding:5px 6px 5px 12px;border-radius:999px;background:rgba(24,20,18,.9);border:1px solid var(--faint);font-family:var(--serif);font-style:italic;font-size:14px;min-height:30px}
+  .peekchip.on{display:flex}
+  .peekchip u{text-decoration:none;font-family:var(--mono);font-style:normal;font-size:8.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--dim);border:1px solid var(--faint);border-radius:999px;padding:3px 8px}
+  .peekchip i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ver);margin-right:7px}
   #ov{touch-action:none}
   #ov.paint{pointer-events:auto}
   .prog{position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--faint)}
@@ -154,7 +158,8 @@
 
   <div class="stage">
     <div class="card" id="card">
-      <canvas id="cv"></canvas><canvas id="rov"></canvas><canvas id="ov"></canvas>
+      <canvas id="cv"></canvas><canvas id="rov"></canvas><canvas id="pk"></canvas><canvas id="ov"></canvas>
+      <button class="peekchip" id="peekChip"><span id="peekT"></span><u>Done</u></button>
       <div class="prog"><i id="pg"></i></div>
       <div class="cap">sunset-ridge<span id="capR">0%</span></div>
     </div>
@@ -169,10 +174,12 @@
     <div class="pane on" id="p-cut">
       <div class="lbl">Where to cut <em id="vMode">random</em></div>
       <div class="rail" id="rMode"></div>
-      <div class="lbl">Run length <em id="vLen">40 px</em></div>
-      <input type="range" id="sLen" min="6" max="200" value="40">
+      <div id="lenBox"><div class="lbl">Run length <em id="vLen">40 px</em></div>
+      <input type="range" id="sLen" min="6" max="200" value="40"></div>
+      <div id="modeCtl"></div>
       <div class="lbl">Leave unsorted <em id="vRnd">10 %</em></div>
       <input type="range" id="sRnd" min="0" max="100" value="10">
+      <div class="tog" id="peekTog"><div><b>Show what can move</b><small>tints the pixels that will sort; the rest darken</small></div><div class="sw"></div></div>
       <div class="lbl" style="margin-top:10px">Begin from a preset <em id="vPre">custom</em></div>
       <div class="presets" id="presets"></div>
       <div class="btnrow"><button class="btn" id="pRoll" style="display:none">Roll again</button><button class="btn" id="pSaveBtn">Save as preset…</button><button class="btn danger" id="pDel" style="display:none">Delete this one</button></div>
@@ -289,15 +296,42 @@
   d.speed=24;
   d.onframe=function(f){$('#pg').style.width=(f.progress*100)+'%';$('#capR').textContent=Math.round(f.progress*100)+'%';$('#fIco').innerHTML=f.running?'<path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/>':'<path d="M7 4.5v15l13-7.5z"/>'};
   $('#fab').onclick=function(){d.toggle()};
-  var cm=$('#icCmp');cm.addEventListener('pointerdown',function(){d.compare(true)});['pointerup','pointerleave','pointercancel'].forEach(function(n){cm.addEventListener(n,function(){d.compare(false)})});
+  var cm=$('#icCmp');cm.addEventListener('pointerdown',function(){d.compare(true)});['pointerup','pointerleave','pointercancel'].forEach(function(n){cm.addEventListener(n,function(){d.compare(peek)})});
   $('#icSave').onclick=function(){if(document.querySelector('.xd'))return;ExportDialog.open({host:$('#phone'),sheet:true,name:'sunset-ridge',w:4032,h:2520,recipe:(typeof active!=='undefined'&&active)?active.name:d.params.mode,device:/device=(\w+)/.test(location.search)?RegExp.$1:'phone',toast:toast})};
 
   /* ---- Cut ---- */
   var MODES=['random','wave','threshold','edges','cellular','none'];
   $('#rMode').innerHTML=MODES.map(function(m,i){return '<button class="chip'+(i===0?' on':'')+'" data-v="'+m+'">'+m+'</button>'}).join('');
-  $('#rMode').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;$$('#rMode .chip').forEach(function(x){x.classList.toggle('on',x===b)});d.setParams({mode:b.dataset.v==='cellular'?'ca':b.dataset.v});$('#vMode').textContent=b.dataset.v;d.play()});
+  $('#rMode').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;$$('#rMode .chip').forEach(function(x){x.classList.toggle('on',x===b)});d.setParams({mode:b.dataset.v==='cellular'?'ca':b.dataset.v});$('#vMode').textContent=b.dataset.v;renderModeCtl();d.play()});
   $('#sLen').addEventListener('input',function(e){$('#vLen').textContent=e.target.value+' px';d.setParams({length:+e.target.value})});
   $('#sRnd').addEventListener('input',function(e){$('#vRnd').textContent=e.target.value+' %';d.setParams({randomness:+e.target.value})});
+  /* ---- mode-specific cutting controls (threshold band, edge sensitivity, cellular rule) ---- */
+  function rngRow(k,label,txt,min,max,step,val){return '<div class="lbl">'+label+' <em data-e="'+k+'">'+txt+'</em></div><input type="range" data-p="'+k+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'">'}
+  var RULESP=[26,110,154,45,106,30];
+  function renderModeCtl(){var p=d.params,h='';
+    $('#lenBox').style.display=(p.mode==='random'||p.mode==='wave')?'':'none';
+    if(p.mode==='threshold')h=rngRow('lo','Sort from',p.lo.toFixed(2),0,1,.01,p.lo)+rngRow('hi','Sort up to',p.hi.toFixed(2),0,1,.01,p.hi);
+    else if(p.mode==='edges')h=rngRow('edge','Edge sensitivity',p.edge,6,90,1,p.edge);
+    else if(p.mode==='ca')h='<div class="lbl">Rule <em id="vRule">'+p.rule+'</em></div><div class="rail" id="rRule">'+RULESP.map(function(r){return '<button class="chip'+(p.rule===r?' on':'')+'" data-r="'+r+'">'+r+'</button>'}).join('')+'</div>'+rngRow('cell','Cell size',p.cell+' px',2,14,1,p.cell);
+    $('#modeCtl').innerHTML=h}
+  $('#modeCtl').addEventListener('input',function(e){var el=e.target,k=el.dataset.p;if(!k)return;var v=+el.value,p=d.params;
+    if(k==='lo'&&v>p.hi-.02){v=p.hi-.02;el.value=v}if(k==='hi'&&v<p.lo+.02){v=p.lo+.02;el.value=v}
+    var o={};o[k]=v;d.livePreview(o);var em=document.querySelector('#modeCtl [data-e="'+k+'"]');if(em)em.textContent=(k==='lo'||k==='hi')?v.toFixed(2):(k==='cell'?v+' px':v)});
+  $('#modeCtl').addEventListener('change',function(e){if(e.target.dataset.p){d.reset();d.play()}});
+  $('#modeCtl').addEventListener('click',function(e){var b=e.target.closest('[data-r]');if(!b)return;d.setParams({rule:+b.dataset.r});renderModeCtl();d.play()});
+
+  /* ---- "what can move": focus-peaking overlay, same as Studio's T ---- */
+  var peek=false,pk=$('#pk'),pkq=0,_play=d.play;pk.width=d.w;pk.height=d.h;var pkc=pk.getContext('2d');
+  d.play=function(){if(peek)return;return _play.apply(d,arguments)};
+  function peekSync(){if(!peek||pkq)return;pkq=requestAnimationFrame(function(){pkq=0;if(!peek)return;
+    var m=d.sortable(),id=pkc.createImageData(d.w,d.h),n=0;
+    for(var i=0;i<m.length;i++){var q=i*4;if(m[i]){n++;id.data[q]=255;id.data[q+1]=90;id.data[q+2]=54;id.data[q+3]=120}else{id.data[q+3]=150}}
+    pkc.putImageData(id,0,0);$('#peekT').innerHTML='<i></i>'+Math.round(n/m.length*100)+'% can move'})}
+  function setPeek(on){if(on===peek)return;peek=on;$('#peekTog .sw').classList.toggle('on',on);$('#peekChip').classList.toggle('on',on);
+    if(on){d.pause();d.reset();d.compare(true);peekSync()}else{pkc.clearRect(0,0,d.w,d.h);d.compare(false);d.reset();d.play()}}
+  $('#peekTog').onclick=function(){setPeek(!peek)};$('#peekChip').onclick=function(){setPeek(false)};
+  renderModeCtl();
+
   /* ---- presets: shared with Studio (shared/presets.js). Built-ins roll each time; yours live in this browser ---- */
   var PKEY='pixelsort.mock.presets',userPresets=[],active=null,spreadOn=false,pthumbs={};
   try{userPresets=JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){userPresets=[]}
@@ -311,11 +345,11 @@
     var cur=active&&findPreset(active.id);$('#pRoll').style.display=cur&&Presets.rolls(cur)?'':'none';$('#pRoll').textContent=cur?'Roll '+cur.name+' again':'';
     $('#pDel').style.display=cur&&cur.user?'':'none';presetLabel()}
   function presetLabel(){var edited=active&&Presets.diff(active.snap,d.params).length>0;$('#vPre').textContent=active?active.name+(edited?' · edited':''):'custom'}
-  function syncCut(){var m=d.params.mode==='ca'?'cellular':d.params.mode;$$('#rMode .chip').forEach(function(x){x.classList.toggle('on',x.dataset.v===m)});$('#vMode').textContent=m;$('#sLen').value=d.params.length;$('#vLen').textContent=d.params.length+' px';$('#sRnd').value=d.params.randomness;$('#vRnd').textContent=d.params.randomness+' %';syncSort()}
+  function syncCut(){var m=d.params.mode==='ca'?'cellular':d.params.mode;$$('#rMode .chip').forEach(function(x){x.classList.toggle('on',x.dataset.v===m)});$('#vMode').textContent=m;$('#sLen').value=d.params.length;$('#vLen').textContent=d.params.length+' px';$('#sRnd').value=d.params.randomness;$('#vRnd').textContent=d.params.randomness+' %';renderModeCtl();syncSort()}
   function applyPreset(p){var vals=Presets.roll(p,Math.random,PixelDemo.DEFAULTS);active={id:p.id,name:p.name,snap:vals};d.setParams(vals);syncCut();renderPresets();
     $$('#dirRev button').forEach(function(x){x.classList.toggle('on',(x.dataset.v==='1')===!!d.params.reverse)});toast(p.name+(Presets.rolls(p)?' · rolled '+vals.angle+'°, '+vals.randomness+'%':''));d.play()}
   /* any knob moved after applying marks the preset "edited" */
-  ['setParams','livePreview'].forEach(function(n){var f=d[n];d[n]=function(){var r=f.apply(d,arguments);presetLabel();return r}});
+  ['setParams','livePreview','setRegions','setMask','setFeather','loadImage','loadArt'].forEach(function(n){var f=d[n];if(!f)return;d[n]=function(){var r=f.apply(d,arguments);presetLabel();peekSync();return r}});
   $('#presets').addEventListener('click',function(e){var c=e.target.closest('.pcard');if(!c)return;var p=findPreset(c.dataset.id);if(p)applyPreset(p)});
   $('#pRoll').onclick=function(){var p=active&&findPreset(active.id);if(p)applyPreset(p)};
   $('#pSaveBtn').onclick=function(){var r=$('#saveRow');r.classList.toggle('on');if(r.classList.contains('on'))$('#pName').focus()};

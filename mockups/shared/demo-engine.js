@@ -494,6 +494,20 @@
   /* "live preview": re-sort instantly with new params while a control is being dragged */
   PixelDemo.prototype.livePreview = function (p) { this.pause(); Object.assign(this.params, p); this.reset(); this.instant(); };
 
+  /* which pixels can move at all: 1 = free to sort, 0 = held still (protected, in a frozen region, or outside a
+     threshold band). Mirrors the engine's own freeze test, so the "focus peaking" overlay never disagrees with a sort. */
+  PixelDemo.prototype.sortable = function () {
+    const n = this.w * this.h, out = new Uint8Array(n), rc = this.rclass, mask = this.mask, thr = this.thr, CP = [];
+    let maxClass = 0;
+    if (this.classDefs) Object.keys(this.classDefs).forEach(function (k) { if (+k > maxClass) maxClass = +k; });
+    for (let c = 0; c <= maxClass; c++) CP[c] = this._classParams(c);
+    for (let i = 0; i < n; i++) {
+      const cp = (rc && CP[rc[i]]) || CP[0] || (CP[0] = this._classParams(0));
+      out[i] = (mask[i] || cp.frozen || (cp.mode === "threshold" && (thr[i] < cp.lo || thr[i] > cp.hi))) ? 0 : 1;
+    }
+    return out;
+  };
+
   PixelDemo.prototype.hist = function (bins) {
     bins = bins || 64; const out = new Array(bins).fill(0);
     for (let i = 0; i < this.thr.length; i++) out[Math.min(bins - 1, (this.thr[i] / 256 * bins) | 0)]++;

@@ -10,6 +10,7 @@ const tests = [
   ['custom-shapes.mjs', 'custom SVG shapes + per-region cutting'],
   ['presets.mjs', 'presets: rolls stay in range, re-roll, edited tag, save and delete'],
   ['export.mjs', 'export: planner properties, banded progress, device warnings (Studio + phone)'],
+  ['peek.mjs', 'what-can-move overlay: engine map agrees with sorting; Studio + phone'],
   ['mask-editor.mjs', 'mask shapes: drag, resize, rotate, hole, invert, snap (desktop)'],
   ['phone-mask.mjs', 'mask shapes on the phone sheet'],
   ['layout-scan.mjs', 'every screen x 4 window sizes: no overflow or collisions'],

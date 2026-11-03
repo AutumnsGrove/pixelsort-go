@@ -56,6 +56,11 @@
   @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
   .frame canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   #ov{pointer-events:none}
+  #pk{pointer-events:none}
+  .peekchip{position:absolute;left:12px;top:12px;z-index:6;display:none;align-items:center;gap:12px;padding:7px 8px 7px 16px;border-radius:999px;background:rgba(24,20,18,.88);border:1px solid var(--faint);backdrop-filter:blur(10px);font-family:var(--serif);font-style:italic;font-size:16px}
+  .peekchip.on{display:flex}
+  .peekchip u{text-decoration:none;font-family:var(--mono);font-style:normal;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);border:1px solid var(--faint);border-radius:999px;padding:4px 9px}
+  .peekchip i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ver);margin-right:8px;vertical-align:0}
   #ov.paint{pointer-events:auto;cursor:none}
   .cursor{position:fixed;border:1.5px solid var(--ver);border-radius:50%;pointer-events:none;z-index:60;transform:translate(-50%,-50%);display:none;mix-blend-mode:difference}
   .caption{position:absolute;left:0;bottom:-26px;font-family:var(--serif);font-style:italic;font-size:15px;color:var(--dim)}
@@ -313,7 +318,9 @@
   <div class="frame">
     <canvas id="cv"></canvas>
     <canvas id="rov"></canvas>
+    <canvas id="pk"></canvas>
     <canvas id="ov"></canvas>
+    <button class="peekchip" id="peekChip"><span id="peekT"></span><u>Esc</u></button>
     <div class="progress"><i id="pg"></i></div>
     <div class="caption"><em id="capName">sunset-ridge</em><span id="capDim">4032 × 2520 · working copy 640 × 400</span></div>
     <button class="cmp" id="cmp">hold · see original</button>
@@ -335,6 +342,7 @@
   <div class="sep"></div>
   <button class="knob accent" data-k="algo"><small>Watch as</small><b id="kAlgo"><em>odd-even</em></b></button>
   <button class="knob" data-k="speed"><small>Speed</small><b id="kSpd">24<em>/s</em></b></button>
+  <button class="dsm" id="peek" title="Show what can move (T)"><svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></button>
   <button class="dsm" id="paint" title="Protect brush (P)"><svg viewBox="0 0 24 24"><path d="M14 4l6 6-8 8H6v-6z"/><path d="M4 21h6"/></svg></button>
 </div>
 </div>
@@ -456,6 +464,7 @@
     $('#kRuleBox').classList.toggle('hide',p.mode!=='ca');
     var edited=active&&Presets.diff(active.snap,p).length>0;
     $('#kPreset').innerHTML='<em>'+(active?active.name:'custom')+'</em>'; $('#kPresetL').textContent=edited?'Preset · edited':'Preset';
+    peekSync();
     var s=d.stats; $('#rInt').textContent=s.intervals.toLocaleString(); $('#rFz').textContent=Math.round(s.frozen/(d.w*d.h)*100)+'%';
   }
   d.onframe=function(f){
@@ -535,7 +544,7 @@
   $('#play').onclick=function(){d.toggle()};
   $('#rst').onclick=function(){d.restart()};
   $('#stp').onclick=function(){d.pause();d.step();d.draw();d._emit()};
-  function hold(on){d.compare(on);$('#cmp').classList.toggle('on',on)}
+  function hold(on){d.compare(on||peek);$('#cmp').classList.toggle('on',on)}
   var cm=$('#cmp');cm.addEventListener('pointerdown',function(){hold(true)});['pointerup','pointerleave'].forEach(function(n){cm.addEventListener(n,function(){hold(false)})});
 
   /* ---------- protect brush ---------- */
@@ -547,7 +556,7 @@
   function renderMask(){var id=octx.createImageData(d.w,d.h);for(var i=0;i<mask.length;i++)if(mask[i]){var p=i*4,x=i%d.w,y=(i/d.w)|0,st=((x+y)%9)<2;id.data[p]=255;id.data[p+1]=90;id.data[p+2]=54;id.data[p+3]=st?170:60}octx.putImageData(id,0,0)}
   var mq=0;
   function onMaskChange(phase){combine();renderMask();
-    if(phase==='live'){syncSelFields();if(mq)return;mq=requestAnimationFrame(function(){mq=0;d.pause();d.setMask(mask);d.instant()});return}
+    if(phase==='live'){syncSelFields();if(mq)return;mq=requestAnimationFrame(function(){mq=0;d.pause();d.setMask(mask);d.instant();peekSync()});return}
     d.setMask(mask);refresh();renderObjUI();commit()}
   function togglePaint(on){painted=on;ov.classList.toggle('paint',on);ed.setInteractive(!on);$('#paint').style.color=on?'var(--ver)':'';$('#pBrush')&&$('#pBrush').classList.toggle('pri',on);cur.style.display='none';if(on)toast('Paint what should stay still')}
   $('#paint').onclick=function(){togglePaint(!painted)};
@@ -608,13 +617,29 @@
   function toggleStrip(){var on=$('#strip').classList.toggle('on');$('#bGallery').classList.toggle('on',on)}
   $('#bGallery').onclick=toggleStrip;
 
+  /* ---------- "what can move": focus-peaking overlay (T) ----------
+     Shows the original with the pixels that can move tinted, and the held-still ones darkened. It follows
+     every control, so dragging the band sliders, a region's frozen switch or a mask shows its effect live. */
+  var peek=false,pk=$('#pk'),pkq=0;pk.width=d.w;pk.height=d.h;var pkc=pk.getContext('2d'),_play=d.play;
+  d.play=function(){if(peek)return;return _play.apply(d,arguments)};
+  /* hook the engine itself, so the overlay follows a change however it arrives (popover, dial, region card, mask) */
+  ['setParams','livePreview','setRegions','setMask','setFeather','loadImage','loadArt'].forEach(function(n){var f=d[n];if(!f)return;d[n]=function(){var r=f.apply(d,arguments);peekSync();return r}});
+  function peekSync(){if(!peek||pkq)return;pkq=requestAnimationFrame(function(){pkq=0;if(!peek)return;
+    var m=d.sortable(),id=pkc.createImageData(d.w,d.h),n=0;
+    for(var i=0;i<m.length;i++){var p=i*4;if(m[i]){n++;id.data[p]=255;id.data[p+1]=90;id.data[p+2]=54;id.data[p+3]=120}else{id.data[p+3]=150}}
+    pkc.putImageData(id,0,0);$('#peekT').innerHTML='<i></i>'+Math.round(n/m.length*100)+'% can move'})}
+  function setPeek(on){if(on===peek)return;peek=on;$('#peek').style.color=on?'var(--ver)':'';$('#peekChip').classList.toggle('on',on);
+    if(on){d.pause();d.reset();d.compare(true);closePop();peekSync()}
+    else{pkc.clearRect(0,0,d.w,d.h);d.compare(false);d.reset();d.play()}}
+  $('#peek').onclick=function(){setPeek(!peek)};$('#peekChip').onclick=function(){setPeek(false)};
+
   /* ---------- export ---------- */
   function openExport(){closePop();if(document.querySelector('.xd'))return;var m=location.search.match(/device=(\w+)/),dim=($('#capDim').textContent.match(/^(\d+) × (\d+)/)||[0,4032,2520]);
     ExportDialog.open({host:document.body,name:$('#capName').textContent,w:+dim[1],h:+dim[2],recipe:active?active.name:d.params.mode,device:m?m[1]:'desktop',toast:toast})}
   $('#bSave').onclick=openExport;
   /* ---------- keys ---------- */
   window.addEventListener('keydown',function(e){if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
-    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='Escape'){closePop();closeIntake();ed.select(null);togglePro(false)}});
+    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='t'){setPeek(!peek)}else if(e.key==='Escape'){setPeek(false);closePop();closeIntake();ed.select(null);togglePro(false)}});
   window.addEventListener('keyup',function(e){if(e.key==='c')hold(false)});
 
 
@@ -622,7 +647,7 @@
   var intake=$('#intake');
   function openIntake(){intake.classList.add('on');closePop()}
   function closeIntake(){intake.classList.remove('on')}
-  function adopt(img,name){d.loadImage(img);$('#capName').textContent=name||'your picture';$('#capDim').textContent=(img.naturalWidth||img.width)+' × '+(img.naturalHeight||img.height)+' · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Loaded '+(name||'your picture'))}
+  function adopt(img,name){d.loadImage(img);peekSync();$('#capName').textContent=name||'your picture';$('#capDim').textContent=(img.naturalWidth||img.width)+' × '+(img.naturalHeight||img.height)+' · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Loaded '+(name||'your picture'))}
   function loadBlob(blob,name){var url=URL.createObjectURL(blob),img=new Image();img.onload=function(){adopt(img,name)};img.onerror=function(){toast('Could not read that as an image')};img.src=url}
   function loadFile(f){if(f&&(f.type==='image/svg+xml'||/\.svg$/i.test(f.name))){closeIntake();toast('SVGs are shapes — adding it to Custom');importSvgFile(f);return}if(!f||!/^image\//.test(f.type)){toast('That doesn’t look like an image');return}loadBlob(f,f.name.replace(/\.[^.]+$/,''))}
   $('#file').addEventListener('change',function(e){loadFile(e.target.files[0])});

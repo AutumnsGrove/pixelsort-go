@@ -10,6 +10,7 @@
     "shapes": "node custom-shapes.mjs",
     "presets": "node presets.mjs",
     "export": "node export.mjs",
+    "peek": "node peek.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"
