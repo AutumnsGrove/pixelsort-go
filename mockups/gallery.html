@@ -71,6 +71,11 @@
   .fr .cap span{color:var(--dim);font-size:10px;letter-spacing:.8px;white-space:nowrap}
   .fr.gone .img img{filter:grayscale(.85) brightness(.5)}
   .fr .left{position:absolute;right:12px;bottom:10px;font-size:9.5px;letter-spacing:1.2px;color:var(--ink);background:var(--ver);padding:3px 9px;border-radius:999px;text-transform:uppercase;font-weight:500}
+  .many #grid{display:block;position:relative}
+  .many .fr{animation:none}
+  .vrow{display:grid;gap:40px 28px;align-content:start}
+  .grp{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--faint2);padding-bottom:8px;font-family:var(--serif);font-style:italic;font-size:26px;color:var(--paper)}
+  .grp span{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)}
   .empty{display:none;text-align:center;padding:80px 0 60px}
   .empty h3{font-family:var(--serif);font-style:italic;font-weight:400;font-size:clamp(38px,5vw,60px);line-height:1;color:var(--paper)}
   .empty p{max-width:430px;margin:16px auto 26px;color:var(--dim);font-size:11.5px;line-height:1.8}
@@ -175,7 +180,7 @@
     <button class="tab" data-t="albums">Albums<i id="nAlb">3</i></button>
     <button class="tab" data-t="trash">Bin<i id="nTrash">9</i></button>
     <span class="sp"></span>
-    <input class="field" placeholder="Search runs…" aria-label="Search">
+    <input class="field" id="q" placeholder="Search runs…" aria-label="Search runs" autocomplete="off">
     <select class="field" id="sort"><option value="new">Newest</option><option value="big">Largest</option><option value="old">Oldest</option></select>
   </div>
 
@@ -262,6 +267,8 @@
 <div class="grain"></div><div class="vig"></div>
 
 <script src="shared/demo-engine.js"></script>
+<script src="shared/virtual-list.js"></script>
+<script src="shared/runs-data.js"></script>
 <script src="shared/states.js"></script>
 <script>
 (function(){
@@ -287,7 +294,13 @@
     ['Ember rain, waves',{mode:'wave',length:45,key:'hue',angle:41,seed:71},19.1,81,false]
   ];
   var runs=BASE.map(function(r,i){return {id:i,name:r[0],p:Object.assign({randomness:10,length:40,angle:0,reverse:false},r[1]),mb:r[2],age:r[3],starred:r[4],shared:i%5===1||i===0,trashed:i===13||i===15?(i===13?2:5):0,img:null}});
-  runs.forEach(function(r){r.img=PixelDemo.thumb(r.p,240,150)});
+  /* ?runs=N (N > 120): a big archive. Rows are virtualised and thumbnails are built only when a card first scrolls into view. */
+  var BIGN=(function(){var m=location.search.match(/[?&]runs=(\d+)/);return m&&+m[1]>120?+m[1]:0})();
+  if(BIGN){runs=RunsData.make(BIGN).map(function(r){r.trashed=0;r.img=null;return r});
+    for(var tz=0;tz<9;tz++)runs.push({id:BIGN+tz,name:'Bin run '+(tz+1),p:{mode:'random',length:60,key:'luma',angle:30*tz,seed:tz+3,randomness:10},mb:18,age:tz,starred:false,shared:false,trashed:1+tz%6,img:null});
+    runs.slice(0,16).forEach(function(r){r.img=PixelDemo.thumb(r.p,160,100)});document.body.classList.add('many')}
+  else runs.forEach(function(r){r.img=PixelDemo.thumb(r.p,240,150)});
+  function imgOf(r){return r.img||(r.img=PixelDemo.thumb(r.p,160,100))}
   var albums=[
     {id:'k3J9…TRz',name:'Sunsets for Mara',ids:[0,1,4],mb:61.2,made:'3 days ago',exp:'in 27 days',recipe:true,orig:false},
     {id:'q7Lm…8Vc',name:'Glitch week',ids:[3,5,6],mb:74.9,made:'2 weeks ago',exp:'never',recipe:true,orig:true},
@@ -316,16 +329,29 @@
 
   function visible(){
     var list=runs.filter(function(r){return tab==='trash'?r.trashed:(!r.trashed&&(tab==='all'||(tab==='starred'&&r.starred)))});
+    list=RunsData.filter(list,{q:$('#q').value});
     var s=$('#sort').value;list.sort(function(a,b){return s==='big'?b.mb-a.mb:s==='old'?b.age-a.age:a.age-b.age});return list;
   }
   function ago(d){return d===0?'today':d===1?'yesterday':d<30?d+' days ago':Math.round(d/30)+' mo ago'}
+  function frHtml(r,n){return '<div class="fr'+(sel[r.id]?' sel':'')+(r.starred?' starred':'')+(r.trashed?' gone':'')+'" data-id="'+r.id+'" style="animation-delay:'+Math.min((n||0)*40,500)+'ms"><div class="img"><img src="'+imgOf(r)+'" alt=""><div class="cb">'+(sel[r.id]?'✓':'')+'</div>'+(!r.trashed?'<button class="star" data-star="'+r.id+'">'+(r.starred?'★':'☆')+'</button>':'')+(r.shared&&!r.trashed?'<span class="link">on a link</span>':'')+(r.trashed?'<span class="left">'+(7-r.trashed)+' days left</span>':'')+'</div><div class="cap"><b>'+r.name+'</b><span>'+ago(r.age)+' · '+r.mb.toFixed(1)+' MB</span></div></div>'}
+  var vl=null,lastCols=0;
+  function colsNow(){var w=$('#grid').clientWidth||($('#wrap').clientWidth-80);return Math.max(1,Math.floor((w+28)/(270+28)))}
+  function renderBig(list){
+    var cols=colsNow(),w=($('#grid').clientWidth||1000),cw=(w-(cols-1)*28)/cols,rowH=Math.round(cw*0.625+56+40),rr=RunsData.rows(list,{cols:cols,headH:52,rowH:rowH,sort:$('#sort').value});lastCols=cols;
+    if(!vl)vl=VirtualList.mount({scroller:window,host:$('#grid'),overscan:700,renderRow:function(row){var el=document.createElement('div');
+      if(row.type==='head'){el.className='grp';el.innerHTML=row.label;return el}
+      el.className='vrow';el.style.gridTemplateColumns='repeat('+lastCols+',1fr)';el.innerHTML=row.items.map(function(r){return frHtml(r,0)}).join('');return el}});
+    vl.setRows(rr.rows)}
+  var rzq=0;window.addEventListener('resize',function(){if(BIGN&&tab!=='albums'&&colsNow()!==lastCols){clearTimeout(rzq);rzq=setTimeout(render,120)}});
   function render(){
     var isAlb=tab==='albums', list=visible();
     $('#grid').style.display=isAlb?'none':'';$('#albums').classList.toggle('on',isAlb);$('#toolbar').style.display=(isAlb||!runs.length)?'none':'flex';
-    $('#grid').innerHTML=list.map(function(r,n){return '<div class="fr'+(sel[r.id]?' sel':'')+(r.starred?' starred':'')+(r.trashed?' gone':'')+'" data-id="'+r.id+'" style="animation-delay:'+Math.min(n*40,500)+'ms"><div class="img"><img src="'+r.img+'" alt=""><div class="cb">'+(sel[r.id]?'✓':'')+'</div>'+(!r.trashed?'<button class="star" data-star="'+r.id+'">'+(r.starred?'★':'☆')+'</button>':'')+(r.shared&&!r.trashed?'<span class="link">on a link</span>':'')+(r.trashed?'<span class="left">'+(7-r.trashed)+' days left</span>':'')+'</div><div class="cap"><b>'+r.name+'</b><span>'+ago(r.age)+' · '+r.mb.toFixed(1)+' MB</span></div></div>'}).join('');
-    var none=isAlb?!albums.length:!list.length,E=EMPTY[tab];$('#empty').style.display=none?'block':'none';if(none)$('#empty').innerHTML='<h3>'+E.h+'</h3><p>'+E.p+'</p>'+(E.cta?'<a class="btn pri" href="studio.html">Open Studio</a>':'');
+    if(BIGN&&!isAlb)renderBig(list);
+    else $('#grid').innerHTML=list.map(function(r,n){return frHtml(r,n)}).join('');
+    var none=isAlb?!albums.length:!list.length,E=EMPTY[tab],qv=$('#q').value.trim();$('#empty').style.display=none?'block':'none';
+    if(none)$('#empty').innerHTML=(qv&&!isAlb)?'<h3>No runs match.</h3><p>Nothing in this tab matches “'+qv.replace(/[<>&"]/g,'')+'”. Try fewer words — names, sort keys and modes all count.</p>':'<h3>'+E.h+'</h3><p>'+E.p+'</p>'+(E.cta?'<a class="btn pri" href="studio.html">Open Studio</a>':'');
     $('#albums').innerHTML=albums.map(function(a,n){return '<div class="al" style="animation-delay:'+(n*80)+'ms"><div class="collage">'+a.ids.map(function(i){return '<img src="'+runs[i].img+'" alt="">'}).join('')+'</div><div><h3>'+a.name+'</h3><div class="meta">'+a.ids.length+' images · '+a.mb.toFixed(1)+' MB · made '+a.made+'<br>expires '+a.exp+'</div><div class="tags"><span>results</span>'+(a.recipe?'<span>recipe</span>':'')+(a.orig?'<span>originals</span>':'')+'</div><div class="url"><span>share.pixelsort.example/a/'+a.id+'</span></div><div class="acts"><button class="btn sm" onclick="toast(\'Link copied\')">Copy link</button><button class="btn sm" onclick="location.href=\'share.html\'">Open viewer</button><button class="btn sm danger" data-revoke="'+n+'">Revoke</button></div></div></div>'}).join('');
-    var more=S.empty?0:1;$('#nAll').textContent=S.empty?0:214;$('#nStar').textContent=runs.filter(function(r){return r.starred&&!r.trashed}).length+14*more;$('#nAlb').textContent=albums.length;$('#nTrash').textContent=runs.filter(function(r){return r.trashed}).length+7*more;$('#rRuns').textContent=S.empty?0:214;$('#rAlb').textContent=S.empty?0:7;
+    var more=S.empty?0:1;$('#nAll').textContent=BIGN?runs.filter(function(r){return !r.trashed}).length.toLocaleString():(S.empty?0:214);$('#nStar').textContent=runs.filter(function(r){return r.starred&&!r.trashed}).length+14*more;$('#nAlb').textContent=albums.length;$('#nTrash').textContent=runs.filter(function(r){return r.trashed}).length+7*more;$('#rRuns').textContent=BIGN?runs.filter(function(r){return !r.trashed}).length.toLocaleString():(S.empty?0:214);$('#rAlb').textContent=S.empty?0:7;
     $('#banner').classList.toggle('on',tab==='trash'&&runs.some(function(r){return r.trashed}));
     var n=Object.keys(sel).length;
     $('#bulk').classList.toggle('on',n>0);$('#bN').textContent=n;
@@ -348,6 +374,7 @@
   $('#selMode').onclick=function(){selmode=!selmode;if(!selmode){sel={};skipNote=''}render()};
   $('#tabs').addEventListener('click',function(e){var b=e.target.closest('.tab');if(!b)return;tab=b.dataset.t;sel={};skipNote='';selmode=false;render()});
   $('#sort').onchange=render;
+  var qt=0;$('#q').addEventListener('input',function(){clearTimeout(qt);qt=setTimeout(function(){sel={};skipNote='';render()},120)});
   $('#grid').addEventListener('click',function(e){
     var st=e.target.closest('[data-star]');if(st){e.stopPropagation();var r=runs[st.dataset.star];r.starred=!r.starred;render();return}
     var c=e.target.closest('.fr');if(!c)return;var id=c.dataset.id;

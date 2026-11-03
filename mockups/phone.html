@@ -123,6 +123,10 @@
   .th.sel{outline:2px solid var(--ver);outline-offset:3px}
   .th.sel::after{content:"✓";position:absolute;right:4px;top:4px;width:22px;height:22px;border-radius:50%;background:var(--ver);color:var(--ink);font-size:12px;display:grid;place-items:center}
   .th.star::before{content:"★";position:absolute;left:5px;bottom:2px;color:var(--gold);font-size:14px;text-shadow:0 1px 3px #000;z-index:2}
+  .vgrid{display:block!important;position:relative}
+  .vrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:start}
+  .vhead{display:flex;align-items:flex-end;padding-bottom:4px;font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim)}
+  .vq{margin:10px 0 0;min-height:44px}
   .selbar{position:sticky;bottom:-18px;margin:14px -4px 0;display:none;gap:8px;padding:8px;border-radius:999px;background:rgba(28,24,20,.97);border:1px solid var(--faint)}
   .selbar.on{display:flex}
   .selbar button{flex:1;min-height:44px;font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;border-radius:999px;color:var(--paper)}
@@ -287,6 +291,8 @@
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
 <script src="shared/help.js"></script>
+<script src="shared/virtual-list.js"></script>
+<script src="shared/runs-data.js"></script>
 <script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
@@ -485,6 +491,24 @@
   if(AS.empty)$('#grid').innerHTML='<div class="tip" style="grid-column:1/-1;text-align:center;padding:26px 0"><b style="display:block;font-family:var(--serif);font-style:italic;font-weight:400;font-size:24px;color:var(--paper);margin-bottom:6px">Nothing here yet.</b>Runs you make appear here by themselves.</div>';
   var apps=AppState.mount({host:$('#phone'),state:{used:usedGB,offline:AS.offline},phone:true,pending:3,toast:toast,onAction:function(){tab='runs';$$('#tabs button').forEach(function(x){x.classList.toggle('on',x.dataset.t==='runs')});$$('.pane').forEach(function(p){p.classList.toggle('on',p.id==='p-runs')});setSheet(2)}});
   document.addEventListener('click',function(e){if(apps.state.offline&&e.target.closest('#bShare')){e.stopPropagation();e.preventDefault();toast('You’re offline — sending needs the server')}},true);
+  /* many runs (?runs=2000): dated rows of three, virtualised in the sheet's scroll pane, with search */
+  var PBIG=(function(){var m=location.search.match(/[?&]runs=(\d+)/);return m&&+m[1]>12?+m[1]:0})();
+  if(PBIG)(function(){
+    var all=RunsData.make(PBIG),thumbs={},vl,fq={q:''},host=$('#grid'),pane=$('#p-runs');
+    host.classList.add('vgrid');host.innerHTML='';
+    $('#phUsed').textContent=usedGB.toFixed(1)+' / 50 GB · '+PBIG.toLocaleString()+' runs';
+    var inp=document.createElement('input');inp.className='field vq';inp.id='phQ';inp.placeholder='Search runs';inp.setAttribute('aria-label','Search runs');inp.autocomplete='off';host.parentNode.insertBefore(inp,host);
+    function th(r){return thumbs[r.id]||(thumbs[r.id]=PixelDemo.thumb(Object.assign({randomness:10},r.p),120,75))}
+    function rowEl(row){var el=document.createElement('div');
+      if(row.type==='head'){el.className='vhead';el.textContent=row.label;return el}
+      el.className='vrow';el.innerHTML=row.items.map(function(r){return '<div class="th'+(r.starred?' star':'')+(sel[r.id]?' sel':'')+'" data-i="'+r.id+'"><img src="'+th(r)+'" alt=""></div>'}).join('');return el}
+    function build(){var v=RunsData.filter(all,fq);if(!v.length){vl.setRows([]);host.style.height='auto';host.innerHTML='<div class="tip" style="text-align:center;padding:22px 0"><b style="display:block;font-family:var(--serif);font-style:italic;font-weight:400;font-size:22px;color:var(--paper);margin-bottom:6px">No runs match.</b>Try fewer words.</div>';return}
+      host.innerHTML='';vl.setRows(RunsData.rows(v,{cols:3,headH:30,rowH:82}).rows)}
+    vl=VirtualList.mount({scroller:pane,host:host,renderRow:rowEl,overscan:300});build();
+    var q=0;inp.addEventListener('input',function(){fq.q=inp.value;clearTimeout(q);q=setTimeout(build,120)});
+    var _rs=refreshSel;refreshSel=function(){_rs();vl.rerender()};
+    window.__mock.runs=vl;
+  })();
   $('#grid').addEventListener('click',function(e){var t=e.target.closest('.th');if(!t)return;if(sel[t.dataset.i])delete sel[t.dataset.i];else sel[t.dataset.i]=1;refreshSel()});
   $('#bTrash').onclick=function(){var n=Object.keys(sel).length;sel={};refreshSel();toast(n+' to the bin · 7-day undo')};
   $('#bDl').onclick=function(){toast('Downloading '+Object.keys(sel).length+' images')};

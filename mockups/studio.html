@@ -278,6 +278,19 @@
   .strip::-webkit-scrollbar{display:none}
   .strip h5{font-weight:400;font-size:9px;letter-spacing:1.7px;text-transform:uppercase;color:var(--dim);padding:0 22px 12px}
   .strip h5 b{color:var(--paper);font-weight:500}
+  .stools{display:none;gap:6px;margin:0 22px 12px;padding-right:22px}
+  .strip.many .stools{display:flex}
+  .stools input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--faint);color:var(--paper);font-family:var(--mono);font-size:10.5px;padding:6px 2px;outline:none}
+  .stools input:focus{border-color:var(--ver)}
+  .stools button{width:30px;height:30px;border-radius:50%;border:1px solid var(--faint);color:var(--dim);font-size:13px;flex:none;line-height:1}
+  .stools button.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .sgrp{padding:10px 22px 0;font-size:9px;letter-spacing:1.7px;text-transform:uppercase;color:var(--dim);display:flex;align-items:flex-end;height:100%}
+  .strip.many .cell{margin:0 36px 0 22px}
+  .sjump{display:none;position:fixed;left:144px;top:150px;bottom:150px;width:32px;z-index:23;overflow-y:auto;scrollbar-width:none;flex-direction:column;gap:1px;align-items:flex-end}
+  .sjump::-webkit-scrollbar{display:none}
+  .strip.on.many ~ .sjump,.strip.many.on + .sjump{display:flex}
+  .sjump button{font-size:7.5px;letter-spacing:.2px;color:var(--dim);padding:3px 2px;white-space:nowrap;text-transform:uppercase;opacity:.65;flex:none}
+  .sjump button:hover,.sjump button.on{color:var(--ver);opacity:1}
   .stempty{margin:6px 22px;color:var(--dim);font-size:10.5px;line-height:1.7}
   .stempty b{display:block;font-family:var(--serif);font-style:italic;font-weight:400;font-size:20px;color:var(--paper);margin-bottom:6px}
   .meter{margin:0 22px 18px;height:2px;background:var(--faint);position:relative}
@@ -319,8 +332,10 @@
 <aside class="strip" id="strip">
   <h5>Runs · <b>38</b> / 50 GB</h5>
   <div class="meter"><i></i><u></u></div>
+  <div class="stools" id="stripTools"><input id="stripSearch" placeholder="Search runs" aria-label="Search runs" autocomplete="off"><button id="stripStar" title="Starred only" aria-label="Starred only" aria-pressed="false">★</button></div>
   <div id="cells"></div>
 </aside>
+<nav class="sjump" id="stripJump" aria-label="Jump to a date"></nav>
 
 <div class="workspace" id="ws">
 <div class="snapchip" id="snapChip"><span id="snapT">Looks like a circle</span><button id="snapGo">Snap</button><button class="x" id="snapX">✕</button></div>
@@ -442,6 +457,8 @@
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
 <script src="shared/help.js"></script>
+<script src="shared/virtual-list.js"></script>
+<script src="shared/runs-data.js"></script>
 <script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
@@ -636,7 +653,37 @@
   var ages=['2 min ago','yesterday','yesterday','3 days ago','last week','last week','Oct 22'];
   $('#cells').innerHTML=RUNS.map(function(r,i){var u=PixelDemo.thumb(Object.assign({randomness:10},r[1]),176,110);return '<div class="cell'+(i===0?' cur':'')+'" data-i="'+i+'"><img src="'+u+'" alt=""><span>'+r[0]+' · '+ages[i]+'</span></div>'}).join('');
   if(AppState.fromQuery(location.search).empty)$('#cells').innerHTML='<div class="stempty"><b>Nothing here yet.</b>Runs you make appear on this strip by themselves.</div>';
-  $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
+  $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c||BIGRUNS)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
+  /* ---- many runs: dated rows, virtualised, searchable (?runs=2000 shows it; the real app pages from /api/runs) ---- */
+  var BIGRUNS=(function(){var m=location.search.match(/[?&]runs=(\d+)/);return m&&+m[1]>12?+m[1]:0})();
+  if(BIGRUNS){(function(){
+    var all=RunsData.make(BIGRUNS),thumbs={},vl,view=all,jumps=[],fq={q:'',starred:false},strip=$('#strip'),cur=-1;
+    strip.classList.add("many");$('#cells').innerHTML='';
+    $('#strip h5').innerHTML='Runs · <b>'+BIGRUNS.toLocaleString()+'</b> · '+(AS0().toFixed(0))+' / 50 GB';
+    function AS0(){var m=location.search.match(/[?&]used=([\d.]+)/);return m?+m[1]:38.2}
+    function thumb(r){return thumbs[r.id]||(thumbs[r.id]=PixelDemo.thumb(Object.assign({randomness:10},r.p),132,82))}
+    function rowEl(row){var el=document.createElement('div');
+      if(row.type==='head'){el.innerHTML='<div class="sgrp">'+row.label+'</div>';return el}
+      var r=row.items[0];el.innerHTML='<div class="cell'+(r.id===cur?' cur':'')+'" data-id="'+r.id+'" role="button" tabindex="0"><img src="'+thumb(r)+'" alt=""><span>'+r.name+' · '+RunsData.agoText(r.age)+(r.starred?' ★':'')+'</span></div>';return el}
+    function build(){view=RunsData.filter(all,fq);var rr=RunsData.rows(view,{cols:1,headH:34,rowH:124});jumps=rr.jumps;
+      if(!view.length){vl.setRows([]);$('#cells').style.height='auto';$('#cells').innerHTML='<div class="stempty"><b>No runs match.</b>Try fewer words, or clear the ★.</div>';$('#stripJump').innerHTML='';return}
+      $('#cells').innerHTML='';vl.setRows(rr.rows);
+      $('#stripJump').innerHTML=jumps.map(function(j){return '<button data-r="'+j.row+'" title="'+j.label+'">'+railLabel(j.label)+'</button>'}).join('');
+      mark();
+      var n=view.length;$('#strip h5').innerHTML='Runs · <b>'+(fq.q||fq.starred?n.toLocaleString()+(fq.starred&&!fq.q?' starred':' found'):BIGRUNS.toLocaleString())+'</b> · '+AS0().toFixed(0)+' / 50 GB'}
+    /* "Today"->Now, "Oct 2026"->Oct, "Dec 2025"->Dec’25: short enough for a 30 px rail, and only other years get a suffix */
+    function railLabel(l){var m=l.match(/^(\w{3}) (\d{4})$/);if(m)return m[2]==='2026'?m[1]:m[1]+'\u2019'+m[2].slice(2);return {Today:'Now',Yesterday:'1d','This week':'7d','Last week':'14d'}[l]||l}
+    function mark(){if(!jumps.length)return;var t=vl.topRow(),k=0;for(var i=0;i<jumps.length;i++)if(jumps[i].row<=t)k=i;$$('#stripJump button').forEach(function(b,i){b.classList.toggle('on',i===k)});var on=$('#stripJump button.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest'})}
+    vl=VirtualList.mount({scroller:strip,host:$('#cells'),renderRow:rowEl,overscan:360,onRange:mark});
+    build();
+    $('#stripJump').addEventListener('click',function(e){var b=e.target.closest('button');if(b)vl.scrollToRow(+b.dataset.r,true)});
+    var sq=0;$('#stripSearch').addEventListener('input',function(e){fq.q=e.target.value;clearTimeout(sq);sq=setTimeout(build,120)});
+    $('#stripStar').onclick=function(){fq.starred=!fq.starred;$('#stripStar').classList.toggle('on',fq.starred);$('#stripStar').setAttribute('aria-pressed',fq.starred);build()};
+    $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var r=all[+c.dataset.id];cur=r.id;$$('#cells .cell').forEach(function(x){x.classList.toggle('cur',x===c)});
+      d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r.p));refresh();d.play();toast('Reopened · '+r.name)});
+    $('#cells').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('cell')){e.preventDefault();e.target.click()}});
+    window.__mock.strip=vl;
+  })()}
   function toggleStrip(){var on=$('#strip').classList.toggle('on');$('#bGallery').classList.toggle('on',on)}
   $('#bGallery').onclick=toggleStrip;
 
@@ -658,7 +705,7 @@
 
   /* ---------- storage and connection states (?used=40 · ?offline · ?empty) ---------- */
   var AS=AppState.fromQuery(location.search),usedGB=AS.empty?0:(AS.used!=null?AS.used:38.2),us=AppState.usage(usedGB);
-  var mini=$('#strip .meter i');$('#strip h5 b').textContent=Math.round(usedGB);mini.style.width=Math.min(100,us.frac*100)+'%';mini.style.background=us.level==='full'?'var(--ver)':'var(--gold)';
+  var mini=$('#strip .meter i');if(!BIGRUNS)$('#strip h5 b').textContent=Math.round(usedGB);mini.style.width=Math.min(100,us.frac*100)+'%';mini.style.background=us.level==='full'?'var(--ver)':'var(--gold)';
   var apps=AppState.mount({host:document.body,state:{used:usedGB,offline:AS.offline},pending:3,toast:toast,onAction:function(){location.href='gallery.html?used='+usedGB+'&smart'}});
   window.__mock.states=apps;
   /* ---------- help: shortcut sheet (?) and the first-run tour ---------- */

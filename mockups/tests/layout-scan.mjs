@@ -1,6 +1,6 @@
 import { chromium, mock, shared } from './lib.mjs';
 const b = await chromium.launch(); const errs=[];
-const pages=[['studio.html',''],['studio.html','?empty'],['gallery.html',''],['gallery.html','?viewer'],['gallery.html','?share'],['gallery.html','?albums'],['share.html',''],['index.html',''],['settings.html',''],['studio.html','?first&tour'],['studio.html','?used=51.3'],['studio.html','?offline'],['gallery.html','?used=51.3'],['gallery.html','?empty'],['gallery.html','?offline']];
+const pages=[['studio.html',''],['studio.html','?empty'],['gallery.html',''],['gallery.html','?viewer'],['gallery.html','?share'],['gallery.html','?albums'],['share.html',''],['index.html',''],['settings.html',''],['studio.html','?first&tour'],['studio.html','?used=51.3'],['studio.html','?offline'],['gallery.html','?used=51.3'],['gallery.html','?empty'],['gallery.html','?offline'],['studio.html','?runs=2000'],['gallery.html','?runs=2000']];
 const sizes=[[840,627],[1024,720],[1920,1080],[390,844]];
 for (const [f,q] of pages) for (const [w,h] of sizes) {
   const p = await b.newPage({ viewport: { width: w, height: h } });

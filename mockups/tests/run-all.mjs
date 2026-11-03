@@ -17,6 +17,7 @@ const tests = [
   ['region-cards.mjs', 'region cards: model + the same flows in Studio and on the phone'],
   ['shape-holes.mjs', 'compound shapes: holes, pieces, tidy options, even-odd fill, tiling'],
   ['shape-tidy.mjs', 'tidy-this-shape panel, saved compound shapes, phone starters'],
+  ['scale.mjs', 'scale: virtual list maths, dated rows, search, 2,000 runs in Studio, Archive, phone'],
   ['mask-editor.mjs', 'mask shapes: drag, resize, rotate, hole, invert, snap (desktop)'],
   ['phone-mask.mjs', 'mask shapes on the phone sheet'],
   ['layout-scan.mjs', 'every screen x 4 window sizes: no overflow or collisions'],

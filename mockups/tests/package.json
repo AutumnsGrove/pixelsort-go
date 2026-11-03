@@ -17,6 +17,7 @@
     "region-cards": "node region-cards.mjs",
     "shape-holes": "node shape-holes.mjs",
     "shape-tidy": "node shape-tidy.mjs",
+    "scale": "node scale.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"
