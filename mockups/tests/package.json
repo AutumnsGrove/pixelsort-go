@@ -13,6 +13,8 @@
     "peek": "node peek.mjs",
     "states": "node states.mjs",
     "help": "node help-settings.mjs",
+    "region-algo": "node region-algo.mjs",
+    "region-cards": "node region-cards.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"

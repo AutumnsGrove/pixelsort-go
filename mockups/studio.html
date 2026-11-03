@@ -435,6 +435,7 @@
 <script src="shared/angle-dial.js"></script>
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
+<script src="shared/region-cards.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
@@ -697,12 +698,9 @@
   if(location.search.indexOf('empty')>-1)openIntake();
 
   /* ================= Pro panel: regions & masks ================= */
-  var RCOL=[[236,228,211],[255,90,54],[232,184,106],[130,205,190]], KEYS=['luma','value','intensity','hue','saturation','red','green','blue'];
-  var MODES=['random','wave','threshold','edges','ca','none'], MODE_LABEL={random:'random',wave:'wave',threshold:'threshold',edges:'edges',ca:'cellular',none:'none'};
-  var RULES=[26,110,154,45,106,30];
-  function newClass(name,o){return Object.assign({name:name,frozen:false,angleOn:false,angle:0,key:'',rev:'',cutOn:false,mode:'random',length:40,lo:.2,hi:.82,edge:26,rule:110,cell:4,randomness:10,open:false},o||{})}
+  var RCOL=[[236,228,211],[255,90,54],[232,184,106],[130,205,190]];
   var rs={shape:'none',custom:null,stagger:false,size:64,gap:3,rotate:0,pattern:'checker',overlay:true,tess:null,cls:null,
-    classes:{0:newClass('Between shapes',{frozen:true}),1:newClass('Kind A'),2:newClass('Kind B',{angleOn:true,angle:90}),3:newClass('Kind C',{angleOn:true,angle:45,key:'hue'})}};
+    classes:null};
   var rctx=$('#rov').getContext('2d');$('#rov').width=d.w;$('#rov').height=d.h;
   function togglePro(on){var o=on==null?!document.body.classList.contains('pro-open'):on;document.body.classList.toggle('pro-open',o);$('#bPro').classList.toggle('on',o);if(o)closePop()}
   $('#bPro').onclick=function(){togglePro()};$('#proScrim').onclick=function(){togglePro(false)};$('#proX').onclick=function(){togglePro(false)};
@@ -736,9 +734,7 @@
 
   /* ---- class definitions -> engine ---- */
   function K(){return {all:1,checker:2,thirds:3,random:3}[rs.pattern]}
-  function toDefs(){var defs={};for(var c=0;c<=K();c++){var x=rs.classes[c],cut=x.cutOn;
-    defs[c]={frozen:!!x.frozen,angle:x.angleOn?x.angle:null,key:x.key||null,reverse:x.rev==='desc'?true:(x.rev==='asc'?false:null),
-      mode:cut?x.mode:null,length:cut?x.length:null,lo:cut?x.lo:null,hi:cut?x.hi:null,edge:cut?x.edge:null,rule:cut?x.rule:null,cell:cut?x.cell:null,randomness:cut?x.randomness:null}}return defs}
+  function toDefs(){return RC.toDefs(K())}
   function applyRegions(){
     if(rs.shape==='none'){d.setRegions(null);Regions.overlay(rctx,d.w,d.h,null);$('#regCtl').style.display='none';return}
     $('#regCtl').style.display='block';$('#shapeLib').style.display=rs.shape==='custom'?'block':'none';
@@ -751,31 +747,11 @@
   function drawOverlay(){Regions.overlay(rctx,d.w,d.h,rs.tess,rs.cls,RCOL,rs.overlay)}
   function counts(){var n={};for(var i=1;i<rs.cls.length;i++)n[rs.cls[i]]=(n[rs.cls[i]]||0)+1;return n}
 
-  /* ---- region cards: fold open for every override ---- */
-  function detail(x){if(!x.cutOn)return '';if(x.mode==='random'||x.mode==='wave')return ' '+x.length;if(x.mode==='threshold')return ' '+x.lo.toFixed(2)+'–'+x.hi.toFixed(2);if(x.mode==='ca')return ' '+x.rule;if(x.mode==='edges')return ' '+x.edge;return ''}
-  function summary(x){if(x.frozen)return 'frozen — never moves';var p=[];if(x.angleOn)p.push(x.angle+'°');if(x.key||x.rev)p.push((x.key||'global key')+(x.rev==='desc'?' ↓':(x.rev==='asc'?' ↑':'')));if(x.cutOn)p.push(MODE_LABEL[x.mode]+detail(x));return p.length?p.join(' · '):'inherits everything'}
-  function sw(f,on){return '<div class="sw'+(on?' on':'')+'" data-f="'+f+'"></div>'}
-  function rng(f,label,fmt,min,max,step,val){return '<div class="rrow"><label><span>'+label+'</span><em>'+fmt(val)+'</em></label><input type="range" data-f="'+f+'" min="'+min+'" max="'+max+'" step="'+(step||1)+'" value="'+val+'"></div>'}
-  var FMT={length:function(v){return v+' px'},lo:function(v){return (+v).toFixed(2)},hi:function(v){return (+v).toFixed(2)},edge:function(v){return v},cell:function(v){return v+' px'},randomness:function(v){return v+' %'}};
-  function cutBody(x){
-    var h='<div class="mini" data-f="mode">'+MODES.map(function(m){return '<button data-v="'+m+'" class="'+(x.mode===m?'on':'')+'">'+MODE_LABEL[m]+'</button>'}).join('')+'</div>';
-    if(x.mode==='random'||x.mode==='wave')h+=rng('length','Run length',FMT.length,6,200,1,x.length);
-    if(x.mode==='threshold')h+=rng('lo','Sort from',FMT.lo,0,1,.01,x.lo)+rng('hi','Sort up to',FMT.hi,0,1,.01,x.hi);
-    if(x.mode==='edges')h+=rng('edge','Edge sensitivity',FMT.edge,6,90,1,x.edge);
-    if(x.mode==='ca')h+='<div class="crow tight"><span>Rule</span><div class="rt"><input class="num" type="number" min="0" max="255" data-f="rule" value="'+x.rule+'"></div></div><div class="mini" data-f="rulepick">'+RULES.map(function(r){return '<button data-v="'+r+'" class="'+(x.rule===r?'on':'')+'">'+r+'</button>'}).join('')+'</div>'+rng('cell','Cell size',FMT.cell,2,14,1,x.cell);
-    if(x.mode!=='none')h+=rng('randomness','Leave unsorted',FMT.randomness,0,100,1,x.randomness);
-    return '<div class="cutbox">'+h+'</div>'}
-  function cardHtml(c,n){var x=rs.classes[c],col=RCOL[c],title=(rs.pattern==='all'&&c===1)?'Every shape':x.name;
-    return '<div class="cls'+(x.open?' open':'')+'" data-c="'+c+'"><div class="chead" data-head><i style="background:rgb('+col+')"></i><div class="ctitle"><b>'+title+'</b><small class="csum">'+summary(x)+'</small></div><span class="cnt">'+(c===0?'the gaps':(n[c]||0)+' shapes')+'</span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>'+
-      '<div class="cbody">'+
-      '<div class="crow"><span>Frozen — don’t sort</span>'+sw('frozen',x.frozen)+'</div>'+
-      '<div class="crow"><span>Own direction</span><div class="rt"><input class="num" type="number" min="0" max="359" data-f="angle" value="'+x.angle+'"'+(x.angleOn?'':' disabled')+'>'+sw('angleOn',x.angleOn)+'</div></div>'+
-      '<div class="crow"><span>Own sort key</span><div class="rt"><select class="field" data-f="key" style="width:128px;font-size:11px"><option value="">same as global</option>'+KEYS.map(function(k){return '<option'+(x.key===k?' selected':'')+'>'+k+'</option>'}).join('')+'</select></div></div>'+
-      '<div class="mini" data-f="rev" style="margin-top:0"><button data-v="" class="'+(x.rev===''?'on':'')+'">either way</button><button data-v="asc" class="'+(x.rev==='asc'?'on':'')+'">↑ ascending</button><button data-v="desc" class="'+(x.rev==='desc'?'on':'')+'">↓ descending</button></div>'+
-      '<div class="crow"><span>Own cutting</span>'+sw('cutOn',x.cutOn)+'</div>'+(x.cutOn?cutBody(x):'')+
-      '</div></div>'}
-  function renderClasses(){if(rs.shape==='none')return;var n=counts(),h='';for(var c=0;c<=K();c++)h+=cardHtml(c,n);$('#classes').innerHTML=h}
-  function refreshSummary(card,c){var el=card.querySelector('.csum');if(el)el.textContent=summary(rs.classes[c])}
+  /* ---- region cards: one shared component (shared/region-cards.js), also used by the phone ---- */
+  var RC=RegionCards.create({el:$('#classes'),colors:RCOL,pattern:function(){return rs.pattern},K:K,onChange:function(kind){
+    if(kind==='live')live();else if(kind==='value'){applyRegions();commit()}else{applyRegions();renderClasses();commit()}}});
+  rs.classes=RC.classes;
+  function renderClasses(){if(rs.shape==='none')return;RC.render(counts())}
 
   var rq=0;function live(){if(rq)return;rq=requestAnimationFrame(function(){rq=0;d.pause();applyRegions();d.instant()})}
   function commit(){d.reset();d.play()}
@@ -783,18 +759,6 @@
   [['rs','size','rsV',function(v){return v+' px'}],['rg','gap','rgV',function(v){return v+' px'}],['rr','rotate','rrV',function(v){return v+'°'}]].forEach(function(a){var el=$('#'+a[0]);el.addEventListener('input',function(){rs[a[1]]=+el.value;$('#'+a[2]).textContent=a[3](+el.value);live()});el.addEventListener('change',function(){applyRegions();renderClasses();commit()})});
   $('#pat').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;$$('#pat button').forEach(function(x){x.classList.toggle('on',x===b)});rs.pattern=b.dataset.v;applyRegions();renderClasses();commit()});
 
-  var cl=$('#classes');
-  function cardOf(el){var card=el.closest('.cls');return card?{card:card,c:+card.dataset.c}:null}
-  cl.addEventListener('click',function(e){var k=cardOf(e.target);if(!k)return;var x=rs.classes[k.c];
-    var swEl=e.target.closest('.sw');if(swEl){var f=swEl.dataset.f;x[f]=!x[f];if(f==='cutOn'||f==='angleOn'||f==='frozen'){}applyRegions();renderClasses();commit();return}
-    var chip=e.target.closest('.mini button');if(chip){var grp=chip.parentNode.dataset.f,v=chip.dataset.v;if(grp==='mode')x.mode=v;else if(grp==='rev')x.rev=v;else if(grp==='rulepick')x.rule=+v;applyRegions();renderClasses();commit();return}
-    if(e.target.closest('[data-head]')){x.open=!x.open;k.card.classList.toggle('open',x.open)}});
-  cl.addEventListener('input',function(e){var el=e.target,k=cardOf(el);if(!k||!el.dataset.f)return;var f=el.dataset.f,x=rs.classes[k.c];
-    if(el.type==='range'){x[f]=+el.value;var em=el.closest('.rrow').querySelector('em');if(em)em.textContent=FMT[f](+el.value);refreshSummary(k.card,k.c);live()}
-    else if(f==='angle'||f==='rule'){var v=+el.value||0;x[f]=f==='angle'?((v%360)+360)%360:Math.max(0,Math.min(255,v));refreshSummary(k.card,k.c);applyRegions();commit()}});
-  cl.addEventListener('change',function(e){var el=e.target,k=cardOf(el);if(!k)return;var f=el.dataset.f,x=rs.classes[k.c];
-    if(f==='key'){x.key=el.value;applyRegions();renderClasses();commit()}
-    else if(el.type==='range'){applyRegions();commit()}});
   $('#ovTog').onclick=function(){rs.overlay=!rs.overlay;$('#ovTog .sw').classList.toggle('on',rs.overlay);drawOverlay()};
 
   /* protect section (shares the brush + mask with the dock's brush button) */

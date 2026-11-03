@@ -13,6 +13,8 @@ const tests = [
   ['peek.mjs', 'what-can-move overlay: engine map agrees with sorting; Studio + phone'],
   ['states.mjs', 'states: storage 80 %/100 %, empty, offline across Archive, Studio, phone'],
   ['help-settings.mjs', 'help & settings: every shortcut works, tour fits every screen, settings apply'],
+  ['region-algo.mjs', 'per-region animation: any mix of algorithms ends on the instant result'],
+  ['region-cards.mjs', 'region cards: model + the same flows in Studio and on the phone'],
   ['mask-editor.mjs', 'mask shapes: drag, resize, rotate, hole, invert, snap (desktop)'],
   ['phone-mask.mjs', 'mask shapes on the phone sheet'],
   ['layout-scan.mjs', 'every screen x 4 window sizes: no overflow or collisions'],

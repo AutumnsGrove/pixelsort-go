@@ -95,7 +95,23 @@
   .tile.on{border-color:var(--ver);color:var(--paper);background:rgba(255,90,54,.08)}
   .shpchip{flex:none;width:64px;height:64px;border:1px solid var(--faint);border-radius:16px;display:grid;place-items:center;align-content:center;gap:3px;font-size:8.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
   .shpchip img{width:30px;height:30px}.shpchip.on{border-color:var(--ver);color:var(--paper);background:rgba(255,90,54,.08)}
-  .cls{border:1px solid var(--faint);border-radius:16px;padding:10px 14px 4px;margin-bottom:10px}
+  .cls{border:1px solid var(--faint);border-radius:16px;padding:6px 14px 4px;margin-bottom:10px}
+  .cls .chead{cursor:pointer;min-height:48px}
+  .chead .ctitle{display:grid;gap:2px;min-width:0;flex:1}
+  .chead .csum{margin-left:0;font-size:9.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chead .cnt{color:var(--dim);font-size:10px;white-space:nowrap}
+  .chev{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s var(--ease);flex:none}
+  .cls.open .chev{transform:rotate(180deg)}
+  .cbody{display:none;border-top:1px solid var(--faint2);padding:2px 0 8px}.cls.open .cbody{display:block}
+  .cls .mini{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px}
+  .cls .mini button{min-height:44px;padding:0 14px;border:1px solid var(--faint);border-radius:999px;font-size:11px;color:var(--dim)}
+  .cls .mini button.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+  .cls .rrow label{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim);margin-top:4px}.cls .rrow label em{font-style:normal;color:var(--paper)}
+  .cls .cutbox{border-left:1px solid var(--ver);margin:2px 0 8px 4px;padding:6px 0 2px 14px}
+  .cls select.field{width:132px;min-height:44px;font-size:11px}
+  .cls .crow.tight{min-height:40px}
+  .cls .sw{position:relative}.cls .sw::before{content:"";position:absolute;inset:-10px -8px}
+  .cls .crow .num{min-height:40px}
   .chead{display:flex;align-items:center;gap:10px}.chead i{width:9px;height:9px;border-radius:50%}.chead b{font-family:var(--serif);font-style:italic;font-weight:400;font-size:19px}.chead small{margin-left:auto;color:var(--dim);font-size:10px}
   .crow{display:flex;align-items:center;justify-content:space-between;min-height:44px;font-size:11px;color:var(--dim)}
   .crow .num{width:60px;background:transparent;border:1px solid var(--faint);border-radius:999px;padding:7px 8px;color:var(--paper);font-family:var(--mono);font-size:12px;text-align:center;outline:none;margin-right:10px}
@@ -277,6 +293,7 @@
 <script src="shared/angle-dial.js"></script>
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
+<script src="shared/region-cards.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
@@ -425,7 +442,7 @@
 
   /* ---- Shapes (regions) ---- */
   var RCOL=[[236,228,211],[255,90,54],[232,184,106],[130,205,190]];
-  var rs={shape:'none',size:64,gap:3,pattern:'checker',tess:null,cls:null,classes:{0:{name:'Between shapes',frozen:true,angleOn:false,angle:0},1:{name:'Kind A',frozen:false,angleOn:false,angle:0},2:{name:'Kind B',frozen:false,angleOn:true,angle:90},3:{name:'Kind C',frozen:false,angleOn:true,angle:45}}};
+  var rs={shape:'none',size:64,gap:3,pattern:'checker',tess:null,cls:null,classes:null};
   $('#tiles').innerHTML='<button class="tile on" data-v="none"><span class="none"></span>none</button>'+Regions.SHAPES.map(function(x){return '<button class="tile" data-v="'+x.id+'"><img src="'+Regions.icon(x.id,76)+'" alt="">'+x.name+'</button>'}).join('')+'<button class="tile" data-v="custom"><img src="'+Regions.polyIcon(Regions.starterPoly(0),76)+'" alt="">custom</button>';
   function renderStarters(){$('#starters').innerHTML=Regions.STARTERS.map(function(st,i){return '<button class="shpchip'+(rs.custom&&rs.custom.key===i?' on':'')+'" data-i="'+i+'"><img src="'+Regions.polyIcon(Regions.starterPoly(i),60)+'" alt="">'+st.name+'</button>'}).join('')}
   $('#starters').addEventListener('click',function(e){var b=e.target.closest('.shpchip');if(!b)return;var i=+b.dataset.i;rs.custom={key:i,poly:Regions.starterPoly(i)};renderStarters();applyRegions();renderClasses();commit()});
@@ -435,18 +452,18 @@
     $('#regCtl').style.display='block';
     if(rs.shape==='custom'&&!rs.custom)rs.custom={key:0,poly:Regions.starterPoly(0)};$('#shapeLib').style.display=rs.shape==='custom'?'block':'none';
     rs.tess=Regions.tessellate(d.w,d.h,{shape:rs.shape,poly:rs.custom&&rs.custom.poly,size:rs.size*0.8,gap:rs.gap,rotate:0,seed:d.params.seed});rs.cls=Regions.classify(rs.tess,rs.pattern,K(),7);
-    var defs={};for(var c=0;c<=K();c++){var x=rs.classes[c];defs[c]={frozen:!!x.frozen,angle:x.angleOn?x.angle:null,key:null}}
-    d.setRegions({labels:rs.tess.labels,classOfCell:rs.cls,defs:defs});Regions.overlay(rctx,d.w,d.h,rs.tess,rs.cls,RCOL,true)}
-  function renderClasses(){if(rs.shape==='none')return;var n={};for(var i=1;i<rs.cls.length;i++)n[rs.cls[i]]=(n[rs.cls[i]]||0)+1;var h='';
-    for(var c=0;c<=K();c++){var x=rs.classes[c];h+='<div class="cls" data-c="'+c+'"><div class="chead"><i style="background:rgb('+RCOL[c]+')"></i><b>'+(rs.pattern==='all'&&c===1?'Every shape':x.name)+'</b><small>'+(c===0?'the gaps':(n[c]||0)+' shapes')+'</small></div><div class="crow"><span>Frozen</span><div class="sw'+(x.frozen?' on':'')+'" data-f="frozen"></div></div><div class="crow"><span>Own direction</span><div class="rt"><input class="num" type="number" min="0" max="359" data-f="angle" value="'+x.angle+'"'+(x.angleOn?'':' disabled')+'><div class="sw'+(x.angleOn?' on':'')+'" data-f="angleOn"></div></div></div></div>'}
-    $('#classes').innerHTML=h}
+    d.setRegions({labels:rs.tess.labels,classOfCell:rs.cls,defs:RC.toDefs(K())});Regions.overlay(rctx,d.w,d.h,rs.tess,rs.cls,RCOL,true)}
+  function counts(){var n={};for(var i=1;i<rs.cls.length;i++)n[rs.cls[i]]=(n[rs.cls[i]]||0)+1;return n}
+  /* region cards: the same component as Studio's Pro panel (shared/region-cards.js) */
+  var RC=RegionCards.create({el:$('#classes'),colors:RCOL,pattern:function(){return rs.pattern},K:K,onChange:function(kind){
+    if(kind==='live')live();else if(kind==='value'){applyRegions();commit()}else{applyRegions();renderClasses();commit()}}});
+  rs.classes=RC.classes;
+  function renderClasses(){if(rs.shape==='none')return;RC.render(counts())}
   var rq=0;function live(){if(rq)return;rq=requestAnimationFrame(function(){rq=0;d.pause();applyRegions();d.instant()})}
   function commit(){d.reset();d.play()}
   $('#tiles').addEventListener('click',function(e){var b=e.target.closest('.tile');if(!b)return;$$('#tiles .tile').forEach(function(x){x.classList.toggle('on',x===b)});rs.shape=b.dataset.v;if(rs.shape==='custom'){if(!rs.size64){rs.size64=1;rs.size=100;$('#rs').value=100;$('#rsV').textContent='100 px'}applyRegions();renderStarters()}else applyRegions();renderClasses();commit()});
   [['rs','size','rsV'],['rg','gap','rgV']].forEach(function(a){var el=$('#'+a[0]);el.addEventListener('input',function(){rs[a[1]]=+el.value;$('#'+a[2]).textContent=el.value+' px';live()});el.addEventListener('change',function(){applyRegions();renderClasses();commit()})});
   $('#pat').addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;$$('#pat .chip').forEach(function(x){x.classList.toggle('on',x===b)});rs.pattern=b.dataset.v;applyRegions();renderClasses();commit()});
-  $('#classes').addEventListener('click',function(e){var sw=e.target.closest('.sw');if(!sw)return;var c=+sw.closest('.cls').dataset.c,f=sw.dataset.f;rs.classes[c][f]=!rs.classes[c][f];applyRegions();renderClasses();commit()});
-  $('#classes').addEventListener('change',function(e){var el=e.target;if(el.dataset.f==='angle'){var c=+el.closest('.cls').dataset.c;rs.classes[c].angle=((+el.value||0)%360+360)%360;applyRegions();commit()}});
 
   /* ---- Runs + share ---- */
   var RUNS=[{mode:'threshold',lo:.3,hi:.7,angle:90,seed:3},{mode:'wave',length:60,key:'saturation',angle:23,seed:9},{mode:'ca',rule:110,key:'value',seed:5},{mode:'edges',edge:22,key:'hue',angle:200,seed:12},{mode:'random',length:120,randomness:35,key:'intensity',angle:90,seed:2},{mode:'random',length:30,key:'hue',angle:180,seed:21},{mode:'ca',rule:26,cell:6,angle:270,seed:8},{mode:'threshold',lo:.15,hi:.9,key:'hue',angle:63,seed:14},{mode:'wave',length:30,key:'luma',angle:90,seed:17}];

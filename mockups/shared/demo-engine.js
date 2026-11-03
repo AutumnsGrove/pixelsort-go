@@ -305,7 +305,7 @@
     const p = this.params, d = (this.classDefs && this.classDefs[c]) || {};
     const pick = function (k) { return d[k] != null ? d[k] : p[k]; };
     return { mode: pick("mode"), length: pick("length"), randomness: pick("randomness"), lo: pick("lo") * 255, hi: pick("hi") * 255,
-             edge: pick("edge"), rule: pick("rule"), cell: pick("cell"), frozen: !!d.frozen };
+             edge: pick("edge"), rule: pick("rule"), cell: pick("cell"), algo: pick("algo"), frozen: !!d.frozen };
   };
 
   PixelDemo.prototype._build = function () {
@@ -365,6 +365,13 @@
     let maxLen = 1;
     for (let i = 0; i < A.length; i++) maxLen = Math.max(maxLen, Bb[i] - A[i]);
     this.maxLen = maxLen;
+    /* each interval watches itself sort with its region's algorithm: 0 odd-even, 1 insertion, 2 reveal */
+    const CODE = { oddeven: 0, insertion: 1, reveal: 2 }, al = new Uint8Array(A.length), cnt = [0, 0, 0], ml = [1, 1, 1], rev = [];
+    for (let i = 0; i < A.length; i++) {
+      const k = CODE[cpAt(P[A[i]]).algo] || 0; al[i] = k; cnt[k]++; ml[k] = Math.max(ml[k], Bb[i] - A[i]);
+      if (k === 2) rev.push(i);
+    }
+    this.ivAlgo = al; this.algoCount = cnt; this.algoMaxLen = ml; this.revList = rev;
     this.stats = { intervals: A.length, sortable: sortable, frozen: frozen, lines: this.nLines };
     this.cursor = 0; this.zero = 0;
   };
@@ -383,27 +390,23 @@
     px[a] = px[b]; px[b] = tp; key[a] = key[b]; key[b] = tk;
   };
 
+  /* One pass. Every interval advances with its own algorithm (a region can override the global one); the three
+     families run side by side and the sort is done when all of them are. A single algorithm everywhere behaves
+     exactly as before. */
   PixelDemo.prototype.step = function () {
     if (this.done) return;
-    const n = this.ivA.length, key = this.key, px = this.px, P = this.P;
-    const algo = this.params.algo;
-    if (algo === "oddeven") {
-      const par = this.pass & 1; let swaps = 0;
-      for (let i = 0; i < n; i++) {
-        const a0 = this.ivA[i], a1 = this.ivB[i];
+    const n = this.ivA.length, key = this.key, px = this.px, P = this.P, al = this.ivAlgo, H = this.algoCount, par = this.pass & 1;
+    let swaps = 0, active = 0;
+    for (let i = 0; i < n; i++) {
+      const k = al[i]; if (k === 2) continue;
+      const a0 = this.ivA[i], a1 = this.ivB[i];
+      if (k === 0) {
         for (let t = a0 + ((a0 ^ par) & 1); t + 1 < a1; t += 2) {
           const a = P[t], b = P[t + 1];
           if (key[a] > key[b]) { this._swap(a, b); swaps++; }
         }
-      }
-      this.zero = swaps === 0 ? this.zero + 1 : 0;
-      if (this.zero >= 2) this.done = true;
-      this.pass++;
-      this.progress = this.done ? 1 : Math.min(0.99, this.pass / this.maxLen);
-    } else if (algo === "insertion") {
-      let active = 0;
-      for (let i = 0; i < n; i++) {
-        const a0 = this.ivA[i], a1 = this.ivB[i], t = this.ins[i];
+      } else {
+        const t = this.ins[i];
         if (t >= a1) continue;
         const pa = P[t], kv = key[pa], pv = px[pa];
         let j = t - 1;
@@ -415,17 +418,20 @@
         this.ins[i] = t + 1;
         if (t + 1 < a1) active++;
       }
-      this.pass++;
-      if (!active) this.done = true;
-      this.progress = this.done ? 1 : Math.min(0.99, this.pass / this.maxLen);
-    } else { // reveal: finish a chunk of intervals completely
-      const chunk = Math.max(6, Math.ceil(n / 160));
-      const end = Math.min(n, this.cursor + chunk);
-      for (let i = this.cursor; i < end; i++) this._sortInterval(i);
-      this.cursor = end; this.pass++;
-      if (end >= n) this.done = true;
-      this.progress = n ? end / n : 1;
     }
+    const L = this.revList;
+    if (H[2]) { // reveal: finish a chunk of this family's intervals completely
+      const end = Math.min(L.length, this.cursor + Math.max(6, Math.ceil(L.length / 160)));
+      for (let c = this.cursor; c < end; c++) this._sortInterval(L[c]);
+      this.cursor = end;
+    }
+    if (H[0]) this.zero = swaps === 0 ? this.zero + 1 : 0;
+    this.pass++;
+    const oeDone = !H[0] || this.zero >= 2, insDone = !H[1] || active === 0, revDone = !H[2] || this.cursor >= L.length;
+    this.done = oeDone && insDone && revDone;
+    const tot = H[0] + H[1] + H[2], ML = this.algoMaxLen;
+    const frac = tot ? (H[0] * (oeDone ? 1 : Math.min(0.99, this.pass / ML[0])) + H[1] * (insDone ? 1 : Math.min(0.99, this.pass / ML[1])) + H[2] * (revDone ? 1 : this.cursor / L.length)) / tot : 1;
+    this.progress = this.done ? 1 : Math.min(0.99, frac);
   };
 
   PixelDemo.prototype._sortInterval = function (i) {
