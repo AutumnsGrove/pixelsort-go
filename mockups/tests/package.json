@@ -8,6 +8,7 @@
     "engine": "node engine-properties.mjs",
     "regions": "node region-properties.mjs",
     "shapes": "node custom-shapes.mjs",
+    "presets": "node presets.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"

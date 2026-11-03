@@ -91,6 +91,25 @@
   .pop.on{opacity:1;transform:none;pointer-events:auto}
   .pop h4{font-family:var(--serif);font-style:italic;font-weight:400;font-size:21px;margin-bottom:4px}
   .pop p{color:var(--dim);font-size:11px;line-height:1.6;margin-bottom:12px}
+  /* presets popover */
+  .pop.wide{width:404px;max-height:min(640px,calc(100vh - 150px));overflow-y:auto;scrollbar-width:thin}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px}
+  .pcard{display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:center;text-align:left;padding:8px;border:1px solid var(--faint);border-radius:14px;transition:.15s;min-width:0}
+  .pcard:hover{border-color:var(--dim)}
+  .pcard.on{border-color:var(--ver);background:rgba(255,90,54,.08)}
+  .pcard img{width:56px;height:35px;display:block;object-fit:cover;box-shadow:0 0 0 1px var(--faint)}
+  .pcard b{display:flex;align-items:center;gap:6px;font-family:var(--serif);font-weight:400;font-size:19px;line-height:1}
+  .pcard b svg{width:12px;height:12px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .pcard small{display:block;margin-top:4px;font-size:9px;letter-spacing:.3px;color:var(--dim);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pyours{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+  .pyours .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 13px;border:1px solid var(--faint);border-radius:999px;font-size:11px;color:var(--dim);cursor:pointer;transition:.15s}
+  .pyours .chip:hover{color:var(--paper);border-color:var(--dim)}
+  .pyours .chip.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+  .pyours .chip u{text-decoration:none;opacity:.55;padding:0 4px;font-size:14px;line-height:1}
+  .pyours .chip u:hover{opacity:1;color:var(--ver)}
+  .psave{display:grid;gap:4px;margin-top:4px}
+  .psave .tog{padding:9px 0}
+  .pempty{color:var(--dim);font-size:10.5px;line-height:1.6;margin-bottom:6px}
   .chips{display:flex;flex-wrap:wrap;gap:7px}
   .chips button{padding:7px 13px;border-radius:999px;border:1px solid var(--faint);font-size:11px;letter-spacing:.6px;color:var(--dim);transition:.15s}
   .chips button:hover{color:var(--paper);border-color:var(--dim)}
@@ -305,6 +324,7 @@
   <button class="play" id="play"><svg id="pIco" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></button>
   <button class="dsm" id="stp" title="Step"><svg viewBox="0 0 24 24"><path d="M6 5v14M10 5l9 7-9 7z"/></svg></button>
   <div class="sep"></div>
+  <button class="knob" data-k="preset" id="kPresetBox"><small id="kPresetL">Preset</small><b id="kPreset"><em>custom</em></b></button>
   <button class="knob" data-k="mode"><small>Intervals</small><b id="kMode"><em>random</em></b></button>
   <button class="knob" data-k="len" id="kLenBox"><small>Length</small><b id="kLen">40</b></button>
   <button class="knob hide" data-k="band" id="kBandBox"><small>Band</small><b id="kBand">.20–.82</b></button>
@@ -393,6 +413,7 @@
 <div class="grain"></div><div class="vig"></div>
 
 <script src="shared/demo-engine.js"></script>
+<script src="shared/presets.js"></script>
 <script src="shared/angle-dial.js"></script>
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
@@ -407,6 +428,18 @@
 
   var REC=[26,19,23,25,35,106,11,110,45,41,105,54,3,15,9,154,142];
 
+  /* ---------- presets: built-ins are data; user ones live in this browser (the real app stores them on the server) ---------- */
+  var PKEY='pixelsort.mock.presets',userPresets=[],active=null,spreadOn=false,pthumbs={};
+  try{userPresets=JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){userPresets=[]}
+  function saveUser(){try{localStorage.setItem(PKEY,JSON.stringify(userPresets))}catch(e){}}
+  function allPresets(){return Presets.BUILTIN.concat(userPresets)}
+  function findPreset(id){return allPresets().filter(function(p){return p.id===id})[0]}
+  var DICE='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r=".6"/><circle cx="15.5" cy="15.5" r=".6"/><circle cx="12" cy="12" r=".6"/></svg>';
+  function presetThumb(p){return pthumbs[p.id]||(pthumbs[p.id]=PixelDemo.thumb(Presets.roll(p,Presets.mulberry32(3),PixelDemo.DEFAULTS),112,70))}
+  function applyPreset(p){
+    var vals=Presets.roll(p,Math.random,PixelDemo.DEFAULTS);
+    active={id:p.id,name:p.name,snap:vals};set(vals);d.play();
+    toast(p.name+(Presets.rolls(p)?' · rolled '+vals.angle+'°, '+vals.randomness+'% unsorted':''))}
   function angleHtml(a){return '<svg class="mini-arrow" viewBox="0 0 24 24" style="transform:rotate('+(-a)+'deg)"><path d="M3 12h16M13 6l6 6-6 6"/></svg>'+a+'°'}
 
   /* ---------- readouts ---------- */
@@ -419,6 +452,8 @@
     $('#kLenBox').classList.toggle('hide',!(p.mode==='random'||p.mode==='wave'));
     $('#kBandBox').classList.toggle('hide',p.mode!=='threshold');
     $('#kRuleBox').classList.toggle('hide',p.mode!=='ca');
+    var edited=active&&Presets.diff(active.snap,p).length>0;
+    $('#kPreset').innerHTML='<em>'+(active?active.name:'custom')+'</em>'; $('#kPresetL').textContent=edited?'Preset · edited':'Preset';
     var s=d.stats; $('#rInt').textContent=s.intervals.toLocaleString(); $('#rFz').textContent=Math.round(s.frozen/(d.w*d.h)*100)+'%';
   }
   d.onframe=function(f){
@@ -430,7 +465,18 @@
   /* ---------- popovers ---------- */
   var pop=$('#pop'),openKey=null;
   function chips(list,cur,attr){return '<div class="chips">'+list.map(function(v){return '<button data-v="'+v+'" class="'+(String(cur)===String(v)?'on':'')+'">'+v+'</button>'}).join('')+'</div>'}
+  function presetPanel(){
+    var cards=Presets.BUILTIN.map(function(p){var on=active&&active.id===p.id;
+      return '<button class="pcard'+(on?' on':'')+'" data-p="'+p.id+'" title="'+p.desc+'"><img src="'+presetThumb(p)+'" alt=""><span style="min-width:0"><b>'+p.name+(Presets.rolls(p)?DICE:'')+'</b><small>'+Presets.chips(p).join(' · ')+'</small></span></button>'}).join('');
+    var mine=userPresets.length?'<div class="pyours">'+userPresets.map(function(p){return '<span class="chip'+(active&&active.id===p.id?' on':'')+'" data-p="'+p.id+'">'+p.name+(Presets.rolls(p)?' '+DICE.replace('<svg','<svg style="width:11px;height:11px;vertical-align:-1px;stroke:currentColor"'):'')+'<u data-del="'+p.id+'" title="Delete">×</u></span>'}).join('')+'</div>':'<p class="pempty">Nothing saved yet. Dial in a look, then save it below.</p>';
+    var cur=active&&findPreset(active.id),again=cur&&Presets.rolls(cur);
+    return '<h4>Presets</h4><p>Start from a recipe. A <span style="color:var(--gold)">die</span> means it rolls fresh values every time you pick it. Presets keep the recipe — not your shapes or protected areas.</p>'+
+      '<div class="pgrid">'+cards+'</div>'+
+      (again?'<div class="btnrow"><button id="reroll">Roll '+cur.name+' again</button></div>':'')+
+      '<div class="lbl">Yours</div>'+mine+
+      '<div class="psave"><input class="field" id="pName" placeholder="Name this recipe" maxlength="14" autocomplete="off"><div class="tog" id="pSpread"><div><b>Roll a little each time</b><small>±10% unsorted, ±30% length, ±20° direction</small></div><div class="sw'+(spreadOn?' on':'')+'"></div></div><div class="btnrow" style="margin-top:2px"><button id="pSave">Save current settings</button></div></div>'}
   var PANELS={
+    preset:presetPanel,
     mode:function(){return '<h4>Where to cut</h4><p>How each row is chopped into runs that get sorted independently.</p>'+chips(['random','wave','threshold','edges','ca','none'],d.params.mode)},
     len:function(){return '<h4>Run length</h4><div class="big"><b id="pv">'+d.params.length+'</b><span>px · mean</span></div><input type="range" min="6" max="220" value="'+d.params.length+'" id="pr"><p>Average run length. Shorter runs = grainier; longer = streakier.</p>'},
     chaos:function(){return '<h4>Leave unsorted</h4><div class="big"><b id="pv">'+d.params.randomness+'</b><span>% of runs</span></div><input type="range" min="0" max="100" value="'+d.params.randomness+'" id="pr"><p>Skips a share of runs at random, so the effect breaks up.</p>'},
@@ -446,7 +492,19 @@
   function drawCA(){var c=$('#cap');if(!c)return;c.width=280;c.height=64;var g=c.getContext('2d');var m=PixelDemo.caMap(280,64,d.params.rule,Math.max(2,Math.round(d.params.cell*.8)),d.params.seed),id=g.createImageData(280,64);
     for(var i=0;i<m.length;i++){var on=m[i];id.data[i*4]=on?255:20;id.data[i*4+1]=on?90:17;id.data[i*4+2]=on?54:15;id.data[i*4+3]=255}g.putImageData(id,0,0)}
 
+  function wirePreset(){
+    pop.onclick=function(e){
+      var del=e.target.closest('[data-del]');if(del){e.stopPropagation();userPresets=userPresets.filter(function(p){return p.id!==del.dataset.del});if(active&&active.id===del.dataset.del)active=null;saveUser();refresh();render('preset');return}
+      var c=e.target.closest('[data-p]');if(c){var p=findPreset(c.dataset.p);if(p){applyPreset(p);render('preset')}return}
+      if(e.target.closest('#reroll')){var q=findPreset(active.id);applyPreset(q);render('preset');return}
+      if(e.target.closest('#pSpread')){spreadOn=!spreadOn;$('#pSpread .sw').classList.toggle('on',spreadOn);return}
+      if(e.target.closest('#pSave')){var name=$('#pName').value.trim();if(!name){$('#pName').focus();toast('Give it a name first');return}
+        if(allPresets().some(function(p){return p.name.toLowerCase()===name.toLowerCase()})){toast('That name is taken');return}
+        var np={id:'u'+Date.now().toString(36),name:name,spec:Presets.fromParams(d.params,spreadOn),user:true};userPresets.push(np);userPresets=userPresets.slice(-12);saveUser();
+        active={id:np.id,name:np.name,snap:Presets.fromParams(d.params,false)};refresh();render('preset');toast('Saved “'+name+'”')}};
+  }
   function wire(k){
+    if(k==='preset'){wirePreset();return}
     var r=$('#pr');
     if(r)r.addEventListener('input',function(){var v=+r.value;$('#pv').textContent=v;if(k==='len')set({length:v});else if(k==='chaos')set({randomness:v});else if(k==='speed'){d.speed=v;refresh()}});
     pop.onclick=function(e){var b=e.target.closest('button');if(!b)return;
@@ -464,8 +522,8 @@
       $$('.angrow button').forEach(function(b){b.addEventListener('click',function(){apply(d.params.angle+ +b.dataset.n)})});
     }
   }
-  function render(k){pop.innerHTML=PANELS[k]();wire(k)}
-  function place(btn){var b=btn.getBoundingClientRect(),w=320;var x=Math.max(12,Math.min(innerWidth-w-12,b.left+b.width/2-w/2));pop.style.left=x+'px';pop.style.bottom=(innerHeight-b.top+16)+'px'}
+  function render(k){pop.classList.toggle('wide',k==='preset');pop.innerHTML=PANELS[k]();wire(k)}
+  function place(btn){var b=btn.getBoundingClientRect(),w=pop.offsetWidth||320;var x=Math.max(12,Math.min(innerWidth-w-12,b.left+b.width/2-w/2));pop.style.left=x+'px';pop.style.bottom=(innerHeight-b.top+16)+'px'}
   function openPop(btn){var k=btn.dataset.k;if(openKey===k){closePop();return}$$('.knob').forEach(function(x){x.classList.remove('open')});btn.classList.add('open');openKey=k;render(k);place(btn);pop.classList.add('on')}
   function closePop(){pop.classList.remove('on');$$('.knob').forEach(function(x){x.classList.remove('open')});openKey=null}
   $('#dock').addEventListener('click',function(e){var b=e.target.closest('.knob');if(b)openPop(b)});
