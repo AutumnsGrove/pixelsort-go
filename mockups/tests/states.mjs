@@ -79,7 +79,7 @@ s = await open('studio.html?empty'); await s.keyboard.press('Escape'); await s.k
 const pv = { width: 390, height: 844 };
 let p = await open('phone.html?offline', pv); const pill = p.locator('#phone .st-pill.st-compact'); const pb = await pill.boundingBox();
 ok(await pill.count() === 1 && pb.x >= 0 && pb.x + pb.width <= 391 && pb.height < 130, 'Phone (offline): the pill sits inside the screen');
-const rb = await pill.locator('[data-a]').boundingBox(); ok(rb.height >= 44, 'Phone (offline): Retry is a real tap target (' + Math.round(rb.height) + ' px)');
+await p.waitForTimeout(700); const rb = await pill.locator('[data-a]').boundingBox(); ok(rb.height >= 44, 'Phone (offline): Retry is a real tap target (' + Math.round(rb.height) + ' px)');
 p = await open('phone.html?used=51.3', pv); ok(await p.locator('#phone .st-pill.full').count() === 1, 'Phone: a full Archive shows the pill');
 await p.click('.st-pill [data-a]'); await p.waitForTimeout(500); ok(await p.locator('#p-runs.on').count() === 1 && /51\.3/.test(await p.textContent('#phUsed')), 'Phone: "Free up space" opens the Runs tab, which shows 51.3 / 50 GB');
 p = await open('phone.html?empty', pv); await p.click('#tabs [data-t="runs"]'); await p.waitForTimeout(400); ok(/Nothing here yet/.test(await p.textContent('#grid')), 'Phone (empty): the Runs tab says it is empty');
