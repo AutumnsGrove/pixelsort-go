@@ -62,7 +62,7 @@
   <div class="eyebrow">Settings</div>
   <h1 class="display">Make it <em>yours</em>.</h1>
   <p class="lede">Saved as you change them, kept in this browser in the mockups (the real app keeps them with the rest of your data). Look and motion settings apply to every screen straight away.</p>
-  <nav class="jump" aria-label="Sections"><a href="#picture">Picture</a><a href="#export">Export</a><a href="#sharing">Sharing</a><a href="#look">Look &amp; motion</a><a href="#storage">Storage</a><a href="#presets">Presets</a><a href="#help">Help</a><a href="#about">About</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#picture">Picture</a><a href="#export">Export</a><a href="#sharing">Sharing</a><a href="#look">Look &amp; motion</a><a href="#storage">Storage</a><a href="#presets">Presets</a><a href="#help">Help</a><a href="#updates">Updates</a><a href="#about">About</a></nav>
 
   <section class="set" id="picture">
     <h2>Picture</h2>
@@ -113,9 +113,15 @@
     <div class="btns"><button class="btn" id="btnKeys">Keyboard shortcuts</button><a class="btn" href="studio.html?tour" id="btnTour">Take the tour</a><button class="btn danger" id="btnReset">Reset all settings</button></div>
   </section>
 
+  <section class="set" id="updates">
+    <h2>Updates<span class="up-mock">mockup · <a href="?update=available" style="color:inherit">available</a> · <a href="?update=fail" style="color:inherit">fail</a> · <a href="?update=rollbackfail" style="color:inherit">rollback fails</a> · <a href="?update=none" style="color:inherit">not set up</a></span></h2>
+    <p class="sub">New versions are fetched and applied by a small helper on your server. Nothing updates unless you ask.</p>
+    <div id="upMount"></div>
+  </section>
+
   <section class="set" id="about">
     <h2>About &amp; credits</h2>
-    <div class="ver"><span>pixelsort-go <b>0.1 · mockups</b></span><span>licence <b>MIT</b></span><span><a href="https://github.com/AutumnsGrove/pixelsort-go" style="color:var(--gold)">source on GitHub</a></span></div>
+    <div class="ver"><span>pixelsort-go <b id="verNow">0.1 · mockups</b></span><span>licence <b>MIT</b></span><span><a href="https://github.com/AutumnsGrove/pixelsort-go" style="color:var(--gold)">source on GitHub</a></span></div>
     <ul class="credits">
       <li><b>Kim Asendorf</b><span>Wrote the original ASDF Pixel Sort script. The <em>Kims</em> preset is that script’s idea: threshold, straight up.</span></li>
       <li><b>satyarth/pixelsort</b><span>The Python library these algorithms descend from. MIT. <a href="https://github.com/satyarth/pixelsort">github.com/satyarth/pixelsort</a></span></li>
@@ -131,6 +137,7 @@
 <div class="grain"></div><div class="vig"></div>
 <script src="shared/export-model.js"></script>
 <script src="shared/help.js"></script>
+<script src="shared/updater.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)};
@@ -165,6 +172,10 @@
   window.addEventListener('keydown',function(e){if(e.key==='?'&&!/INPUT|TEXTAREA/.test(e.target.tagName)&&!document.querySelector('.hp'))$('#btnKeys').click()});
   window.addEventListener('resize',paint);
   paint();
+  var q=location.search,um=/[?&]update=(\w+)/.exec(q),fast=/[?&]updatefast\b/.test(q);
+  window.__upd=Updater.mount({host:$('#upMount'),toast:toast,pollMs:fast?60:500,
+    sim:Updater.createSim({scenario:um?um[1]:'ready',timing:fast?{check:140,pull:260,down:110}:null}),
+    busy:function(){return {exporting:/[?&]busyexport\b/.test(q)}}});
 })();
 </script>
 </body>

@@ -19,6 +19,7 @@ const tests = [
   ['shape-tidy.mjs', 'tidy-this-shape panel, saved compound shapes, phone starters'],
   ['scale.mjs', 'scale: virtual list maths, dated rows, search, 2,000 runs in Studio, Archive, phone'],
   ['errors.mjs', 'errors: catalog rules; image, link, engine, save, export, share failures on every screen'],
+  ['updater.mjs', 'updates: state machine, guards, simulated watcher, every outcome on the Settings page'],
   ['mask-editor.mjs', 'mask shapes: drag, resize, rotate, hole, invert, snap (desktop)'],
   ['phone-mask.mjs', 'mask shapes on the phone sheet'],
   ['layout-scan.mjs', 'every screen x 4 window sizes: no overflow or collisions'],

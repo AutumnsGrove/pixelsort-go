@@ -569,6 +569,7 @@ only carrying things Autumn explicitly shares or fetches. Write that into the RE
 | Secrets | Worker URL + shared secret in `~/Pixelsort/.env`, never in the image or repo. |
 | Data | `~/Pixelsort/data/` — `pixelsort.db` (+WAL) and `images/`; **50 GB budget** |
 | Health | `GET /healthz` → `{"status":"ok","version":"…"}`; must answer in ms |
+| Updates | In-app, from **Settings → Updates**, same pattern as Warbler / Polaris / Ivy. Spec in [`docs/update.md`](docs/update.md). The app never touches Docker and never names an image; the host watcher resolves `:latest` to a digest, snapshots the database, pulls, health-checks, and rolls back on failure. |
 | Meridian | Tile + vital (`disk_used` of 50 GB — also covers "how full is the gallery") + control target (restart/update) |
 | Docs | `homelab/docs/pixelsort.md`, port-map row, and a reserved-port note — **only after Autumn approves the plan** |
 
@@ -699,6 +700,7 @@ direction, Own sort key + direction, and a full Own cutting recipe.
 - First-run tour, shortcut sheet (`?`) and Settings with credits.
 - Presets (the eight Python built-ins as rolled specs, plus user presets), the `T` "what can move" overlay,
   and the export planner and dialog (8 B/px floor + 9 B/px scratch per band).
+- Settings → Updates: check, update, progress that survives the server restarting, failure and rollback states (`shared/updater.js`).
 
 Nothing is left on the design list; the mockup phase is finished and the next step is Phase 0 (§9).
 
