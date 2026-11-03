@@ -297,7 +297,7 @@
     <button id="bGallery">Runs<kbd>G</kbd></button>
     <button id="bPro">Pro<kbd>Tab</kbd></button>
     <a href="gallery.html">Archive</a>
-    <button onclick="toast('Saved full-res PNG (mock)')">Save</button>
+    <button id="bSave">Export<kbd>E</kbd></button>
   </div>
 </div>
 
@@ -414,6 +414,8 @@
 
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/export-model.js"></script>
+<script src="shared/export-dialog.js"></script>
 <script src="shared/angle-dial.js"></script>
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
@@ -606,9 +608,13 @@
   function toggleStrip(){var on=$('#strip').classList.toggle('on');$('#bGallery').classList.toggle('on',on)}
   $('#bGallery').onclick=toggleStrip;
 
+  /* ---------- export ---------- */
+  function openExport(){closePop();if(document.querySelector('.xd'))return;var m=location.search.match(/device=(\w+)/),dim=($('#capDim').textContent.match(/^(\d+) × (\d+)/)||[0,4032,2520]);
+    ExportDialog.open({host:document.body,name:$('#capName').textContent,w:+dim[1],h:+dim[2],recipe:active?active.name:d.params.mode,device:m?m[1]:'desktop',toast:toast})}
+  $('#bSave').onclick=openExport;
   /* ---------- keys ---------- */
   window.addEventListener('keydown',function(e){if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
-    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='Escape'){closePop();closeIntake();ed.select(null);togglePro(false)}});
+    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='Escape'){closePop();closeIntake();ed.select(null);togglePro(false)}});
   window.addEventListener('keyup',function(e){if(e.key==='c')hold(false)});
 
 

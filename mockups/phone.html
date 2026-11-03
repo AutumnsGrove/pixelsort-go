@@ -261,6 +261,8 @@
 <div class="grain"></div><div class="vig"></div>
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/export-model.js"></script>
+<script src="shared/export-dialog.js"></script>
 <script src="shared/angle-dial.js"></script>
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
@@ -288,7 +290,7 @@
   d.onframe=function(f){$('#pg').style.width=(f.progress*100)+'%';$('#capR').textContent=Math.round(f.progress*100)+'%';$('#fIco').innerHTML=f.running?'<path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/>':'<path d="M7 4.5v15l13-7.5z"/>'};
   $('#fab').onclick=function(){d.toggle()};
   var cm=$('#icCmp');cm.addEventListener('pointerdown',function(){d.compare(true)});['pointerup','pointerleave','pointercancel'].forEach(function(n){cm.addEventListener(n,function(){d.compare(false)})});
-  $('#icSave').onclick=function(){toast('Saved to Photos · 4032×2520')};
+  $('#icSave').onclick=function(){if(document.querySelector('.xd'))return;ExportDialog.open({host:$('#phone'),sheet:true,name:'sunset-ridge',w:4032,h:2520,recipe:(typeof active!=='undefined'&&active)?active.name:d.params.mode,device:/device=(\w+)/.test(location.search)?RegExp.$1:'phone',toast:toast})};
 
   /* ---- Cut ---- */
   var MODES=['random','wave','threshold','edges','cellular','none'];
