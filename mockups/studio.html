@@ -217,6 +217,10 @@
   .shp.on{border-color:var(--ver);color:var(--paper);background:rgba(255,90,54,.08)}
   .shp .x{position:absolute;right:4px;top:1px;font-size:13px;opacity:0;color:var(--dim);line-height:1}
   .shp:hover .x{opacity:1}.shp .x:hover{color:var(--ver)}
+  .cleanbox{border:1px solid var(--faint);border-radius:16px;padding:14px 14px 12px;margin:10px 0}
+  .cleanrow{display:flex;gap:14px;align-items:center;margin:8px 0 4px}
+  #cleanImg{width:72px;height:72px;flex:none;border:1px solid var(--faint);border-radius:12px;background:rgba(255,255,255,.02)}
+  .cleanrow b{font-family:var(--serif);font-style:italic;font-weight:400;font-size:19px}
   .svgdrop{display:grid;place-items:center;gap:4px;text-align:center;padding:18px 12px;border:1.5px dashed rgba(236,228,211,.26);border-radius:16px;cursor:pointer;transition:.2s;margin:12px 0 8px}
   .svgdrop b{font-family:var(--serif);font-style:italic;font-weight:400;font-size:20px}
   .svgdrop span{color:var(--dim);font-size:10px}
@@ -380,11 +384,20 @@
           <div class="shapes" id="starters"></div>
           <div class="lbl" id="mineLbl" style="display:none">Your shapes</div>
           <div class="shapes" id="mine"></div>
-          <label class="svgdrop" id="svgDrop" for="svgFile"><b>Drop an .svg here</b><span>or click to choose a file · the biggest outline is used</span></label>
+          <label class="svgdrop" id="svgDrop" for="svgFile"><b>Drop an .svg here</b><span>or click to choose a file · holes and extra pieces are kept (you can tidy them)</span></label>
           <input type="file" id="svgFile" accept=".svg,image/svg+xml" hidden>
           <textarea class="field" id="svgText" placeholder="…or paste SVG code: &lt;svg&gt;&lt;path d=&quot;…&quot;/&gt;&lt;/svg&gt;" spellcheck="false"></textarea>
           <div class="bar2"><button class="btn sm" id="svgParse">Use pasted SVG</button></div>
-          <p class="info2" id="svgInfo">Tip: any closed outline works — a logo, a leaf, your own doodle.</p>
+          <p class="info2" id="svgInfo">Tip: any closed outline works — a logo, a leaf, your own doodle. Rings inside an outline become holes.</p>
+          <div class="cleanbox" id="svgClean" style="display:none">
+            <div class="lbl" style="margin-top:0">Tidy this shape</div>
+            <div class="cleanrow"><img id="cleanImg" alt=""><div><b id="cleanName"></b><p class="info2" id="cleanStats" style="margin:2px 0 0"></p></div></div>
+            <div id="cleanPieces" style="display:none"><div class="lbl">Which pieces</div><div class="chips" id="cleanPieceChips"><button data-v="largest" class="on">just the largest</button><button data-v="all">all of them</button></div></div>
+            <div class="tog" id="cleanHoles" style="display:none" role="switch" tabindex="0"><div><b>Keep the holes</b><small>rings inside an outline stay empty</small></div><div class="sw on"></div></div>
+            <div class="prow" id="cleanMinRow" style="display:none"><label>Fill holes smaller than <em id="cleanMinV">0%</em></label><input type="range" id="cleanMin" min="0" max="15" value="0" aria-label="Fill small holes"></div>
+            <div class="prow"><label>Simplify <em id="cleanSimpV">0%</em></label><input type="range" id="cleanSimp" min="0" max="30" value="0" aria-label="Simplify"></div>
+            <div class="bar2"><button class="btn sm pri" id="cleanAdd">Add to my shapes</button><button class="btn sm" id="cleanCancel">Cancel</button></div>
+          </div>
           <div class="lbl">Arrange</div>
           <div class="chips" id="arr"><button data-v="0" class="on">grid</button><button data-v="1">staggered</button></div>
         </div>
@@ -711,16 +724,31 @@
   function customTile(){return '<button class="tile" data-v="custom"><img src="'+Regions.polyIcon(Regions.starterPoly(0),80)+'" alt="">custom</button>'}
   $('#tiles').innerHTML='<button class="tile on" data-v="none"><span class="none"></span>none</button>'+Regions.SHAPES.map(function(x){return '<button class="tile" data-v="'+x.id+'"><img src="'+Regions.icon(x.id,80)+'" alt="">'+x.name+'</button>'}).join('')+customTile();
   function renderLib(){
-    $('#starters').innerHTML=Regions.STARTERS.map(function(st,i){var on=rs.custom&&rs.custom.key==='s'+i;return '<button class="shp'+(on?' on':'')+'" data-k="s'+i+'" title="'+st.name+'"><img src="'+Regions.polyIcon(Regions.starterPoly(i),64)+'" alt="">'+st.name+'</button>'}).join('');
+    $('#starters').innerHTML=Regions.STARTERS.map(function(st,i){var on=rs.custom&&rs.custom.key==='s'+i;return '<button class="shp'+(on?' on':'')+'" data-k="s'+i+'" title="'+st.name+'"><img src="'+Regions.polyIcon(Regions.starterPoly(i),64,Regions.starterMore(i))+'" alt="">'+st.name+'</button>'}).join('');
     $('#mineLbl').style.display=mine.length?'block':'none';
-    $('#mine').innerHTML=mine.map(function(m,i){var on=rs.custom&&rs.custom.key==='m'+i;return '<button class="shp'+(on?' on':'')+'" data-k="m'+i+'" title="'+m.name+'"><span class="x" data-del="'+i+'" title="Remove">×</span><img src="'+Regions.polyIcon(m.poly,64)+'" alt="">'+(m.name.length>9?m.name.slice(0,8)+'…':m.name)+'</button>'}).join('');
+    $('#mine').innerHTML=mine.map(function(m,i){var on=rs.custom&&rs.custom.key==='m'+i;return '<button class="shp'+(on?' on':'')+'" data-k="m'+i+'" title="'+m.name+'"><span class="x" data-del="'+i+'" title="Remove">×</span><img src="'+Regions.polyIcon(m.poly,64,m.more)+'" alt="">'+(m.name.length>9?m.name.slice(0,8)+'…':m.name)+'</button>'}).join('');
   }
   function chooseShape(key){
-    var poly,name;if(key[0]==='s'){var i=+key.slice(1);poly=Regions.starterPoly(i);name=Regions.STARTERS[i].name}else{var m=mine[+key.slice(1)];if(!m)return;poly=m.poly;name=m.name}
-    rs.custom={key:key,name:name,poly:poly};renderLib();applyRegions();renderClasses();commit()}
-  function addShape(name,poly,info){mine.unshift({name:name,poly:poly});mine=mine.slice(0,12);saveMine();selectTile('custom');chooseShape('m0');setInfo(info+' · added to your shapes',false)}
+    var poly,name,more;if(key[0]==='s'){var i=+key.slice(1);poly=Regions.starterPoly(i);more=Regions.starterMore(i);name=Regions.STARTERS[i].name}else{var m=mine[+key.slice(1)];if(!m)return;poly=m.poly;more=m.more||[];name=m.name}
+    rs.custom={key:key,name:name,poly:poly,more:more};renderLib();applyRegions();renderClasses();commit()}
+  function addShape(name,poly,info,more){mine.unshift({name:name,poly:poly,more:more||[]});mine=mine.slice(0,12);saveMine();selectTile('custom');chooseShape('m0');setInfo(info+' · added to your shapes',false)}
   function setInfo(t,err){var el=$('#svgInfo');el.textContent=t;el.classList.toggle('err',!!err)}
-  function importSvgText(text,name){var r=Regions.parseSVG(text);if(r.error){setInfo(r.error,true);toast('Couldn’t use that SVG');return}togglePro(true);addShape(name||'My shape',r.poly,r.info)}
+  var tidy=null;
+  function importSvgText(text,name){var raw=Regions.parseSVGRaw(text);if(raw.error){setInfo(raw.error,true);toast('Couldn’t use that SVG');return}togglePro(true);
+    if(!Regions.needsTidy(raw)){var r=Regions.buildShape(raw,{});addShape(name||'My shape',r.poly,raw.elements+' shape'+(raw.elements>1?'s':'')+' found · '+r.info,r.more);return}
+    tidy={raw:raw,name:name||'My shape',o:{pieces:'largest',holes:true,minHole:0,simplify:0}};selectTile('custom');$('#shapeLib').style.display='block';$('#svgClean').style.display='block';$('#cleanName').textContent=tidy.name;
+    $$('#cleanPieceChips button').forEach(function(b){b.classList.toggle('on',b.dataset.v==='largest')});$('#cleanMin').value=0;$('#cleanSimp').value=0;$('#cleanHoles .sw').classList.add('on');setInfo('This one has several pieces or holes — tidy it, then add it.',false);paintTidy();$('#svgClean').scrollIntoView({block:'nearest',behavior:'smooth'})}
+  function paintTidy(){if(!tidy)return;var o=tidy.o,s=Regions.buildShape(tidy.raw,o),full=Regions.buildShape(tidy.raw,{pieces:o.pieces,holes:true});tidy.built=s;
+    $('#cleanImg').src=Regions.polyIcon(s.poly,72,s.more);$('#cleanStats').textContent=s.info+(s.stats.droppedRings?' · '+s.stats.droppedRings+' ring'+(s.stats.droppedRings>1?'s':'')+' left out':'');
+    $('#cleanPieces').style.display=tidy.raw.pieces.length>1?'block':'none';$('#cleanHoles').style.display=full.stats.holes>0?'flex':'none';$('#cleanMinRow').style.display=(full.stats.holes>0&&o.holes)?'block':'none';
+    $('#cleanMinV').textContent=$('#cleanMin').value+'%';$('#cleanSimpV').textContent=($('#cleanSimp').value/10).toFixed(1)+'%'}
+  $('#cleanPieceChips').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||!tidy)return;tidy.o.pieces=b.dataset.v;$$('#cleanPieceChips button').forEach(function(x){x.classList.toggle('on',x===b)});paintTidy()});
+  function flipHoles(){if(!tidy)return;tidy.o.holes=!tidy.o.holes;$('#cleanHoles .sw').classList.toggle('on',tidy.o.holes);paintTidy()}
+  $('#cleanHoles').onclick=flipHoles;$('#cleanHoles').onkeydown=function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();flipHoles()}};
+  $('#cleanMin').addEventListener('input',function(e){if(!tidy)return;tidy.o.minHole=+e.target.value/100;paintTidy()});
+  $('#cleanSimp').addEventListener('input',function(e){if(!tidy)return;tidy.o.simplify=+e.target.value/1000;paintTidy()});
+  $('#cleanAdd').onclick=function(){if(!tidy)return;var s=tidy.built||Regions.buildShape(tidy.raw,tidy.o),n=tidy.name;tidy=null;$('#svgClean').style.display='none';addShape(n,s.poly,s.info,s.more)};
+  $('#cleanCancel').onclick=function(){tidy=null;$('#svgClean').style.display='none';setInfo('Tip: any closed outline works — a logo, a leaf, your own doodle. Rings inside an outline become holes.',false)};
   function importSvgFile(f){var rd=new FileReader();rd.onload=function(){importSvgText(String(rd.result),f.name.replace(/\.svg$/i,''))};rd.readAsText(f)}
   $('#svgFile').addEventListener('change',function(e){var f=e.target.files[0];if(f)importSvgFile(f);e.target.value=''});
   $('#svgParse').onclick=function(){var t=$('#svgText').value.trim();if(!t){setInfo('Paste some SVG code first.',true);return}importSvgText(t,'Pasted shape');$('#svgText').value=''};
@@ -738,8 +766,8 @@
   function applyRegions(){
     if(rs.shape==='none'){d.setRegions(null);Regions.overlay(rctx,d.w,d.h,null);$('#regCtl').style.display='none';return}
     $('#regCtl').style.display='block';$('#shapeLib').style.display=rs.shape==='custom'?'block':'none';
-    if(rs.shape==='custom'&&!rs.custom){rs.custom={key:'s0',name:Regions.STARTERS[0].name,poly:Regions.starterPoly(0)};renderLib()}
-    rs.tess=Regions.tessellate(d.w,d.h,{shape:rs.shape,poly:rs.custom&&rs.custom.poly,stagger:rs.stagger,size:rs.size,gap:rs.gap,rotate:rs.rotate,seed:d.params.seed});
+    if(rs.shape==='custom'&&!rs.custom){rs.custom={key:'s0',name:Regions.STARTERS[0].name,poly:Regions.starterPoly(0),more:Regions.starterMore(0)};renderLib()}
+    rs.tess=Regions.tessellate(d.w,d.h,{shape:rs.shape,poly:rs.custom&&rs.custom.poly,more:rs.custom&&rs.custom.more,stagger:rs.stagger,size:rs.size,gap:rs.gap,rotate:rs.rotate,seed:d.params.seed});
     rs.cls=Regions.classify(rs.tess,rs.pattern,K(),7);
     d.setRegions({labels:rs.tess.labels,classOfCell:rs.cls,defs:toDefs()});
     drawOverlay();refresh();

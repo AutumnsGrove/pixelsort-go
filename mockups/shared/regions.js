@@ -13,35 +13,66 @@
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function hash(n) { n = (n ^ 61) ^ (n >>> 16); n = (n + (n << 3)) | 0; n ^= n >>> 4; n = Math.imul(n, 0x27d4eb2d); n ^= n >>> 15; return n >>> 0; }
 
-  /* even-odd point-in-polygon rasterised once into an M x M bitmap (unit-square coordinates) */
-  function polyBits(poly, M) {
-    var bits = new Uint8Array(M * M), n = poly.length;
+  /* even-odd point-in-polygon rasterised once into an M x M bitmap (unit-square coordinates). `more` are extra
+     rings: even-odd means one nested inside the outline cuts a hole, one outside is another piece of the same shape. */
+  function polyBits(poly, M, more) {
+    var bits = new Uint8Array(M * M), rings = [poly].concat(more || []);
     for (var y = 0; y < M; y++) for (var x = 0; x < M; x++) {
       var px = (x + 0.5) / M, py = (y + 0.5) / M, inside = false;
-      for (var a = 0, b = n - 1; a < n; b = a++) {
-        var xa = poly[a][0], ya = poly[a][1], xb = poly[b][0], yb = poly[b][1];
-        if ((ya > py) !== (yb > py) && px < (xb - xa) * (py - ya) / (yb - ya) + xa) inside = !inside;
+      for (var r = 0; r < rings.length; r++) {
+        var pl = rings[r], n = pl.length;
+        for (var a = 0, b = n - 1; a < n; b = a++) {
+          var xa = pl[a][0], ya = pl[a][1], xb = pl[b][0], yb = pl[b][1];
+          if ((ya > py) !== (yb > py) && px < (xb - xa) * (py - ya) / (yb - ya) + xa) inside = !inside;
+        }
       }
       bits[y * M + x] = inside ? 1 : 0;
     }
     return bits;
   }
 
-  /* fit any outline into the unit square, keeping its proportions, centred */
-  function normalizePoly(pts) {
-    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; });
-    var w = x1 - x0 || 1, h = y1 - y0 || 1, sc = 0.92 / Math.max(w, h), ox = (1 - w * sc) / 2, oy = (1 - h * sc) / 2;
-    return pts.map(function (p) { return [(p[0] - x0) * sc + ox, (p[1] - y0) * sc + oy]; });
+  function ringArea(r) { var a = 0; for (var i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] * r[i][1] - r[i][0] * r[j][1]); return Math.abs(a) / 2; }
+  function inRing(pt, r) { var inside = false; for (var a = 0, b = r.length - 1; a < r.length; b = a++) { if ((r[a][1] > pt[1]) !== (r[b][1] > pt[1]) && pt[0] < (r[b][0] - r[a][0]) * (pt[1] - r[a][1]) / (r[b][1] - r[a][1]) + r[a][0]) inside = !inside; } return inside; }
+  /* Douglas-Peucker on one ring (treated as the open polyline first..last); keeps at least 3 points */
+  function simplifyRing(r, eps) {
+    if (!eps || r.length <= 4) return r.slice();
+    var keep = new Uint8Array(r.length); keep[0] = keep[r.length - 1] = 1; var stack = [[0, r.length - 1]];
+    while (stack.length) {
+      var seg = stack.pop(), i0 = seg[0], i1 = seg[1], ax = r[i0][0], ay = r[i0][1], bx = r[i1][0], by = r[i1][1], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9, best = -1, bd = 0;
+      for (var i = i0 + 1; i < i1; i++) { var d = Math.abs(dy * (r[i][0] - ax) - dx * (r[i][1] - ay)) / L; if (d > bd) { bd = d; best = i; } }
+      if (best > 0 && bd > eps) { keep[best] = 1; stack.push([i0, best], [best, i1]); }
+    }
+    var out = []; for (var k = 0; k < r.length; k++) if (keep[k]) out.push(r[k]);
+    return out.length >= 3 ? out : r.slice(0, 3);
+  }
+  /* split a sampled outline into rings wherever the path jumps (a new sub-path), using the sampling step */
+  function splitRings(pts, step) {
+    var rings = [], cur = [pts[0]];
+    for (var i = 1; i < pts.length; i++) { if (Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) > step * 1.8 + 1e-6) { rings.push(cur); cur = []; } cur.push(pts[i]); }
+    rings.push(cur); return rings.filter(function (r) { return r.length >= 3; });
   }
 
+  /* fit any set of rings into the unit square together, keeping proportions, centred */
+  function normalizeRings(rings) {
+    var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    rings.forEach(function (r) { r.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); });
+    var w = x1 - x0 || 1, h = y1 - y0 || 1, sc = 0.92 / Math.max(w, h), ox = (1 - w * sc) / 2, oy = (1 - h * sc) / 2;
+    return rings.map(function (r) { return r.map(function (p) { return [(p[0] - x0) * sc + ox, (p[1] - y0) * sc + oy]; }); });
+  }
+  function normalizePoly(pts) { return normalizeRings([pts])[0]; }
+
   var NS = "http://www.w3.org/2000/svg";
-  /* sample a path (or basic shape) into a polygon using the browser's own geometry API */
+  /* sample a path (or basic shape) into rings using the browser's own geometry API; sub-paths become separate rings */
+  function sampleRings(el, maxN) {
+    var L = 0; try { L = el.getTotalLength(); } catch (e) { L = 0; } if (!L) return [];
+    var N = Math.min(maxN || 240, Math.max(28, Math.round(L / 2.5))), pts = [];
+    for (var k = 0; k < N; k++) { var q = el.getPointAtLength(k / N * L); pts.push([q.x, q.y]); }
+    return splitRings(pts, L / N);
+  }
   function flattenPathD(d) {
     var host = document.createElementNS(NS, "svg"); host.setAttribute("style", "position:fixed;left:-9999px;top:0;width:0;height:0");
     var p = document.createElementNS(NS, "path"); p.setAttribute("d", d); host.appendChild(p); document.body.appendChild(host);
-    var out = [];
-    try { var L = p.getTotalLength(), N = Math.min(220, Math.max(28, Math.round(L / 2.5))); for (var k = 0; k < N; k++) { var q = p.getPointAtLength(k / N * L); out.push([q.x, q.y]); } } catch (e) { out = []; }
+    var out = []; try { out = sampleRings(p, 480); } catch (e) { out = []; }
     document.body.removeChild(host); return out;
   }
   var STARTERS = [
@@ -52,38 +83,84 @@
     { name: "Moon", d: "M62 6 C36 10 18 30 18 54 C18 78 38 94 62 94 C74 94 84 90 90 84 C66 84 50 70 50 52 C50 34 62 18 84 14 C78 9 70 6 62 6 Z" },
     { name: "Leaf", d: "M12 88 C12 40 46 8 90 10 C92 54 60 90 12 88 Z" },
     { name: "Cross", d: "M38 6 H62 V38 H94 V62 H62 V94 H38 V62 H6 V38 H38 Z" },
-    { name: "Arrow", d: "M50 4 L92 46 H66 V96 H34 V46 H8 Z" }
+    { name: "Arrow", d: "M50 4 L92 46 H66 V96 H34 V46 H8 Z" },
+    /* compound: a ring inside an outline is a hole (even-odd) */
+    { name: "Ring", d: "M50 4 A46 46 0 1 0 50 96 A46 46 0 1 0 50 4 Z M50 28 A22 22 0 1 0 50 72 A22 22 0 1 0 50 28 Z" },
+    { name: "Frame", d: "M6 6 H94 V94 H6 Z M26 26 V74 H74 V26 Z" },
+    { name: "Target", d: "M50 4 A46 46 0 1 0 50 96 A46 46 0 1 0 50 4 Z M50 20 A30 30 0 1 0 50 80 A30 30 0 1 0 50 20 Z M50 36 A14 14 0 1 0 50 64 A14 14 0 1 0 50 36 Z" }
   ];
-  STARTERS.forEach(function (s) { s.poly = null; });
-  function starterPoly(i) { var s = STARTERS[i]; if (!s.poly) s.poly = normalizePoly(flattenPathD(s.d)); return s.poly; }
+  STARTERS.forEach(function (s) { s.poly = null; s.more = null; });
+  function fillStarter(s) {
+    if (s.poly) return;
+    var rings = flattenPathD(s.d).sort(function (a, b) { return ringArea(b) - ringArea(a); }), n = normalizeRings(rings);
+    s.poly = n[0]; s.more = n.slice(1);
+  }
+  function starterPoly(i) { var s = STARTERS[i]; fillStarter(s); return s.poly; }
+  /* the extra rings of a starter (holes, or more pieces): [] for the plain ones */
+  function starterMore(i) { var s = STARTERS[i]; fillStarter(s); return s.more; }
 
-  /* parse user SVG text -> {poly, info} or {error} */
-  function parseSVG(text) {
+  /* Step 1: read the SVG as data. -> {pieces:[{rings, len}], elements} or {error}. Nothing from the file is ever
+     put into the page: the elements are cloned into a hidden measuring <svg> and thrown away. */
+  function parseSVGRaw(text) {
     var doc = new DOMParser().parseFromString(text, "image/svg+xml");
     if (doc.querySelector("parsererror")) return { error: "That doesn’t parse as SVG." };
     var svg = doc.documentElement; if (!svg || svg.tagName.toLowerCase() !== "svg") return { error: "No <svg> found in that file." };
     var els = [].slice.call(svg.querySelectorAll("path,polygon,polyline,circle,ellipse,rect"));
     if (!els.length) return { error: "No shapes in there — I look for path, polygon, circle, ellipse and rect." };
     var host = document.createElementNS(NS, "svg"); host.setAttribute("style", "position:fixed;left:-9999px;top:0;width:0;height:0"); document.body.appendChild(host);
-    var best = null, bestLen = 0, extra = false;
+    var pieces = [];
     els.forEach(function (e) {
-      var c = document.importNode(e, true);
-      if (c.tagName.toLowerCase() === "path") { var d = c.getAttribute("d") || ""; var parts = d.split(/(?=[Mm])/).filter(function (x) { return x.trim(); }); if (parts.length > 1) { extra = true; c.setAttribute("d", parts[0]); } }
-      host.appendChild(c); var L = 0; try { L = c.getTotalLength(); } catch (err) { L = 0; } if (L > bestLen) { bestLen = L; best = c; }
+      var c = document.importNode(e, true); host.appendChild(c);
+      var rings = []; try { rings = sampleRings(c, 480); } catch (err) { rings = []; }
+      var len = 0; try { len = c.getTotalLength(); } catch (err2) { len = 0; }
+      if (rings.length) pieces.push({ rings: rings, len: len });
     });
-    if (!best) { document.body.removeChild(host); return { error: "Couldn’t measure any outline in that SVG." }; }
-    var pts = [], N = Math.min(240, Math.max(28, Math.round(bestLen / 2.5)));
-    for (var k = 0; k < N; k++) { var q = best.getPointAtLength(k / N * bestLen); pts.push([q.x, q.y]); }
     document.body.removeChild(host);
-    var note = els.length + " shape" + (els.length > 1 ? "s" : "") + " found" + (els.length > 1 ? ", using the largest" : "") + " · " + N + " points";
-    if (extra) note += " · extra sub-paths (holes) ignored in this mockup";
-    return { poly: normalizePoly(pts), info: note };
+    if (!pieces.length) return { error: "Couldn’t measure any outline in that SVG." };
+    return { pieces: pieces, elements: els.length };
   }
 
-  function polyIcon(poly, px) {
+  /* Step 2 (pure): apply the clean-up choices. opts: { pieces: "largest"|"all", holes: bool, minHole: 0..1 of the
+     shape's area, simplify: 0..1 of the shape's size }. -> {poly, more, info, stats}. */
+  function buildShape(raw, opts) {
+    opts = opts || {}; var which = opts.pieces || "largest", keepHoles = opts.holes !== false, minHole = opts.minHole || 0;
+    var pick = raw.pieces.slice();
+    if (which === "largest") { var big = pick[0]; pick.forEach(function (p) { if (p.len > big.len) big = p; }); pick = [big]; }
+    var rings = []; pick.forEach(function (p) { p.rings.forEach(function (r) { rings.push(r); }); });
+    rings.forEach(function (r) { r.area = ringArea(r); });
+    rings.sort(function (a, b) { return b.area - a.area; });
+    // nesting depth by the even-odd rule: even = solid, odd = a hole
+    rings.forEach(function (r, i) { var d = 0; for (var j = 0; j < i; j++) if (inRing(r[0], rings[j])) d++; r.depth = d; });
+    var solid = 0; rings.forEach(function (r) { if (r.depth % 2 === 0) solid += r.area; });
+    var kept = rings.filter(function (r) {
+      if (r.depth === 0) return true;
+      if (!keepHoles) return false;
+      if (r.depth % 2 === 1 && minHole && r.area < minHole * solid) return false;
+      return true;
+    });
+    var diag = 0; (function () { var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; kept.forEach(function (r) { r.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }); }); diag = Math.hypot(x1 - x0, y1 - y0); })();
+    var eps = (opts.simplify || 0) * diag;
+    var out = kept.map(function (r) { return simplifyRing(r, eps); });
+    var norm = normalizeRings(out), points = 0; norm.forEach(function (r) { points += r.length; });
+    var holes = kept.filter(function (r) { return r.depth % 2 === 1; }).length, parts = kept.filter(function (r) { return r.depth % 2 === 0; }).length;
+    return { poly: norm[0], more: norm.slice(1), stats: { points: points, rings: norm.length, holes: holes, pieces: parts, droppedRings: rings.length - kept.length },
+      info: parts + " piece" + (parts > 1 ? "s" : "") + (holes ? " · " + holes + " hole" + (holes > 1 ? "s" : "") : "") + " · " + points + " points" };
+  }
+  /* does this file need the clean-up step (several pieces, nested rings, or a lot of points)? */
+  function needsTidy(raw) {
+    var b = buildShape(raw, { pieces: "all" }), one = buildShape(raw, { pieces: "largest" });
+    return raw.pieces.length > 1 || one.stats.holes > 0 || b.stats.points > 300;
+  }
+  /* the quick path: parse and build with sensible defaults (largest piece, keep holes) */
+  function parseSVG(text) {
+    var raw = parseSVGRaw(text); if (raw.error) return raw;
+    var s = buildShape(raw, {}); s.info = raw.elements + " shape" + (raw.elements > 1 ? "s" : "") + " found" + (raw.elements > 1 ? ", using the largest" : "") + " · " + s.info; return s;
+  }
+
+  function polyIcon(poly, px, more) {
     var c = document.createElement("canvas"); c.width = px; c.height = px; var g = c.getContext("2d");
     g.fillStyle = "rgba(236,228,211,.14)"; g.strokeStyle = "rgba(236,228,211,.9)"; g.lineWidth = 1.5; g.lineJoin = "round";
-    g.beginPath(); poly.forEach(function (p, i) { var x = p[0] * px, y = p[1] * px; if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); g.fill(); g.stroke();
+    g.beginPath(); [poly].concat(more || []).forEach(function (r) { r.forEach(function (p, i) { var x = p[0] * px, y = p[1] * px; if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); }); g.fill("evenodd"); g.stroke();
     return c.toDataURL();
   }
 
@@ -101,7 +178,7 @@
     function cell(key, i, j) { var id = cells.get(key); if (id === undefined) { id = ci.length; cells.set(key, id); ci.push(i); cj.push(j); } return id; }
     var seeds = null, bits = null, M = 72;
     if (shape === "custom") {
-      bits = polyBits(o.poly || STARTERS[0].poly, M);
+      bits = polyBits(o.poly || starterPoly(0), M, o.poly ? o.more : starterMore(0));
     }
     if (shape === "voronoi") {
       var rng = mulberry32(seed * 977), n = Math.max(6, Math.round((w * h) / (S * S * 1.1)));
@@ -190,5 +267,5 @@
     return c.toDataURL();
   }
 
-  window.Regions = { polyBits: polyBits, STARTERS: STARTERS, starterPoly: starterPoly, parseSVG: parseSVG, polyIcon: polyIcon, normalizePoly: normalizePoly, SHAPES: SHAPES, tessellate: tessellate, classify: classify, overlay: overlay, icon: icon };
+  window.Regions = { polyBits: polyBits, STARTERS: STARTERS, starterPoly: starterPoly, starterMore: starterMore, parseSVG: parseSVG, parseSVGRaw: parseSVGRaw, buildShape: buildShape, needsTidy: needsTidy, simplifyRing: simplifyRing, ringArea: ringArea, normalizeRings: normalizeRings, polyIcon: polyIcon, normalizePoly: normalizePoly, SHAPES: SHAPES, tessellate: tessellate, classify: classify, overlay: overlay, icon: icon };
 })();

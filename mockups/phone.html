@@ -444,14 +444,14 @@
   var RCOL=[[236,228,211],[255,90,54],[232,184,106],[130,205,190]];
   var rs={shape:'none',size:64,gap:3,pattern:'checker',tess:null,cls:null,classes:null};
   $('#tiles').innerHTML='<button class="tile on" data-v="none"><span class="none"></span>none</button>'+Regions.SHAPES.map(function(x){return '<button class="tile" data-v="'+x.id+'"><img src="'+Regions.icon(x.id,76)+'" alt="">'+x.name+'</button>'}).join('')+'<button class="tile" data-v="custom"><img src="'+Regions.polyIcon(Regions.starterPoly(0),76)+'" alt="">custom</button>';
-  function renderStarters(){$('#starters').innerHTML=Regions.STARTERS.map(function(st,i){return '<button class="shpchip'+(rs.custom&&rs.custom.key===i?' on':'')+'" data-i="'+i+'"><img src="'+Regions.polyIcon(Regions.starterPoly(i),60)+'" alt="">'+st.name+'</button>'}).join('')}
-  $('#starters').addEventListener('click',function(e){var b=e.target.closest('.shpchip');if(!b)return;var i=+b.dataset.i;rs.custom={key:i,poly:Regions.starterPoly(i)};renderStarters();applyRegions();renderClasses();commit()});
+  function renderStarters(){$('#starters').innerHTML=Regions.STARTERS.map(function(st,i){return '<button class="shpchip'+(rs.custom&&rs.custom.key===i?' on':'')+'" data-i="'+i+'"><img src="'+Regions.polyIcon(Regions.starterPoly(i),60,Regions.starterMore(i))+'" alt="">'+st.name+'</button>'}).join('')}
+  $('#starters').addEventListener('click',function(e){var b=e.target.closest('.shpchip');if(!b)return;var i=+b.dataset.i;rs.custom={key:i,poly:Regions.starterPoly(i),more:Regions.starterMore(i)};renderStarters();applyRegions();renderClasses();commit()});
   function K(){return {all:1,checker:2,thirds:3,random:3}[rs.pattern]}
   function applyRegions(){
     if(rs.shape==='none'){d.setRegions(null);Regions.overlay(rctx,d.w,d.h,null);$('#regCtl').style.display='none';return}
     $('#regCtl').style.display='block';
-    if(rs.shape==='custom'&&!rs.custom)rs.custom={key:0,poly:Regions.starterPoly(0)};$('#shapeLib').style.display=rs.shape==='custom'?'block':'none';
-    rs.tess=Regions.tessellate(d.w,d.h,{shape:rs.shape,poly:rs.custom&&rs.custom.poly,size:rs.size*0.8,gap:rs.gap,rotate:0,seed:d.params.seed});rs.cls=Regions.classify(rs.tess,rs.pattern,K(),7);
+    if(rs.shape==='custom'&&!rs.custom)rs.custom={key:0,poly:Regions.starterPoly(0),more:Regions.starterMore(0)};$('#shapeLib').style.display=rs.shape==='custom'?'block':'none';
+    rs.tess=Regions.tessellate(d.w,d.h,{shape:rs.shape,poly:rs.custom&&rs.custom.poly,more:rs.custom&&rs.custom.more,size:rs.size*0.8,gap:rs.gap,rotate:0,seed:d.params.seed});rs.cls=Regions.classify(rs.tess,rs.pattern,K(),7);
     d.setRegions({labels:rs.tess.labels,classOfCell:rs.cls,defs:RC.toDefs(K())});Regions.overlay(rctx,d.w,d.h,rs.tess,rs.cls,RCOL,true)}
   function counts(){var n={};for(var i=1;i<rs.cls.length;i++)n[rs.cls[i]]=(n[rs.cls[i]]||0)+1;return n}
   /* region cards: the same component as Studio's Pro panel (shared/region-cards.js) */

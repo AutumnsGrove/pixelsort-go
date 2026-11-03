@@ -15,6 +15,8 @@ const tests = [
   ['help-settings.mjs', 'help & settings: every shortcut works, tour fits every screen, settings apply'],
   ['region-algo.mjs', 'per-region animation: any mix of algorithms ends on the instant result'],
   ['region-cards.mjs', 'region cards: model + the same flows in Studio and on the phone'],
+  ['shape-holes.mjs', 'compound shapes: holes, pieces, tidy options, even-odd fill, tiling'],
+  ['shape-tidy.mjs', 'tidy-this-shape panel, saved compound shapes, phone starters'],
   ['mask-editor.mjs', 'mask shapes: drag, resize, rotate, hole, invert, snap (desktop)'],
   ['phone-mask.mjs', 'mask shapes on the phone sheet'],
   ['layout-scan.mjs', 'every screen x 4 window sizes: no overflow or collisions'],
