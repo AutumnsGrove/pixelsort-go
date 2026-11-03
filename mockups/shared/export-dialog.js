@@ -81,7 +81,7 @@
     css();
     const host = o.host || document.body, M0 = M;
     const cfg = root.Settings ? root.Settings.get() : { exportFormat: "png", exportQuality: 92, embedRecipe: true, stripMeta: true };
-    const st = { format: cfg.exportFormat, quality: cfg.exportQuality, scale: 1, recipeMeta: cfg.embedRecipe, strip: cfg.stripMeta, device: o.device || "desktop", srcW: o.w, srcH: o.h, timer: 0 };
+    const st = { format: cfg.exportFormat, quality: cfg.exportQuality, scale: 1, recipeMeta: cfg.embedRecipe, strip: cfg.stripMeta, device: o.device || "desktop", fail: 0, srcW: o.w, srcH: o.h, timer: 0 };
     const root_ = document.createElement("div");
     root_.className = "xd" + (o.sheet ? " xd-sheet" : "") + (host === document.body ? " xd-fixed" : "");
     root_.dataset.view = "setup";
@@ -109,6 +109,8 @@
         <div class="chips" data-mockphoto><button data-w="${o.w}" data-h="${o.h}">${o.w}×${o.h}</button><button data-w="6000" data-h="4000">24 MP</button><button data-w="8660" data-h="5774">50 MP</button></div>
         <div class="xd-lbl"><span>…and this device is</span></div>
         <div class="chips" data-mockdev><button data-v="desktop">Desktop</button><button data-v="phone">Phone</button></div>
+        <div class="xd-lbl" style="margin-top:8px"><span>…and the export</span></div>
+        <div class="chips" data-mockfail><button data-v="" class="on">works</button><button data-v="3">runs out of memory at band 3</button></div>
       </div>
     </div>
     <div class="xd-run r"><div class="eyebrow" data-rband></div><h4 data-rh>Sorting…</h4><div class="xd-prog"><i data-rprog></i></div><div class="xd-bands" data-rbands></div><p data-rp></p></div>
@@ -150,6 +152,7 @@
       }
       $(root_, "[data-mockphoto]").querySelectorAll("button").forEach((b) => b.classList.toggle("on", +b.dataset.w === st.srcW));
       $(root_, "[data-mockdev]").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === st.device));
+      $(root_, "[data-mockfail]").querySelectorAll("button").forEach((b) => b.classList.toggle("on", (+b.dataset.v || 0) === st.fail));
       const go = $(root_, '[data-act="go"]'); go.textContent = p.verdict === "toolarge" ? "Too large" : "Export " + f.name + " · about " + M0.fmtBytes(bytes);
       go.disabled = p.verdict === "toolarge";
     }
@@ -167,9 +170,18 @@
       };
       paint();
       st.timer = setInterval(() => {
+        if (st.fail && root.ErrorSheet && i === Math.min(st.fail, p.bands) - 1) { stop(); fail(d, p, i + 1); return; }
         i++; paint();
         if (i > p.bands) { stop(); finish(d); }
       }, per);
+    }
+    /* out of memory part-way: say where, what is safe, and offer the next size down that fits */
+    function fail(d, p, band) {
+      root_.dataset.view = "setup"; update();
+      const next = M0.SCALES.filter((s) => s < st.scale)[0] || st.scale, dev = M0.DEVICES[st.device].name.toLowerCase();
+      root.ErrorSheet.show({ host: root_, code: "export-oom", ctx: { band, bands: p.bands, device: dev, size: d.w + "×" + d.h, scale: next },
+        detail: "RangeError: out of memory\n  at band " + band + "/" + p.bands + " (" + d.w + "×" + d.h + " " + M0.FORMATS[st.format].name + ", ~" + Math.round(p.memMB) + " MB planned)",
+        onAction: (id) => { if (id === "smaller") { st.scale = next; st.fail = 0; update(); if (o.toast) o.toast("Set to " + Math.round(next * 100) + "% — press Export again"); } else update(); } });
     }
     function finish(d) {
       root_.dataset.view = "done";
@@ -196,6 +208,7 @@
       const s = t.closest("[data-s]"); if (s) { const sc = +s.dataset.s, d = { w: Math.round(st.srcW * sc), h: Math.round(st.srcH * sc) }; if (M0.plan(d.w, d.h, st.device).verdict === "toolarge") { if (o.toast) o.toast("Too large for this " + M0.DEVICES[st.device].name.toLowerCase()); return; } st.scale = sc; update(); return; }
       const tg = t.closest("[data-tog]"); if (tg) { st[tg.dataset.tog] = !st[tg.dataset.tog]; update(); return; }
       const mp = t.closest("[data-mockphoto] button"); if (mp) { st.srcW = +mp.dataset.w; st.srcH = +mp.dataset.h; st.scale = 1; update(); return; }
+      const mf = t.closest("[data-mockfail] button"); if (mf) { st.fail = +mf.dataset.v || 0; update(); return; }
       const md = t.closest("[data-mockdev] button"); if (md) { st.device = md.dataset.v; update(); return; }
     });
     $(root_, "[data-qr]").addEventListener("input", (e) => { st.quality = +e.target.value; update(); });

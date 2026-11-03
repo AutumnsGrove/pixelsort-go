@@ -18,6 +18,7 @@
     "shape-holes": "node shape-holes.mjs",
     "shape-tidy": "node shape-tidy.mjs",
     "scale": "node scale.mjs",
+    "errors": "node errors.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"

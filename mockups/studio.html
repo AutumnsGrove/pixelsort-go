@@ -456,6 +456,7 @@
 
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/errors.js"></script>
 <script src="shared/help.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
@@ -691,7 +692,7 @@
      Shows the original with the pixels that can move tinted, and the held-still ones darkened. It follows
      every control, so dragging the band sliders, a region's frozen switch or a mask shows its effect live. */
   var peek=false,pk=$('#pk'),pkq=0;pk.width=d.w;pk.height=d.h;var pkc=pk.getContext('2d'),_play=d.play;
-  d.play=function(){if(peek)return;return _play.apply(d,arguments)};
+  var engineDown=false;d.play=function(){if(peek||engineDown)return;return _play.apply(d,arguments)};
   /* hook the engine itself, so the overlay follows a change however it arrives (popover, dial, region card, mask) */
   ['setParams','livePreview','setRegions','setMask','setFeather','loadImage','loadArt'].forEach(function(n){var f=d[n];if(!f)return;d[n]=function(){var r=f.apply(d,arguments);peekSync();return r}});
   function peekSync(){if(!peek||pkq)return;pkq=requestAnimationFrame(function(){pkq=0;if(!peek)return;
@@ -722,6 +723,11 @@
   $('#bHelp').onclick=openHelp;
   window.__mock.help={tour:startTour};
   if((/[?&]first\b/.test(location.search)&&!Help.seen())||/[?&]tour\b/.test(location.search))setTimeout(function(){startTour(0)},500);
+  /* ---------- mock failures: ?error=engine | crash | save ---------- */
+  (function(){var m=location.search.match(/[?&]error=(\w+)/),k=m&&m[1];if(!k)return;
+    if(k==='engine'){engineDown=true;d.pause();var tries=0;(function show(){ErrorSheet.show({code:'engine-failed',detail:'WebAssembly.instantiate(): Failed to fetch engine.wasm (404)\n  at worker.js:12',onAction:function(id){if(id==='reload'){location.href=location.pathname;return}if(++tries<2){setTimeout(show,500);toast('Still failing…');return}engineDown=false;d.play();toast('Engine started')}})})()}
+    if(k==='crash')setTimeout(function(){d.pause();ErrorSheet.show({code:'engine-crashed',detail:'RuntimeError: unreachable executed\n  at sortInterval (engine.wasm:0x4a2f)',onAction:function(id){if(id==='restart'){d.restart();d.play();toast('Sorter restarted')}}})},1800);
+    if(k==='save')setTimeout(function(){var n=0;(function show(){ErrorSheet.show({code:'save-failed',ctx:{reason:'disk'},modal:false,onAction:function(id){if(id==='retry'){if(++n<2){toast('Still full');setTimeout(show,400)}else toast('Saved to the Archive')}}})})()},1200)})();
   /* ---------- export ---------- */
   function openExport(){closePop();if(document.querySelector('.xd'))return;var m=location.search.match(/device=(\w+)/),dim=($('#capDim').textContent.match(/^(\d+) × (\d+)/)||[0,4032,2520]);
     ExportDialog.open({host:document.body,name:$('#capName').textContent,w:+dim[1],h:+dim[2],recipe:active?active.name:d.params.mode,device:m?m[1]:'desktop',toast:toast})}
@@ -737,8 +743,10 @@
   function openIntake(){intake.classList.add('on');closePop()}
   function closeIntake(){intake.classList.remove('on')}
   function adopt(img,name){d.loadImage(img);peekSync();$('#capName').textContent=name||'your picture';$('#capDim').textContent=(img.naturalWidth||img.width)+' × '+(img.naturalHeight||img.height)+' · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Loaded '+(name||'your picture'))}
-  function loadBlob(blob,name){var url=URL.createObjectURL(blob),img=new Image();img.onload=function(){adopt(img,name)};img.onerror=function(){toast('Could not read that as an image')};img.src=url}
-  function loadFile(f){if(f&&(f.type==='image/svg+xml'||/\.svg$/i.test(f.name))){closeIntake();toast('SVGs are shapes — adding it to Custom');importSvgFile(f);return}if(!f||!/^image\//.test(f.type)){toast('That doesn’t look like an image');return}loadBlob(f,f.name.replace(/\.[^.]+$/,''))}
+  var MAXMP=(function(){var m=location.search.match(/[?&]maxmp=([\d.]+)/);return m?+m[1]:150})();
+  function fail(code,ctx,detail){ErrorSheet.show({code:code,ctx:ctx,detail:detail,onAction:function(id){if(id==='choose'||id==='save-and-drop'){openIntake()}else if(id==='retry'){openIntake();$('#urlIn').focus()}}})}
+  function loadBlob(blob,name){var url=URL.createObjectURL(blob),img=new Image();img.onload=function(){var mp=(img.naturalWidth*img.naturalHeight)/1e6;if(mp>MAXMP){fail('image-too-big',{mp:mp,max:MAXMP,device:'computer'},img.naturalWidth+'×'+img.naturalHeight+' = '+mp.toFixed(1)+' MP > limit '+MAXMP+' MP');return}adopt(img,name)};img.onerror=function(){fail('image-unreadable',{name:name},'Image decode failed for blob of '+blob.size+' bytes ('+(blob.type||'unknown type')+')')};img.src=url}
+  function loadFile(f){if(f&&(f.type==='image/svg+xml'||/\.svg$/i.test(f.name))){closeIntake();toast('SVGs are shapes — adding it to Custom');importSvgFile(f);return}if(!f||!/^image\//.test(f.type)){closeIntake();fail('image-unreadable',{name:f&&f.name},'Not an image: '+(f&&f.type||'no type'));return}loadBlob(f,f.name.replace(/\.[^.]+$/,''))}
   $('#file').addEventListener('change',function(e){loadFile(e.target.files[0])});
   ['dragover','dragenter'].forEach(function(n){window.addEventListener(n,function(e){if(e.target.closest&&e.target.closest('.propanel')){e.preventDefault();return}e.preventDefault();$('#drop').classList.add('over');if(!intake.classList.contains('on'))openIntake()})});
   ['dragleave','drop'].forEach(function(n){window.addEventListener(n,function(e){if(n==='drop'||e.target===document.documentElement)$('#drop').classList.remove('over')})});
@@ -746,6 +754,8 @@
   window.addEventListener('paste',function(e){var it=(e.clipboardData&&e.clipboardData.items)||[];for(var k=0;k<it.length;k++){if(it[k].type.indexOf('image/')===0){loadFile(it[k].getAsFile());return}}
     var t=e.clipboardData&&e.clipboardData.getData('text');if(t&&/^https?:\/\//.test(t.trim())){$('#urlIn').value=t.trim();openIntake();loadUrl(t.trim())}});
   function loadUrl(u){u=(u||'').trim();if(apps.state.offline){toast('You’re offline — links can’t load. Drop or choose a file instead.');return}if(!/^https?:\/\//.test(u)){toast('Paste a full link starting with https://');return}
+    var ft=/blocked|notimage|huge|slow/.exec(u); /* mockup: a link containing one of these words simulates that failure */
+    if(ft){toast('Fetching…');setTimeout(function(){fail({blocked:'link-blocked',notimage:'link-not-image',huge:'link-too-large',slow:'link-timeout'}[ft[0]],{kind:'web page',mb:212,max:40},'GET '+u+'\n'+({blocked:'direct: CORS blocked · relay: 403 from origin',notimage:'content-type: text/html',huge:'content-length: 222298112 > 41943040',slow:'relay: timeout after 15000 ms'}[ft[0]]))},700);return}
     toast('Fetching…');
     fetch(u,{mode:'cors'}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){loadBlob(b,u.split('/').pop().split('?')[0]||'linked image')})
     .catch(function(){toast('That site blocks direct loads — relaying through the Worker…');setTimeout(function(){d.loadArt(Math.floor(Math.random()*90)+10);$('#capName').textContent=u.split('/').pop().split('?')[0]||'linked image';$('#capDim').textContent='via Worker relay · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Relayed (mock: showing a stand-in picture)')},900)})}

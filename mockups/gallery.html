@@ -269,6 +269,7 @@
 <script src="shared/demo-engine.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
+<script src="shared/errors.js"></script>
 <script src="shared/states.js"></script>
 <script>
 (function(){
@@ -402,7 +403,9 @@
     $('#linkbox').classList.remove('on');$('#smGo').textContent='Create link';$('#smGo').dataset.done='';$('#scrim').classList.add('on')}
   $('#bShare').onclick=function(){openShare(Object.keys(sel))};
   $('#smClose').onclick=function(){$('#scrim').classList.remove('on')};
-  $('#smGo').onclick=function(){if($('#smGo').dataset.done){$('#scrim').classList.remove('on');return}$('#smGo').textContent='Sending…';setTimeout(function(){$('#linkbox').classList.add('on');$('#smGo').textContent='Done';$('#smGo').dataset.done=1;shareIds.forEach(function(k){runs[k].shared=true});render();toast('Link ready · '+shareIds.length+' images')},700)};
+  var shareTries=0;
+  $('#smGo').onclick=function(){if($('#smGo').dataset.done){$('#scrim').classList.remove('on');return}
+    if(/[?&]error=share/.test(location.search)&&shareTries++<1){$('#smGo').textContent='Sending…';setTimeout(function(){$('#smGo').textContent='Create link';ErrorSheet.show({code:'share-failed',ctx:{reason:'worker'},detail:'POST https://share.pixelsort.example/api/albums\n  net::ERR_CONNECTION_TIMED_OUT',onAction:function(id){if(id==='retry')$('#smGo').click()}})},600);return}$('#smGo').textContent='Sending…';setTimeout(function(){$('#linkbox').classList.add('on');$('#smGo').textContent='Done';$('#smGo').dataset.done=1;shareIds.forEach(function(k){runs[k].shared=true});render();toast('Link ready · '+shareIds.length+' images')},700)};
   $('#copyBtn').onclick=function(){toast('Link copied')};
   $('#scrim').addEventListener('click',function(e){if(e.target.id==='scrim')$('#scrim').classList.remove('on')});
 
