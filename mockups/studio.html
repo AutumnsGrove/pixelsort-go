@@ -457,6 +457,7 @@
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
 <script src="shared/errors.js"></script>
+<script src="shared/naming.js"></script>
 <script src="shared/help.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
@@ -651,14 +652,32 @@
     ['Curtain · random',{mode:'random',length:120,randomness:35,key:'intensity',angle:90,seed:2}],['Embers · random',{mode:'random',length:30,key:'hue',angle:180,seed:21}],
     ['Rain · cellular',{mode:'ca',rule:26,cell:6,key:'luma',angle:270,seed:8}]
   ];
+  var RUN0=RUNS.map(function(r){return r[0]});RUNS.forEach(function(r,i){var n=Naming.store.get(i);if(n)r[0]=n});
   var ages=['2 min ago','yesterday','yesterday','3 days ago','last week','last week','Oct 22'];
   $('#cells').innerHTML=RUNS.map(function(r,i){var u=PixelDemo.thumb(Object.assign({randomness:10},r[1]),176,110);return '<div class="cell'+(i===0?' cur':'')+'" data-i="'+i+'"><img src="'+u+'" alt=""><span>'+r[0]+' · '+ages[i]+'</span></div>'}).join('');
   if(AppState.fromQuery(location.search).empty)$('#cells').innerHTML='<div class="stempty"><b>Nothing here yet.</b>Runs you make appear on this strip by themselves.</div>';
-  $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c||BIGRUNS)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
+  $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c||BIGRUNS)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];curRun=+c.dataset.i;setName(r[0]);d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
+  /* ---------- naming: click the caption (or F2) to rename; shared/naming.js ---------- */
+  var pieceName='sunset-ridge',curRun=-1,capCtl=null;
+  function origName(i){return BIGRUNS?(window.__runOrig||{})[i]:RUN0[i]}
+  function autoName(){return curRun>=0&&origName(curRun)?origName(curRun):Naming.suggest(d.params)}
+  function setName(n){pieceName=Naming.clean(n)||autoName();if(capCtl)capCtl.refresh()}
+  function newPiece(n){curRun=-1;setName(n)}
+  function renameRun(i,n,cleared){
+    if(cleared){Naming.store.set(i,'');n=origName(i)||n}else Naming.store.set(i,n);
+    if(BIGRUNS){if(window.__stripRename)window.__stripRename(i,n)}
+    else{RUNS[i][0]=n;var sp=$('#cells .cell[data-i="'+i+'"] span');if(sp)sp.textContent=n+' \u00b7 '+ages[i]}
+    return n}
+  capCtl=Naming.attach($('#capName'),{label:'Name',get:function(){return pieceName},fallback:autoName,
+    preview:function(n){return Naming.fileName(n,active?active.name:d.params.mode,Settings.get().exportFormat,'0f3a')},
+    set:function(n,r){pieceName=curRun>=0?renameRun(curRun,n,r&&r.cleared):n;capCtl.refresh()}});
+
   /* ---- many runs: dated rows, virtualised, searchable (?runs=2000 shows it; the real app pages from /api/runs) ---- */
   var BIGRUNS=(function(){var m=location.search.match(/[?&]runs=(\d+)/);return m&&+m[1]>12?+m[1]:0})();
   if(BIGRUNS){(function(){
     var all=RunsData.make(BIGRUNS),thumbs={},vl,view=all,jumps=[],fq={q:'',starred:false},strip=$('#strip'),cur=-1;
+    window.__runOrig={};all.forEach(function(r){window.__runOrig[r.id]=r.name});Naming.apply(all);
+    window.__stripRename=function(id,n){all[id].name=n;build()};
     strip.classList.add("many");$('#cells').innerHTML='';
     $('#strip h5').innerHTML='Runs · <b>'+BIGRUNS.toLocaleString()+'</b> · '+(AS0().toFixed(0))+' / 50 GB';
     function AS0(){var m=location.search.match(/[?&]used=([\d.]+)/);return m?+m[1]:38.2}
@@ -680,7 +699,7 @@
     $('#stripJump').addEventListener('click',function(e){var b=e.target.closest('button');if(b)vl.scrollToRow(+b.dataset.r,true)});
     var sq=0;$('#stripSearch').addEventListener('input',function(e){fq.q=e.target.value;clearTimeout(sq);sq=setTimeout(build,120)});
     $('#stripStar').onclick=function(){fq.starred=!fq.starred;$('#stripStar').classList.toggle('on',fq.starred);$('#stripStar').setAttribute('aria-pressed',fq.starred);build()};
-    $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var r=all[+c.dataset.id];cur=r.id;$$('#cells .cell').forEach(function(x){x.classList.toggle('cur',x===c)});
+    $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;var r=all[+c.dataset.id];cur=r.id;curRun=r.id;setName(r.name);$$('#cells .cell').forEach(function(x){x.classList.toggle('cur',x===c)});
       d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r.p));refresh();d.play();toast('Reopened · '+r.name)});
     $('#cells').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('cell')){e.preventDefault();e.target.click()}});
     window.__mock.strip=vl;
@@ -734,6 +753,7 @@
   $('#bSave').onclick=openExport;
   /* ---------- keys ---------- */
   window.addEventListener('keydown',function(e){if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
+    if(e.key==='F2'){if(!document.querySelector('.xd,.hp,.tr-root,#intake.on')){e.preventDefault();capCtl.start()}return}
     if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='?'){openHelp()}else if(e.key==='t'){setPeek(!peek)}else if(e.key==='Escape'){setPeek(false);closePop();closeIntake();ed.select(null);togglePro(false)}});
   window.addEventListener('keyup',function(e){if(e.key==='c')hold(false)});
 
@@ -742,7 +762,7 @@
   var intake=$('#intake');
   function openIntake(){intake.classList.add('on');closePop()}
   function closeIntake(){intake.classList.remove('on')}
-  function adopt(img,name){d.loadImage(img);peekSync();$('#capName').textContent=name||'your picture';$('#capDim').textContent=(img.naturalWidth||img.width)+' × '+(img.naturalHeight||img.height)+' · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Loaded '+(name||'your picture'))}
+  function adopt(img,name){d.loadImage(img);peekSync();newPiece(name||'your picture');$('#capDim').textContent=(img.naturalWidth||img.width)+' × '+(img.naturalHeight||img.height)+' · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Loaded '+(name||'your picture'))}
   var MAXMP=(function(){var m=location.search.match(/[?&]maxmp=([\d.]+)/);return m?+m[1]:150})();
   function fail(code,ctx,detail){ErrorSheet.show({code:code,ctx:ctx,detail:detail,onAction:function(id){if(id==='choose'||id==='save-and-drop'){openIntake()}else if(id==='retry'){openIntake();$('#urlIn').focus()}}})}
   function loadBlob(blob,name){var url=URL.createObjectURL(blob),img=new Image();img.onload=function(){var mp=(img.naturalWidth*img.naturalHeight)/1e6;if(mp>MAXMP){fail('image-too-big',{mp:mp,max:MAXMP,device:'computer'},img.naturalWidth+'×'+img.naturalHeight+' = '+mp.toFixed(1)+' MP > limit '+MAXMP+' MP');return}adopt(img,name)};img.onerror=function(){fail('image-unreadable',{name:name},'Image decode failed for blob of '+blob.size+' bytes ('+(blob.type||'unknown type')+')')};img.src=url}
@@ -758,13 +778,13 @@
     if(ft){toast('Fetching…');setTimeout(function(){fail({blocked:'link-blocked',notimage:'link-not-image',huge:'link-too-large',slow:'link-timeout'}[ft[0]],{kind:'web page',mb:212,max:40},'GET '+u+'\n'+({blocked:'direct: CORS blocked · relay: 403 from origin',notimage:'content-type: text/html',huge:'content-length: 222298112 > 41943040',slow:'relay: timeout after 15000 ms'}[ft[0]]))},700);return}
     toast('Fetching…');
     fetch(u,{mode:'cors'}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){loadBlob(b,u.split('/').pop().split('?')[0]||'linked image')})
-    .catch(function(){toast('That site blocks direct loads — relaying through the Worker…');setTimeout(function(){d.loadArt(Math.floor(Math.random()*90)+10);$('#capName').textContent=u.split('/').pop().split('?')[0]||'linked image';$('#capDim').textContent='via Worker relay · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Relayed (mock: showing a stand-in picture)')},900)})}
+    .catch(function(){toast('That site blocks direct loads — relaying through the Worker…');setTimeout(function(){d.loadArt(Math.floor(Math.random()*90)+10);newPiece(u.split('/').pop().split('?')[0]||'linked image');$('#capDim').textContent='via Worker relay · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Relayed (mock: showing a stand-in picture)')},900)})}
   $('#urlGo').onclick=function(){loadUrl($('#urlIn').value)};
   $('#urlIn').addEventListener('keydown',function(e){if(e.key==='Enter')loadUrl(e.target.value)});
-  $('#sample').onclick=function(){d.loadArt(7);$('#capName').textContent='sunset-ridge';$('#capDim').textContent='4032 × 2520 · working copy 640 × 400';closeIntake();d.restart();d.play()};
+  $('#sample').onclick=function(){d.loadArt(7);newPiece('sunset-ridge');$('#capDim').textContent='4032 × 2520 · working copy 640 × 400';closeIntake();d.restart();d.play()};
   $('#bNew').onclick=openIntake;$('#iClose').onclick=closeIntake;
   $('#recent').innerHTML=[11,23,37,52].map(function(sd){var c=document.createElement('canvas');c.width=128;c.height=80;c.getContext('2d').putImageData(PixelDemo.makeArt(128,80,sd),0,0);return '<button data-sd="'+sd+'"><img src="'+c.toDataURL()+'" alt=""></button>'}).join('');
-  $('#recent').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;d.loadArt(+b.dataset.sd);$('#capName').textContent='recent '+b.dataset.sd;$('#capDim').textContent='3024 × 1890 · working copy 640 × 400';closeIntake();d.restart();d.play()});
+  $('#recent').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;d.loadArt(+b.dataset.sd);newPiece('recent '+b.dataset.sd);$('#capDim').textContent='3024 × 1890 · working copy 640 × 400';closeIntake();d.restart();d.play()});
   if(location.search.indexOf('empty')>-1)openIntake();
 
   /* ================= Pro panel: regions & masks ================= */

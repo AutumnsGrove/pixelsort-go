@@ -29,6 +29,7 @@ const probes = {
   paint: async () => { await st.keyboard.press('p'); const a = await st.locator('#ov.paint').count(); await st.keyboard.press('p'); return a === 1 && (await st.locator('#ov.paint').count()) === 0; },
   pro: async () => { await st.keyboard.press('Tab'); const a = await ev(() => document.body.classList.contains('pro-open')); await st.keyboard.press('Tab'); return a && !(await ev(() => document.body.classList.contains('pro-open'))); },
   new: async () => { await st.keyboard.press('n'); const a = await st.locator('#intake.on').count(); await st.keyboard.press('Escape'); return a === 1 && (await st.locator('#intake.on').count()) === 0; },
+  rename: async () => { await st.keyboard.press('F2'); const a = await st.locator('.nm-in').count(); await st.keyboard.press('Escape'); return a === 1 && (await st.locator('.nm-in').count()) === 0; },
   export: async () => { await st.keyboard.press('e'); const a = await st.locator('.xd').count(); await st.keyboard.press('Escape'); return a === 1 && (await st.locator('.xd').count()) === 0; },
   runs: async () => { await st.keyboard.press('g'); const a = await st.locator('#strip.on').count(); await st.keyboard.press('g'); return a === 1 && (await st.locator('#strip.on').count()) === 0; },
   help: async () => { await st.keyboard.press('?'); const a = await st.locator('.hp').count(); await st.keyboard.press('?'); return a === 1 && (await st.locator('.hp').count()) === 0; },

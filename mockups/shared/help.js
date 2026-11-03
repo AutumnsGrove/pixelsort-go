@@ -24,7 +24,8 @@
       { id: "paint", keys: ["P"], what: "Protect brush" },
       { id: "pro", keys: ["Tab"], what: "Pro panel — shapes and masks" },
       { id: "new", keys: ["N"], what: "Bring a new picture" },
-      { id: "export", keys: ["E"], what: "Export" } ] },
+      { id: "export", keys: ["E"], what: "Export" },
+      { id: "rename", keys: ["F2"], what: "Name this picture" } ] },
     { group: "Around", items: [
       { id: "runs", keys: ["G"], what: "Runs strip" },
       { id: "help", keys: ["?"], what: "This sheet" },

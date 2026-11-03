@@ -183,7 +183,7 @@
       <canvas id="cv"></canvas><canvas id="rov"></canvas><canvas id="pk"></canvas><canvas id="ov"></canvas>
       <button class="peekchip" id="peekChip"><span id="peekT"></span><u>Done</u></button>
       <div class="prog"><i id="pg"></i></div>
-      <div class="cap">sunset-ridge<span id="capR">0%</span></div>
+      <div class="cap"><em id="capName" style="font-style:italic">sunset-ridge</em><span id="capR">0%</span></div>
     </div>
     <div class="snap" id="snap"><span id="snapT">Looks like a circle</span><button id="snapGo">Snap</button><button class="x" id="snapX">✕</button></div>
   </div>
@@ -291,6 +291,7 @@
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
 <script src="shared/errors.js"></script>
+<script src="shared/naming.js"></script>
 <script src="shared/help.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
@@ -325,7 +326,7 @@
   d.onframe=function(f){$('#pg').style.width=(f.progress*100)+'%';$('#capR').textContent=Math.round(f.progress*100)+'%';$('#fIco').innerHTML=f.running?'<path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/>':'<path d="M7 4.5v15l13-7.5z"/>'};
   $('#fab').onclick=function(){d.toggle()};
   var cm=$('#icCmp');cm.addEventListener('pointerdown',function(){d.compare(true)});['pointerup','pointerleave','pointercancel'].forEach(function(n){cm.addEventListener(n,function(){d.compare(peek)})});
-  $('#icSave').onclick=function(){if(document.querySelector('.xd'))return;ExportDialog.open({host:$('#phone'),sheet:true,name:'sunset-ridge',w:4032,h:2520,recipe:(typeof active!=='undefined'&&active)?active.name:d.params.mode,device:/device=(\w+)/.test(location.search)?RegExp.$1:'phone',toast:toast})};
+  $('#icSave').onclick=function(){if(document.querySelector('.xd'))return;ExportDialog.open({host:$('#phone'),sheet:true,name:phoneName,w:4032,h:2520,recipe:(typeof active!=='undefined'&&active)?active.name:d.params.mode,device:/device=(\w+)/.test(location.search)?RegExp.$1:'phone',toast:toast})};
 
   /* ---- Cut ---- */
   var MODES=['random','wave','threshold','edges','cellular','none'];
@@ -499,7 +500,7 @@
   /* many runs (?runs=2000): dated rows of three, virtualised in the sheet's scroll pane, with search */
   var PBIG=(function(){var m=location.search.match(/[?&]runs=(\d+)/);return m&&+m[1]>12?+m[1]:0})();
   if(PBIG)(function(){
-    var all=RunsData.make(PBIG),thumbs={},vl,fq={q:''},host=$('#grid'),pane=$('#p-runs');
+    var all=Naming.apply(RunsData.make(PBIG)),thumbs={},vl,fq={q:''},host=$('#grid'),pane=$('#p-runs');
     host.classList.add('vgrid');host.innerHTML='';
     $('#phUsed').textContent=usedGB.toFixed(1)+' / 50 GB · '+PBIG.toLocaleString()+' runs';
     var inp=document.createElement('input');inp.className='field vq';inp.id='phQ';inp.placeholder='Search runs';inp.setAttribute('aria-label','Search runs');inp.autocomplete='off';host.parentNode.insertBefore(inp,host);
@@ -523,7 +524,14 @@
   $('#mX').onclick=function(){$('#mShare').classList.remove('on')};
 
   /* ---- new image ---- */
-  function adopt(img,name){d.loadImage(img);$('#mNew').classList.remove('on');d.restart();d.play();toast('Loaded '+name)}
+  /* naming: tap the caption (shared/naming.js) */
+  var phoneName='sunset-ridge',capCtl=null;
+  function autoName(){return Naming.suggest(d.params)}
+  function setPhoneName(n){phoneName=Naming.clean(n)||autoName();if(capCtl)capCtl.refresh()}
+  capCtl=Naming.attach($('#capName'),{label:'Name',tall:true,get:function(){return phoneName},fallback:autoName,
+    preview:function(n){return Naming.fileName(n,(typeof active!=='undefined'&&active)?active.name:d.params.mode,Settings.get().exportFormat,'0f3a')},
+    set:function(n){phoneName=n;capCtl.refresh()}});
+  function adopt(img,name){setPhoneName(String(name||'').replace(/\.[^.]+$/,''));d.loadImage(img);$('#mNew').classList.remove('on');d.restart();d.play();toast('Loaded '+name)}
   $('#icNew').onclick=function(){$('#mNew').classList.add('on')};
   $('#mNew').addEventListener('click',function(e){if(e.target.id==='mNew')$('#mNew').classList.remove('on')});
   var MAXMP=(function(){var m=location.search.match(/[?&]maxmp=([\d.]+)/);return m?+m[1]:24})();   /* a phone opens less than a computer */

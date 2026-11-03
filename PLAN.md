@@ -700,6 +700,7 @@ direction, Own sort key + direction, and a full Own cutting recipe.
 - First-run tour, shortcut sheet (`?`) and Settings with credits.
 - Presets (the eight Python built-ins as rolled specs, plus user presets), the `T` "what can move" overlay,
   and the export planner and dialog (8 B/px floor + 9 B/px scratch per band).
+- Naming: click or tap the caption in Studio / phone (or `F2`), or the title in the Archive viewer. Names are labels, not identities (duplicates allowed); clearing the field returns the automatic name; the export filename is built from the name and drops a recipe word the name already contains (`shared/naming.js`).
 - Settings → Updates: check, update, progress that survives the server restarting, failure and rollback states (`shared/updater.js`).
 
 Nothing is left on the design list; the mockup phase is finished and the next step is Phase 0 (§9).

@@ -253,7 +253,7 @@
   <button class="round vnav r" id="vNext">→</button>
   <aside class="slate">
     <div class="eyebrow" id="vEy">Run</div>
-    <h2 id="vTitle" contenteditable="true" spellcheck="false"></h2>
+    <h2 id="vTitle"></h2>
     <div class="kv" id="vKv"></div>
     <div class="recipe" id="vRecipe"></div>
     <div class="vacts">
@@ -270,6 +270,7 @@
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
 <script src="shared/errors.js"></script>
+<script src="shared/naming.js"></script>
 <script src="shared/states.js"></script>
 <script>
 (function(){
@@ -301,6 +302,7 @@
     for(var tz=0;tz<9;tz++)runs.push({id:BIGN+tz,name:'Bin run '+(tz+1),p:{mode:'random',length:60,key:'luma',angle:30*tz,seed:tz+3,randomness:10},mb:18,age:tz,starred:false,shared:false,trashed:1+tz%6,img:null});
     runs.slice(0,16).forEach(function(r){r.img=PixelDemo.thumb(r.p,160,100)});document.body.classList.add('many')}
   else runs.forEach(function(r){r.img=PixelDemo.thumb(r.p,240,150)});
+  var ORIGNAME={};runs.forEach(function(r){ORIGNAME[r.id]=r.name});Naming.apply(runs);
   function imgOf(r){return r.img||(r.img=PixelDemo.thumb(r.p,160,100))}
   var albums=[
     {id:'k3J9…TRz',name:'Sunsets for Mara',ids:[0,1,4],mb:61.2,made:'3 days ago',exp:'in 27 days',recipe:true,orig:false},
@@ -410,11 +412,16 @@
   $('#scrim').addEventListener('click',function(e){if(e.target.id==='scrim')$('#scrim').classList.remove('on')});
 
   /* viewer */
-  function openViewer(id){cur=id;var r=runs[id];$('#vImg').src=PixelDemo.thumb(r.p,960,600);$('#vEy').textContent=(r.starred?'★ ':'')+'Run № '+(214-id);$('#vTitle').textContent=r.name;
+  function openViewer(id){cur=id;var r=runs[id];$('#vImg').src=PixelDemo.thumb(r.p,960,600);$('#vEy').textContent=(r.starred?'★ ':'')+'Run № '+(214-id);if(vCtl){if(vCtl.editing())vCtl.cancel();vCtl.refresh()}
     $('#vKv').innerHTML=[['made',ago(r.age)],['size',r.mb.toFixed(1)+' MB'],['source','upload · sunset-ridge.jpg'],['link',r.shared?'live · k3J9…TRz':'none'],['engine','0.1 · seed '+r.p.seed]].map(function(x){return '<span>'+x[0]+'</span><span>'+x[1]+'</span>'}).join('');
     var p=r.p,rows=[['intervals',p.mode],['sort by',p.key+(p.reverse?' ↓':' ↑')],['angle',p.angle+'°']];if(p.mode==='random'||p.mode==='wave')rows.push(['length',p.length+' px']);if(p.mode==='threshold')rows.push(['band',p.lo.toFixed(2)+' – '+p.hi.toFixed(2)]);if(p.mode==='ca')rows.push(['rule',p.rule+' · cell '+p.cell]);rows.push(['unsorted',p.randomness+' %']);rows.push(['algorithm','odd-even']);
     $('#vRecipe').innerHTML=rows.map(function(x){return '<div><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('');
     $('#vStar').textContent=r.starred?'Unstar':'Star';$('#viewer').classList.add('on')}
+  /* naming: click the title (shared/naming.js). Cleared goes back to the name the run was born with. */
+  var vCtl=Naming.attach($('#vTitle'),{label:'Run name',get:function(){return cur>=0&&runs[cur]?runs[cur].name:''},
+    fallback:function(){return ORIGNAME[cur]||'Untitled'},
+    preview:function(n){return Naming.fileName(n,runs[cur]?runs[cur].p.mode:'','png','0f3a')},
+    set:function(n,r){if(cur<0||!runs[cur])return;if(r&&r.cleared){Naming.store.set(runs[cur].id,'');n=ORIGNAME[cur]||n}else Naming.store.set(runs[cur].id,n);runs[cur].name=n;render();toast(r&&r.cleared?'Back to the automatic name':'Renamed')}});
   function stepViewer(d){var l=visible(),i=l.findIndex(function(r){return r.id===cur});if(i<0)return;openViewer(l[(i+d+l.length)%l.length].id)}
   $('#vPrev').onclick=function(){stepViewer(-1)};$('#vNext').onclick=function(){stepViewer(1)};$('#vClose').onclick=function(){$('#viewer').classList.remove('on')};
   $('#vStar').onclick=function(){var r=runs[cur];r.starred=!r.starred;openViewer(cur);render()};

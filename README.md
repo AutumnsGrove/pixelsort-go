@@ -31,7 +31,7 @@ can move and resize, and drop in your own photo. The stand-in is throwaway; the 
 
 ```bash
 cd mockups/tests && pnpm install && pnpm exec playwright install chromium
-pnpm test                         # all 17 suites: engine, regions, masks, presets, export, states, errors, layouts
+pnpm test                         # all 19 suites: engine, regions, masks, presets, export, states, errors, naming, updates, layouts
 ```
 
 ## The idea in a few lines

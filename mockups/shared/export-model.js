@@ -59,7 +59,8 @@
   /** Safe filename: name-recipe-seed.ext */
   function filename(name, recipe, format, tag) {
     const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    return [slug(name) || "pixelsort", slug(recipe), slug(tag)].filter(Boolean).join("-") + "." + (FORMATS[format] || FORMATS.png).ext;
+    const nm = slug(name), rc = slug(recipe);   // a name that already says the recipe ("Ridge, threshold") does not repeat it
+    return [nm || "pixelsort", rc && nm.indexOf(rc) < 0 ? rc : "", slug(tag)].filter(Boolean).join("-") + "." + (FORMATS[format] || FORMATS.png).ext;
   }
 
   /** Line ranges for each band over `lines` scanlines (for the progress text). Covers 0..lines exactly. */
