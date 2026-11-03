@@ -271,6 +271,8 @@
   .strip::-webkit-scrollbar{display:none}
   .strip h5{font-weight:400;font-size:9px;letter-spacing:1.7px;text-transform:uppercase;color:var(--dim);padding:0 22px 12px}
   .strip h5 b{color:var(--paper);font-weight:500}
+  .stempty{margin:6px 22px;color:var(--dim);font-size:10.5px;line-height:1.7}
+  .stempty b{display:block;font-family:var(--serif);font-style:italic;font-weight:400;font-size:20px;color:var(--paper);margin-bottom:6px}
   .meter{margin:0 22px 18px;height:2px;background:var(--faint);position:relative}
   .meter i{position:absolute;left:0;top:0;height:100%;width:76%;background:var(--gold)}
   .meter u{position:absolute;left:80%;top:-3px;height:8px;width:1px;background:var(--dim)}
@@ -422,6 +424,7 @@
 
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
 <script src="shared/angle-dial.js"></script>
@@ -613,6 +616,7 @@
   ];
   var ages=['2 min ago','yesterday','yesterday','3 days ago','last week','last week','Oct 22'];
   $('#cells').innerHTML=RUNS.map(function(r,i){var u=PixelDemo.thumb(Object.assign({randomness:10},r[1]),176,110);return '<div class="cell'+(i===0?' cur':'')+'" data-i="'+i+'"><img src="'+u+'" alt=""><span>'+r[0]+' · '+ages[i]+'</span></div>'}).join('');
+  if(AppState.fromQuery(location.search).empty)$('#cells').innerHTML='<div class="stempty"><b>Nothing here yet.</b>Runs you make appear on this strip by themselves.</div>';
   $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
   function toggleStrip(){var on=$('#strip').classList.toggle('on');$('#bGallery').classList.toggle('on',on)}
   $('#bGallery').onclick=toggleStrip;
@@ -633,6 +637,11 @@
     else{pkc.clearRect(0,0,d.w,d.h);d.compare(false);d.reset();d.play()}}
   $('#peek').onclick=function(){setPeek(!peek)};$('#peekChip').onclick=function(){setPeek(false)};
 
+  /* ---------- storage and connection states (?used=40 · ?offline · ?empty) ---------- */
+  var AS=AppState.fromQuery(location.search),usedGB=AS.empty?0:(AS.used!=null?AS.used:38.2),us=AppState.usage(usedGB);
+  var mini=$('#strip .meter i');$('#strip h5 b').textContent=Math.round(usedGB);mini.style.width=Math.min(100,us.frac*100)+'%';mini.style.background=us.level==='full'?'var(--ver)':'var(--gold)';
+  var apps=AppState.mount({host:document.body,state:{used:usedGB,offline:AS.offline},pending:3,toast:toast,onAction:function(){location.href='gallery.html?used='+usedGB+'&smart'}});
+  window.__mock.states=apps;
   /* ---------- export ---------- */
   function openExport(){closePop();if(document.querySelector('.xd'))return;var m=location.search.match(/device=(\w+)/),dim=($('#capDim').textContent.match(/^(\d+) × (\d+)/)||[0,4032,2520]);
     ExportDialog.open({host:document.body,name:$('#capName').textContent,w:+dim[1],h:+dim[2],recipe:active?active.name:d.params.mode,device:m?m[1]:'desktop',toast:toast})}
@@ -656,7 +665,7 @@
   window.addEventListener('drop',function(e){e.preventDefault();if(e.target.closest&&e.target.closest('.propanel'))return;var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)loadFile(f)});
   window.addEventListener('paste',function(e){var it=(e.clipboardData&&e.clipboardData.items)||[];for(var k=0;k<it.length;k++){if(it[k].type.indexOf('image/')===0){loadFile(it[k].getAsFile());return}}
     var t=e.clipboardData&&e.clipboardData.getData('text');if(t&&/^https?:\/\//.test(t.trim())){$('#urlIn').value=t.trim();openIntake();loadUrl(t.trim())}});
-  function loadUrl(u){u=(u||'').trim();if(!/^https?:\/\//.test(u)){toast('Paste a full link starting with https://');return}
+  function loadUrl(u){u=(u||'').trim();if(apps.state.offline){toast('You’re offline — links can’t load. Drop or choose a file instead.');return}if(!/^https?:\/\//.test(u)){toast('Paste a full link starting with https://');return}
     toast('Fetching…');
     fetch(u,{mode:'cors'}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){loadBlob(b,u.split('/').pop().split('?')[0]||'linked image')})
     .catch(function(){toast('That site blocks direct loads — relaying through the Worker…');setTimeout(function(){d.loadArt(Math.floor(Math.random()*90)+10);$('#capName').textContent=u.split('/').pop().split('?')[0]||'linked image';$('#capDim').textContent='via Worker relay · working copy 640 × 400';closeIntake();d.restart();d.play();toast('Relayed (mock: showing a stand-in picture)')},900)})}

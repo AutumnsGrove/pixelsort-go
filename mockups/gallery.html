@@ -21,7 +21,7 @@
   .meter i{display:block;height:100%}
   .meter .tr{background:repeating-linear-gradient(90deg,var(--ver) 0 3px,transparent 3px 6px)}
   .meter u{position:absolute;left:80%;top:-5px;height:13px;width:1px;background:var(--gold)}
-  .meter u::after{content:"warn at 40 GB";position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:1.2px;color:var(--gold);white-space:nowrap;text-decoration:none}
+  .meter u::after{content:attr(data-l);position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:1.2px;color:var(--gold);white-space:nowrap;text-decoration:none}
   .legend{display:flex;gap:18px;color:var(--dim);font-size:10px;letter-spacing:.8px;flex-wrap:wrap}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
 
@@ -67,7 +67,16 @@
   .fr .cap span{color:var(--dim);font-size:10px;letter-spacing:.8px;white-space:nowrap}
   .fr.gone .img img{filter:grayscale(.85) brightness(.5)}
   .fr .left{position:absolute;right:12px;bottom:10px;font-size:9.5px;letter-spacing:1.2px;color:var(--ink);background:var(--ver);padding:3px 9px;border-radius:999px;text-transform:uppercase;font-weight:500}
-  .empty{display:none;text-align:center;padding:90px 0;color:var(--dim);font-family:var(--serif);font-style:italic;font-size:28px}
+  .empty{display:none;text-align:center;padding:80px 0 60px}
+  .empty h3{font-family:var(--serif);font-style:italic;font-weight:400;font-size:clamp(38px,5vw,60px);line-height:1;color:var(--paper)}
+  .empty p{max-width:430px;margin:16px auto 26px;color:var(--dim);font-size:11.5px;line-height:1.8}
+  .stbanner{display:none;align-items:center;gap:20px;padding:16px 22px;border:1px solid rgba(232,184,106,.4);border-radius:18px;background:rgba(232,184,106,.06);margin-bottom:26px;flex-wrap:wrap}
+  .stbanner.on{display:flex}
+  .stbanner.full{border-color:rgba(255,90,54,.5);background:rgba(255,90,54,.09)}
+  .stbanner.offline{border-color:var(--faint);background:rgba(255,255,255,.03)}
+  .stbanner p{flex:1;min-width:260px;font-family:var(--serif);font-size:23px;line-height:1.25}
+  .stbanner p small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:6px;letter-spacing:.4px}
+  .offline-on .grid,.offline-on .albums{opacity:.6;filter:saturate(.7)}
 
   /* albums */
   .albums{display:none;gap:22px;grid-template-columns:repeat(auto-fill,minmax(520px,1fr))}
@@ -137,7 +146,7 @@
 
 <header class="top">
   <a class="word" href="studio.html">pixelsort<i>GO</i></a>
-  <div class="read"><span><b id="rRuns">214</b> runs</span><span><b id="rUsed">38.2</b> / 50 GB</span><span><b>7</b> albums live</span></div>
+  <div class="read"><span><b id="rRuns">214</b> runs</span><span><b id="rUsed">38.2</b> / 50 GB</span><span><b id="rAlb">7</b> albums live</span></div>
   <nav class="links"><a href="studio.html">Studio</a><a class="on" href="gallery.html">Archive</a><a href="share.html" title="What a friend sees">Viewer ↗</a></nav>
 </header>
 
@@ -149,10 +158,12 @@
     </div>
     <div class="usage">
       <div class="num"><b id="uNum">38.2</b><span>of 50 GB</span><em id="uPct">76%</em></div>
-      <div class="meter"><i style="width:58%;background:var(--paper)"></i><i style="width:15.2%;background:var(--gold)"></i><i style="width:3%;background:var(--dim)"></i><i class="tr" style="width:2.8%"></i><u></u></div>
-      <div class="legend"><span><i style="background:var(--paper)"></i>results 29.1</span><span><i style="background:var(--gold)"></i>originals 7.6</span><span><i style="background:var(--dim)"></i>thumbs &amp; video 1.5</span><span><i style="background:var(--ver)"></i>in the bin 1.4</span></div>
+      <div class="meter" id="meter"></div>
+      <div class="legend" id="legend"></div>
     </div>
   </section>
+
+  <div class="stbanner" id="stBanner"><p id="stText"></p><button class="btn" id="stAct"></button></div>
 
   <div class="tabbar" id="tabs">
     <button class="tab on" data-t="all">All<i id="nAll">214</i></button>
@@ -184,7 +195,7 @@
 
   <div class="grid" id="grid"></div>
   <div class="albums" id="albums"></div>
-  <div class="empty" id="empty">Nothing here yet.</div>
+  <div class="empty" id="empty"></div>
 </div>
 
 <div class="dock" id="bulk">
@@ -247,6 +258,7 @@
 <div class="grain"></div><div class="vig"></div>
 
 <script src="shared/demo-engine.js"></script>
+<script src="shared/states.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
@@ -277,7 +289,26 @@
     {id:'q7Lm…8Vc',name:'Glitch week',ids:[3,5,6],mb:74.9,made:'2 weeks ago',exp:'never',recipe:true,orig:true},
     {id:'b2Xr…Wp1',name:'Test strip',ids:[8,2],mb:37.9,made:'last month',exp:'in 4 days',recipe:false,orig:false}
   ];
-  var tab='all',sel={},selmode=false,cur=-1,skipNote='';
+  var S=AppState.fromQuery(location.search),usedGB=S.empty?0:(S.used!=null?S.used:38.2),binGB=S.empty?0:1.4,tab='all',sel={},selmode=false,cur=-1,skipNote='';
+  if(S.empty){runs=[];albums=[]}
+  var EMPTY={all:{h:'Nothing sorted yet.',p:'Open Studio, bring a picture and press play. Every run lands here on its own — no save button.',cta:true},
+    starred:{h:'No stars yet.',p:'Star a run and it stays safe: “Free up space” never sweeps starred runs in, and trashing one asks twice.'},
+    trash:{h:'The bin is empty.',p:'Runs you delete wait here for seven days before they are gone for good.'},
+    albums:{h:'No links out in the world.',p:'Select a few runs and choose “Send to a gallery” to make a link a friend can open. You can revoke it any time.'}};
+  function setUsage(used,bin){usedGB=used;binGB=bin;var u=AppState.usage(used),sg=AppState.segments(used,bin),scale=Math.max(used,u.budget),w=function(g){return (g/scale*100)+'%'};
+    $('#meter').innerHTML='<i style="width:'+w(sg.results)+';background:var(--paper)"></i><i style="width:'+w(sg.originals)+';background:var(--gold)"></i><i style="width:'+w(sg.thumbs)+';background:var(--dim)"></i><i class="tr" style="width:'+w(sg.bin)+'"></i><u style="left:'+(u.level==='full'?u.budget/scale*100:AppState.WARN_AT*100)+'%" data-l="'+(u.level==='full'?'limit 50 GB':'warn at 40 GB')+'"></u>';
+    $('#legend').innerHTML='<span><i style="background:var(--paper)"></i>results '+sg.results.toFixed(1)+'</span><span><i style="background:var(--gold)"></i>originals '+sg.originals.toFixed(1)+'</span><span><i style="background:var(--dim)"></i>thumbs &amp; video '+sg.thumbs.toFixed(1)+'</span><span><i style="background:var(--ver)"></i>in the bin '+sg.bin.toFixed(1)+'</span>';
+    $('#uNum').textContent=used.toFixed(1);$('#rUsed').textContent=used.toFixed(1);$('#uPct').textContent=u.pct+'%';$('#uPct').style.color=u.level==='full'?'var(--ver)':'';$('#uNum').style.color=u.level==='full'?'var(--ver)':'';
+    renderBanner()}
+  var tries=0;
+  function renderBanner(){var st=AppState.status({used:usedGB,offline:S.offline},{surface:'archive'}),b=$('#stBanner');b.className='stbanner'+(st?' on '+st.kind:'');document.body.classList.toggle('offline-on',!!S.offline);
+    if(st){$('#stText').innerHTML=st.text+'<small>'+st.sub+'</small>';$('#stAct').textContent=st.action;b.dataset.kind=st.kind}}
+  $('#stAct').onclick=function(){var k=$('#stBanner').dataset.kind;
+    if(k==='offline'){tries++;if(tries<2){toast('Still can’t reach the server');return}S.offline=false;tries=0;renderBanner();toast('Back online');return}
+    $('#toolbar').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){$('#smart').classList.add('on')},350)};
+  /* offline: you can look, but anything that needs the server waits */
+  document.addEventListener('click',function(e){if(!S.offline)return;if(e.target.closest('#bShare,#bZip,#bStar,#bTrash,#bRestore,#bForever,#emptyBtn,#restoreAll,#vShare,#vBin,#vStar,#vBranch,#vDl,[data-revoke],[data-star],#smGo')){e.stopPropagation();e.preventDefault();toast('You’re offline — that needs the server')}},true);
+  window.addEventListener('offline',function(){S.offline=true;renderBanner()});window.addEventListener('online',function(){S.offline=false;renderBanner();toast('Back online')});
 
   function visible(){
     var list=runs.filter(function(r){return tab==='trash'?r.trashed:(!r.trashed&&(tab==='all'||(tab==='starred'&&r.starred)))});
@@ -286,12 +317,12 @@
   function ago(d){return d===0?'today':d===1?'yesterday':d<30?d+' days ago':Math.round(d/30)+' mo ago'}
   function render(){
     var isAlb=tab==='albums', list=visible();
-    $('#grid').style.display=isAlb?'none':'';$('#albums').classList.toggle('on',isAlb);$('#toolbar').style.display=isAlb?'none':'flex';
+    $('#grid').style.display=isAlb?'none':'';$('#albums').classList.toggle('on',isAlb);$('#toolbar').style.display=(isAlb||!runs.length)?'none':'flex';
     $('#grid').innerHTML=list.map(function(r,n){return '<div class="fr'+(sel[r.id]?' sel':'')+(r.starred?' starred':'')+(r.trashed?' gone':'')+'" data-id="'+r.id+'" style="animation-delay:'+Math.min(n*40,500)+'ms"><div class="img"><img src="'+r.img+'" alt=""><div class="cb">'+(sel[r.id]?'✓':'')+'</div>'+(!r.trashed?'<button class="star" data-star="'+r.id+'">'+(r.starred?'★':'☆')+'</button>':'')+(r.shared&&!r.trashed?'<span class="link">on a link</span>':'')+(r.trashed?'<span class="left">'+(7-r.trashed)+' days left</span>':'')+'</div><div class="cap"><b>'+r.name+'</b><span>'+ago(r.age)+' · '+r.mb.toFixed(1)+' MB</span></div></div>'}).join('');
-    $('#empty').style.display=(!isAlb&&!list.length)?'block':'none';
+    var none=isAlb?!albums.length:!list.length,E=EMPTY[tab];$('#empty').style.display=none?'block':'none';if(none)$('#empty').innerHTML='<h3>'+E.h+'</h3><p>'+E.p+'</p>'+(E.cta?'<a class="btn pri" href="studio.html">Open Studio</a>':'');
     $('#albums').innerHTML=albums.map(function(a,n){return '<div class="al" style="animation-delay:'+(n*80)+'ms"><div class="collage">'+a.ids.map(function(i){return '<img src="'+runs[i].img+'" alt="">'}).join('')+'</div><div><h3>'+a.name+'</h3><div class="meta">'+a.ids.length+' images · '+a.mb.toFixed(1)+' MB · made '+a.made+'<br>expires '+a.exp+'</div><div class="tags"><span>results</span>'+(a.recipe?'<span>recipe</span>':'')+(a.orig?'<span>originals</span>':'')+'</div><div class="url"><span>share.pixelsort.example/a/'+a.id+'</span></div><div class="acts"><button class="btn sm" onclick="toast(\'Link copied\')">Copy link</button><button class="btn sm" onclick="location.href=\'share.html\'">Open viewer</button><button class="btn sm danger" data-revoke="'+n+'">Revoke</button></div></div></div>'}).join('');
-    $('#nAll').textContent=214;$('#nStar').textContent=runs.filter(function(r){return r.starred&&!r.trashed}).length+14;$('#nAlb').textContent=albums.length;$('#nTrash').textContent=runs.filter(function(r){return r.trashed}).length+7;
-    $('#banner').classList.toggle('on',tab==='trash');
+    var more=S.empty?0:1;$('#nAll').textContent=S.empty?0:214;$('#nStar').textContent=runs.filter(function(r){return r.starred&&!r.trashed}).length+14*more;$('#nAlb').textContent=albums.length;$('#nTrash').textContent=runs.filter(function(r){return r.trashed}).length+7*more;$('#rRuns').textContent=S.empty?0:214;$('#rAlb').textContent=S.empty?0:7;
+    $('#banner').classList.toggle('on',tab==='trash'&&runs.some(function(r){return r.trashed}));
     var n=Object.keys(sel).length;
     $('#bulk').classList.toggle('on',n>0);$('#bN').textContent=n;
     var mb=0;Object.keys(sel).forEach(function(k){mb+=runs[k].mb});$('#bMB').textContent=mb.toFixed(1)+' MB';
@@ -326,7 +357,7 @@
   function confirmDel(title,body,yes,cb){$('#cfTitle').textContent=title;$('#cfBody').textContent=body;$('#cfYes').textContent=yes;$('#scrim2').classList.add('on');$('#cfYes').onclick=function(){$('#scrim2').classList.remove('on');cb()}}
   $('#cfNo').onclick=function(){$('#scrim2').classList.remove('on')};
   $('#bForever').onclick=function(){var ks=Object.keys(sel),mb=ks.reduce(function(a,k){return a+runs[k].mb},0);confirmDel('Delete '+ks.length+' forever?','This frees '+mb.toFixed(1)+' MB and cannot be undone. Copies already sent to a gallery are not affected — revoke those separately.','Delete forever',function(){runs=runs.filter(function(r){return !sel[r.id]});sel={};selmode=false;render();toast(mb.toFixed(1)+' MB freed')})};
-  $('#emptyBtn').onclick=function(){var t=runs.filter(function(r){return r.trashed}),mb=t.reduce(function(a,r){return a+r.mb},0)+1400;confirmDel('Empty the bin?','Deletes '+(t.length+7)+' runs for good and frees about '+(mb/1000).toFixed(1)+' GB.','Empty the bin',function(){runs=runs.filter(function(r){return !r.trashed});render();$('#uNum').textContent='36.8';$('#rUsed').textContent='36.8';$('#uPct').textContent='74%';toast('The bin is empty · 1.4 GB freed')})};
+  $('#emptyBtn').onclick=function(){var t=runs.filter(function(r){return r.trashed}),mb=t.reduce(function(a,r){return a+r.mb},0)+1400;confirmDel('Empty the bin?','Deletes '+(t.length+7)+' runs for good and frees about '+(mb/1000).toFixed(1)+' GB.','Empty the bin',function(){runs=runs.filter(function(r){return !r.trashed});render();setUsage(Math.max(0,usedGB-binGB),0);toast('The bin is empty · '+binGB.toFixed(1)+' GB freed')})};
   $('#bStar').onclick=function(){var n=Object.keys(sel).length;move(sel,function(r){r.starred=true});toast(n+' starred')};
   $('#bZip').onclick=function(){toast('Zipping '+Object.keys(sel).length+' runs…')};
   $('#albums').addEventListener('click',function(e){var b=e.target.closest('[data-revoke]');if(!b)return;var a=albums[+b.dataset.revoke];confirmDel('Revoke “'+a.name+'”?','The link stops working immediately and the images are deleted from the shared bucket. Your local runs are untouched.','Revoke link',function(){albums.splice(+b.dataset.revoke,1);render();toast('Link revoked')})});
@@ -361,9 +392,10 @@
     if(e.key==='Escape'){$('#viewer').classList.remove('on');$('#scrim').classList.remove('on');$('#scrim2').classList.remove('on')}
     if($('#viewer').classList.contains('on')){if(e.key==='ArrowLeft')stepViewer(-1);if(e.key==='ArrowRight')stepViewer(1)}});
 
-  render();
+  render();setUsage(usedGB,binGB);
   var q=location.search;
   if(q.indexOf('viewer')>-1)openViewer(0);
+  if(q.indexOf('smart')>-1)$('#smart').classList.add('on');
   if(q.indexOf('share')>-1)openShare([0,4,2]);
   if(q.indexOf('bin')>-1){tab='trash';render()}
   if(q.indexOf('albums')>-1){tab='albums';render()}

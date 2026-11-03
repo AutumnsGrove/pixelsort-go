@@ -236,7 +236,7 @@
     </div>
 
     <div class="pane" id="p-runs">
-      <div class="lbl">Archive <em>38.2 / 50 GB</em></div>
+      <div class="lbl">Archive <em id="phUsed">38.2 / 50 GB</em></div>
       <div class="meter"><i></i></div>
       <div class="tip">Auto-saved. Tap to select. The bin keeps things 7 days.</div>
       <div class="grid3" id="grid"></div>
@@ -268,6 +268,7 @@
 <div class="grain"></div><div class="vig"></div>
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
 <script src="shared/angle-dial.js"></script>
@@ -449,6 +450,12 @@
   $('#grid').innerHTML=RUNS.map(function(r,i){return '<div class="th'+(i===1||i===4?' star':'')+'" data-i="'+i+'"><img src="'+PixelDemo.thumb(Object.assign({randomness:10},r),160,100)+'" alt=""></div>'}).join('');
   var sel={};
   function refreshSel(){var n=Object.keys(sel).length;$('#selbar').classList.toggle('on',n>0);$('#bShare').textContent='Send '+n;$$('.th').forEach(function(t){t.classList.toggle('sel',!!sel[t.dataset.i])})}
+  /* storage + connection states (?used=40 · ?offline · ?empty) */
+  var AS=AppState.fromQuery(location.search),usedGB=AS.empty?0:(AS.used!=null?AS.used:38.2),us=AppState.usage(usedGB);
+  $('#phUsed').textContent=usedGB.toFixed(1)+' / 50 GB';var mi=$('#p-runs .meter i');mi.style.inset='0 '+(100-Math.min(100,us.frac*100))+'% 0 0';mi.style.background=us.level==='full'?'var(--ver)':'var(--gold)';
+  if(AS.empty)$('#grid').innerHTML='<div class="tip" style="grid-column:1/-1;text-align:center;padding:26px 0"><b style="display:block;font-family:var(--serif);font-style:italic;font-weight:400;font-size:24px;color:var(--paper);margin-bottom:6px">Nothing here yet.</b>Runs you make appear here by themselves.</div>';
+  var apps=AppState.mount({host:$('#phone'),state:{used:usedGB,offline:AS.offline},phone:true,pending:3,toast:toast,onAction:function(){tab='runs';$$('#tabs button').forEach(function(x){x.classList.toggle('on',x.dataset.t==='runs')});$$('.pane').forEach(function(p){p.classList.toggle('on',p.id==='p-runs')});setSheet(2)}});
+  document.addEventListener('click',function(e){if(apps.state.offline&&e.target.closest('#bShare')){e.stopPropagation();e.preventDefault();toast('You’re offline — sending needs the server')}},true);
   $('#grid').addEventListener('click',function(e){var t=e.target.closest('.th');if(!t)return;if(sel[t.dataset.i])delete sel[t.dataset.i];else sel[t.dataset.i]=1;refreshSel()});
   $('#bTrash').onclick=function(){var n=Object.keys(sel).length;sel={};refreshSel();toast(n+' to the bin · 7-day undo')};
   $('#bDl').onclick=function(){toast('Downloading '+Object.keys(sel).length+' images')};
