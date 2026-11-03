@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/theater.css">
+<script src="shared/settings.js"></script>
 <style>
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;gap:70px;padding:24px;overflow:auto}
   .note{position:relative;z-index:5;max-width:320px;display:grid;gap:16px}
@@ -152,7 +153,8 @@
     <nav>
       <button class="round" id="icNew" title="New image"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <button class="round" id="icCmp" title="Hold to compare"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      <button class="round" id="icSave" title="Save"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></button>
+      <a class="round" id="icSet" href="settings.html" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
+      <button class="round" id="icSave" title="Export"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></button>
     </nav>
   </div>
 
@@ -268,6 +270,7 @@
 <div class="grain"></div><div class="vig"></div>
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/help.js"></script>
 <script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
@@ -450,6 +453,15 @@
   $('#grid').innerHTML=RUNS.map(function(r,i){return '<div class="th'+(i===1||i===4?' star':'')+'" data-i="'+i+'"><img src="'+PixelDemo.thumb(Object.assign({randomness:10},r),160,100)+'" alt=""></div>'}).join('');
   var sel={};
   function refreshSel(){var n=Object.keys(sel).length;$('#selbar').classList.toggle('on',n>0);$('#bShare').textContent='Send '+n;$$('.th').forEach(function(t){t.classList.toggle('sel',!!sel[t.dataset.i])})}
+  /* first-run tour (?first) — the same component as Studio */
+  function startTour(at){if(document.querySelector('.tr-root'))return;setSheet(1);Help.tour({host:$('#phone'),startAt:at||0,onDone:function(done){toast(done?'That’s the tour':'Skipped')},steps:[
+    {target:'#card',title:'Your picture',body:'Press the orange button to watch it sort. Hold the eye to see the original.',where:'below'},
+    {target:'#fab',title:'Play and pause',body:'Everything runs in your browser.',where:'above'},
+    {target:'#tabs',title:'Six tabs',body:'Cut, Sort, Direction, Protect, Shapes and Runs. Swipe the row for the rest.',where:'above'},
+    {target:'#grab',title:'Pull for room',body:'Drag the handle up for more controls, down to see more picture.',where:'above'},
+    {target:'#icSave',title:'Export',body:'Format, size, and a warning if the picture is too big for your phone.',where:'below'}]})}
+  window.__mock.help={tour:startTour};
+  if((/[?&]first\b/.test(location.search)&&!Help.seen())||/[?&]tour\b/.test(location.search))setTimeout(function(){startTour(0)},500);
   /* storage + connection states (?used=40 · ?offline · ?empty) */
   var AS=AppState.fromQuery(location.search),usedGB=AS.empty?0:(AS.used!=null?AS.used:38.2),us=AppState.usage(usedGB);
   $('#phUsed').textContent=usedGB.toFixed(1)+' / 50 GB';var mi=$('#p-runs .meter i');mi.style.inset='0 '+(100-Math.min(100,us.frac*100))+'% 0 0';mi.style.background=us.level==='full'?'var(--ver)':'var(--gold)';

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pixelsort-go · Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/theater.css">
+<script src="shared/settings.js"></script>
+<style>
+  .wrap{position:relative;z-index:5;max-width:860px;margin:0 auto;padding:112px 28px 120px}
+  .wrap h1{font-size:clamp(46px,7vw,84px);margin:12px 0 10px}
+  .lede{color:var(--dim);font-size:11.5px;line-height:1.8;max-width:560px}
+  .jump{display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 8px}
+  .jump a{padding:8px 14px;border:1px solid var(--faint);border-radius:999px;font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:.15s}
+  .jump a:hover{color:var(--paper);border-color:var(--dim)}
+  section.set{padding:34px 0 8px;border-top:1px solid var(--faint2);margin-top:26px;scroll-margin-top:90px}
+  section.set h2{font-family:var(--serif);font-style:italic;font-weight:400;font-size:36px;line-height:1}
+  section.set > p.sub{color:var(--dim);font-size:11px;line-height:1.7;margin:8px 0 14px;max-width:560px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:14px 0;border-top:1px solid var(--faint2)}
+  .row > div:first-child{min-width:0}
+  .row b{display:block;font-weight:500;font-size:12px}
+  .row small{display:block;color:var(--dim);font-size:10.5px;margin-top:4px;line-height:1.6;max-width:430px}
+  .row .chips{justify-content:flex-end}
+  .row .chips button{min-height:40px}
+  .stack{display:block}
+  .stack .chips{justify-content:flex-start;margin-top:12px}
+  .note{margin:6px 0 2px;padding:12px 14px;border:1px solid var(--faint);border-radius:14px;font-size:10.5px;line-height:1.7;color:var(--dim)}
+  .note b{color:var(--paper);font-weight:500}
+  .bignum{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .bignum b{font-family:var(--serif);font-weight:400;font-size:64px;line-height:.9}
+  .bignum span{color:var(--dim);font-size:11px;letter-spacing:1.3px;text-transform:uppercase}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btns .btn{min-height:44px;display:inline-grid;place-items:center;text-decoration:none}
+  .mine{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .mine .it{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 14px;border:1px solid var(--faint);border-radius:14px;font-size:12px}
+  .mine .it em{font-style:normal;color:var(--dim);font-size:10.5px;margin-left:10px}
+  .mine .it button{color:var(--dim);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;padding:8px 10px;min-height:36px}
+  .mine .it button:hover{color:var(--ver)}
+  .empty-line{color:var(--dim);font-size:11px;padding:8px 0}
+  .credits{list-style:none;padding:0;display:grid;gap:0;margin-top:6px}
+  .credits li{display:grid;grid-template-columns:150px 1fr;gap:18px;padding:13px 0;border-top:1px solid var(--faint2);font-size:11.5px;line-height:1.7;color:var(--dim)}
+  .credits li b{color:var(--paper);font-weight:500}
+  .credits a{color:var(--gold);text-decoration:none;border-bottom:1px solid transparent}
+  .credits a:hover{border-color:var(--gold)}
+  .ver{display:flex;gap:26px;flex-wrap:wrap;color:var(--dim);font-size:10.5px;letter-spacing:.8px;margin:6px 0 4px}
+  .ver b{color:var(--paper);font-weight:500}
+  @media (max-width:620px){.wrap{padding:96px 18px 90px}.row{flex-direction:column;align-items:flex-start;gap:12px}.row .chips{justify-content:flex-start}.credits li{grid-template-columns:1fr;gap:2px}}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<header class="top">
+  <a class="word" href="studio.html">pixelsort<i>GO</i></a>
+  <nav class="links"><a href="studio.html">Studio</a><a href="gallery.html">Archive</a><a class="on" href="settings.html">Settings</a></nav>
+</header>
+
+<main class="wrap">
+  <div class="eyebrow">Settings</div>
+  <h1 class="display">Make it <em>yours</em>.</h1>
+  <p class="lede">Saved as you change them, kept in this browser in the mockups (the real app keeps them with the rest of your data). Look and motion settings apply to every screen straight away.</p>
+  <nav class="jump" aria-label="Sections"><a href="#picture">Picture</a><a href="#export">Export</a><a href="#sharing">Sharing</a><a href="#look">Look &amp; motion</a><a href="#storage">Storage</a><a href="#presets">Presets</a><a href="#help">Help</a><a href="#about">About</a></nav>
+
+  <section class="set" id="picture">
+    <h2>Picture</h2>
+    <p class="sub">While you play, the picture is a smaller working copy so it moves smoothly. Export is always full size.</p>
+    <div class="row stack"><div><b>Working copy size</b><small>The long edge, in pixels. Bigger looks sharper while previewing, but every pass takes longer and uses more memory.</small></div>
+      <div class="chips" id="wrChips"></div></div>
+    <div class="note" id="wrNote"></div>
+  </section>
+
+  <section class="set" id="export">
+    <h2>Export</h2>
+    <p class="sub">What the Export dialog starts with. You can still change it each time.</p>
+    <div class="row"><div><b>Format</b><small id="fmtNote"></small></div><div class="chips" id="fmtChips"></div></div>
+    <div class="row" id="qRow"><div><b>Quality</b><small>For JPEG and WebP. Higher is bigger.</small></div><div style="width:220px"><div style="display:flex;justify-content:flex-end;font-size:12px" id="qVal"></div><input type="range" id="qRange" min="40" max="100" aria-label="Quality"></div></div>
+    <div class="tog" id="tgStrip" role="switch" tabindex="0"><div><b>Strip location and camera data</b><small>From the original photo, in every export and share.</small></div><div class="sw"></div></div>
+    <div class="tog" id="tgRecipe" role="switch" tabindex="0"><div><b>Write the recipe into the file</b><small>So you can reopen the exact look later.</small></div><div class="sw"></div></div>
+  </section>
+
+  <section class="set" id="sharing">
+    <h2>Sharing</h2>
+    <p class="sub">Links go through your Cloudflare Worker. A link that never expires stays in the shared bucket until you revoke it.</p>
+    <div class="row"><div><b>New links expire</b><small>You can change this per link in the share dialog.</small></div><div class="chips" id="expChips"></div></div>
+  </section>
+
+  <section class="set" id="look">
+    <h2>Look &amp; motion</h2>
+    <div class="tog" id="tgGrain" role="switch" tabindex="0"><div><b>Film grain</b><small>The faint moving texture over every screen.</small></div><div class="sw"></div></div>
+    <div class="row"><div><b>Motion</b><small>“Follow my device” respects the reduced-motion setting of your system. “Always reduce” stops animation and transitions everywhere, grain included.</small></div><div class="chips" id="motChips"></div></div>
+    <div class="row"><div><b>Playback speed</b><small>Steps per second when you press play. Studio keeps its own control too.</small></div><div style="width:220px"><div style="display:flex;justify-content:flex-end;font-size:12px" id="spdVal"></div><input type="range" id="spdRange" min="1" max="400" aria-label="Playback speed"></div></div>
+  </section>
+
+  <section class="set" id="storage">
+    <h2>Storage</h2>
+    <p class="sub">Your runs live on your own server, with a 50 GB budget. Nothing is ever deleted automatically.</p>
+    <div class="bignum"><b>38.2</b><span>of 50 GB · 76%</span></div>
+    <div class="btns"><a class="btn" href="gallery.html">Open the Archive</a><button class="btn danger" id="binBtn">Empty the bin now</button></div>
+    <p class="empty-line" id="binNote">9 runs are in the bin; they leave by themselves after seven days. Emptying frees about 1.4 GB.</p>
+  </section>
+
+  <section class="set" id="presets">
+    <h2>Your presets</h2>
+    <p class="sub">The eight built-ins are fixed. These are the ones you saved from Studio.</p>
+    <div class="mine" id="mine"></div>
+  </section>
+
+  <section class="set" id="help">
+    <h2>Help</h2>
+    <div class="btns"><button class="btn" id="btnKeys">Keyboard shortcuts</button><a class="btn" href="studio.html?tour" id="btnTour">Take the tour</a><button class="btn danger" id="btnReset">Reset all settings</button></div>
+  </section>
+
+  <section class="set" id="about">
+    <h2>About &amp; credits</h2>
+    <div class="ver"><span>pixelsort-go <b>0.1 · mockups</b></span><span>licence <b>MIT</b></span><span><a href="https://github.com/AutumnsGrove/pixelsort-go" style="color:var(--gold)">source on GitHub</a></span></div>
+    <ul class="credits">
+      <li><b>Kim Asendorf</b><span>Wrote the original ASDF Pixel Sort script. The <em>Kims</em> preset is that script’s idea: threshold, straight up.</span></li>
+      <li><b>satyarth/pixelsort</b><span>The Python library these algorithms descend from. MIT. <a href="https://github.com/satyarth/pixelsort">github.com/satyarth/pixelsort</a></span></li>
+      <li><b>Pixelsorting</b><span>The earlier Python and Gradio version of this project, kept untouched as an archive. <a href="https://github.com/AutumnsGrove/Pixelsorting">github.com/AutumnsGrove/Pixelsorting</a></span></li>
+      <li><b>Type</b><span>Instrument Serif and DM Mono, both under the SIL Open Font License.</span></li>
+      <li><b>Icons</b><span>Lucide, under the ISC licence. <a href="https://lucide.dev">lucide.dev</a></span></li>
+      <li><b>Built with</b><span>Go compiled to WebAssembly for the sorting, SvelteKit for the interface, and one Cloudflare Worker for share links and loading pictures from links.</span></li>
+    </ul>
+  </section>
+</main>
+
+<div id="toast"></div>
+<div class="grain"></div><div class="vig"></div>
+<script src="shared/export-model.js"></script>
+<script src="shared/help.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},2000)}
+  function chips(el,opts,cur,key,val){el.innerHTML=opts.map(function(o){return '<button data-v="'+o[0]+'" class="'+(String(cur)===String(o[0])?'on':'')+'">'+o[1]+'</button>'}).join('');
+    el.onclick=function(e){var b=e.target.closest('button');if(!b)return;var p={};p[key]=val?val(b.dataset.v):b.dataset.v;Settings.set(p);paint()}}
+  function toggle(id,key){var t=$(id);function go(){var p={};p[key]=!Settings.get()[key];Settings.set(p);paint()}t.onclick=go;t.onkeydown=function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();go()}}}
+  var FN={png:'Lossless. Biggest files; exact pixels.',jpeg:'Small and universal. No transparency.',webp:'Smaller than JPEG at the same look.'};
+  function paint(){
+    var s=Settings.get(),isPhone=innerWidth<700,def=isPhone?Settings.DEVICE_RES.phone:Settings.DEVICE_RES.desktop,res=s.workRes||def;
+    chips($('#wrChips'),Settings.WORK_RES.map(function(r){return [r,r+(r===def?' · default':'')]}),res,'workRes',function(v){return +v===def?null:+v});
+    var c=Settings.workCopy(4032,2520,res),mp=c.w*c.h/1e6;
+    $('#wrNote').innerHTML='A <b>4032 × 2520</b> photo becomes a <b>'+c.w+' × '+c.h+'</b> working copy — '+mp.toFixed(1)+' MP, about <b>'+Math.round(c.w*c.h*17/1e6)+' MB</b> of memory while you work. Desktop defaults to '+Settings.DEVICE_RES.desktop+', phone to '+Settings.DEVICE_RES.phone+'.';
+    chips($('#fmtChips'),[['png','PNG'],['jpeg','JPEG'],['webp','WebP']],s.exportFormat,'exportFormat');$('#fmtNote').textContent=FN[s.exportFormat];
+    $('#qRow').style.display=s.exportFormat==='png'?'none':'flex';$('#qRange').value=s.exportQuality;$('#qVal').textContent=s.exportQuality;
+    $('#tgStrip .sw').classList.toggle('on',s.stripMeta);$('#tgRecipe .sw').classList.toggle('on',s.embedRecipe);$('#tgGrain .sw').classList.toggle('on',s.grain);
+    $('#tgStrip').setAttribute('aria-checked',s.stripMeta);$('#tgRecipe').setAttribute('aria-checked',s.embedRecipe);$('#tgGrain').setAttribute('aria-checked',s.grain);
+    chips($('#expChips'),[['never','Never'],['30','30 days']],s.shareExpiry,'shareExpiry');
+    chips($('#motChips'),[['system','Follow my device'],['reduce','Always reduce']],s.motion,'motion');
+    $('#spdRange').value=s.speed;$('#spdVal').textContent=s.speed+' / sec';
+    presets()}
+  function presets(){var list=[];try{list=JSON.parse(localStorage.getItem('pixelsort.mock.presets')||'[]')}catch(e){}
+    $('#mine').innerHTML=list.length?list.map(function(p,i){return '<div class="it"><span>'+p.name.replace(/[<>&]/g,'')+'<em>'+(specRolls(p)?'rolls a little':'fixed')+'</em></span><button data-i="'+i+'">Delete</button></div>'}).join(''):'<div class="empty-line">Nothing saved yet. Dial in a look in Studio, open the Preset knob and save it.</div>'}
+  function specRolls(p){return Object.keys(p.spec||{}).some(function(k){var v=p.spec[k];return Array.isArray(v)||(v&&(v.pick||v.around))})}
+  $('#mine').onclick=function(e){var b=e.target.closest('button');if(!b)return;var list=JSON.parse(localStorage.getItem('pixelsort.mock.presets')||'[]');list.splice(+b.dataset.i,1);localStorage.setItem('pixelsort.mock.presets',JSON.stringify(list));presets();toast('Preset deleted')};
+  toggle('#tgStrip','stripMeta');toggle('#tgRecipe','embedRecipe');toggle('#tgGrain','grain');
+  $('#qRange').oninput=function(e){Settings.set({exportQuality:+e.target.value});$('#qVal').textContent=Settings.get().exportQuality};
+  $('#spdRange').oninput=function(e){Settings.set({speed:+e.target.value});$('#spdVal').textContent=Settings.get().speed+' / sec'};
+  $('#binBtn').onclick=function(){$('#binNote').textContent='The bin is empty. 1.4 GB freed.';toast('The bin is empty · 1.4 GB freed')};
+  $('#btnKeys').onclick=function(){Help.openShortcuts({host:document.body,onTour:function(){location.href='studio.html?tour'}})};
+  $('#btnReset').onclick=function(){Settings.reset();paint();toast('Settings reset')};
+  window.addEventListener('keydown',function(e){if(e.key==='?'&&!/INPUT|TEXTAREA/.test(e.target.tagName)&&!document.querySelector('.hp'))$('#btnKeys').click()});
+  window.addEventListener('resize',paint);
+  paint();
+})();
+</script>
+</body>
+</html>

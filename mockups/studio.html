@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/theater.css">
+<script src="shared/settings.js"></script>
 <style>
   :root{
     --ink:#0a0908; --ink2:#14110f; --paper:#ece4d3; --dim:rgba(236,228,211,.52); --faint:rgba(236,228,211,.14);
@@ -40,6 +41,8 @@
   .links button{letter-spacing:1.6px;text-transform:uppercase;font-size:10.5px;color:var(--dim);padding:6px 0;border-bottom:1px solid transparent;transition:.2s}
   .links button:hover,.links button.on{color:var(--paper);border-color:var(--ver)}
   .links kbd{font-family:var(--mono);opacity:.5;margin-left:6px}
+  .links .qm{width:28px;height:28px;border:1px solid var(--faint);border-radius:50%;padding:0;display:grid;place-items:center;letter-spacing:0;font-size:12px}
+  .links .qm:hover{border-color:var(--dim)}
 
   /* stage */
   body{--proW:0px}
@@ -305,6 +308,7 @@
     <button id="bPro">Pro<kbd>Tab</kbd></button>
     <a href="gallery.html">Archive</a>
     <button id="bSave">Export<kbd>E</kbd></button>
+    <button class="qm" id="bHelp" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
   </div>
 </div>
 
@@ -424,6 +428,7 @@
 
 <script src="shared/demo-engine.js"></script>
 <script src="shared/presets.js"></script>
+<script src="shared/help.js"></script>
 <script src="shared/states.js"></script>
 <script src="shared/export-model.js"></script>
 <script src="shared/export-dialog.js"></script>
@@ -435,7 +440,7 @@
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
   var cv=$('#cv'),ov=$('#ov');
   var d=new PixelDemo(cv,{w:640,h:400,params:{mode:'random',length:40,randomness:10,algo:'oddeven',key:'luma'}});
-  d.speed=24; ov.width=d.w; ov.height=d.h; var octx=ov.getContext('2d');
+  d.speed=Settings.get().speed; ov.width=d.w; ov.height=d.h; var octx=ov.getContext('2d');
   function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},2000)}
   window.toast=toast;
 
@@ -642,13 +647,27 @@
   var mini=$('#strip .meter i');$('#strip h5 b').textContent=Math.round(usedGB);mini.style.width=Math.min(100,us.frac*100)+'%';mini.style.background=us.level==='full'?'var(--ver)':'var(--gold)';
   var apps=AppState.mount({host:document.body,state:{used:usedGB,offline:AS.offline},pending:3,toast:toast,onAction:function(){location.href='gallery.html?used='+usedGB+'&smart'}});
   window.__mock.states=apps;
+  /* ---------- help: shortcut sheet (?) and the first-run tour ---------- */
+  var STEPS=[
+    {target:'.frame',title:'Your picture',body:'Press play and watch it sort. Everything happens in your browser — nothing leaves it until you save.',where:'above'},
+    {target:'#play',title:'Play, step, restart',body:'Space does the same. Step walks one pass at a time.'},
+    {target:'[data-k="mode"]',title:'Every control is a knob',body:'Tap one, then drag. You get an instant preview while you drag, and the animation replays when you let go.'},
+    {target:'#kPresetBox',title:'Start from a recipe',body:'A die means it rolls fresh values each time you pick it. Change any knob and it says “edited”.'},
+    {target:'#peek',title:'See what can move',body:'Tints the pixels that will sort and darkens the rest. Handy for finding the right threshold.'},
+    {target:'#bPro',title:'Pro: shapes and masks',body:'Cut the picture into shapes that sort on their own, or freeze parts of it. Press Tab.'},
+    {target:'#bGallery',title:'Every run keeps itself',body:'There is no save button. Past runs wait here, and Archive holds all of them.'}];
+  function startTour(at){closePop();if(document.querySelector('.tr-root'))return;Help.tour({host:document.body,steps:STEPS,startAt:at||0,onDone:function(done){toast(done?'That’s the tour — press ? any time for shortcuts':'Skipped — Help (?) has it again')}})}
+  function openHelp(){closePop();if(document.querySelector('.hp'))return;Help.openShortcuts({host:document.body,onTour:startTour})}
+  $('#bHelp').onclick=openHelp;
+  window.__mock.help={tour:startTour};
+  if((/[?&]first\b/.test(location.search)&&!Help.seen())||/[?&]tour\b/.test(location.search))setTimeout(function(){startTour(0)},500);
   /* ---------- export ---------- */
   function openExport(){closePop();if(document.querySelector('.xd'))return;var m=location.search.match(/device=(\w+)/),dim=($('#capDim').textContent.match(/^(\d+) × (\d+)/)||[0,4032,2520]);
     ExportDialog.open({host:document.body,name:$('#capName').textContent,w:+dim[1],h:+dim[2],recipe:active?active.name:d.params.mode,device:m?m[1]:'desktop',toast:toast})}
   $('#bSave').onclick=openExport;
   /* ---------- keys ---------- */
   window.addEventListener('keydown',function(e){if(/INPUT|TEXTAREA/.test(e.target.tagName))return;
-    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='t'){setPeek(!peek)}else if(e.key==='Escape'){setPeek(false);closePop();closeIntake();ed.select(null);togglePro(false)}});
+    if(e.code==='Space'){e.preventDefault();d.toggle()}else if(e.key==='r'){d.restart()}else if(e.key==='g'){toggleStrip()}else if(e.key==='p'){togglePaint(!painted)}else if(e.key==='c'){hold(true)}else if(e.key==='Tab'){e.preventDefault();togglePro()}else if(e.key==='n'){openIntake()}else if(e.key==='e'){openExport()}else if(e.key==='?'){openHelp()}else if(e.key==='t'){setPeek(!peek)}else if(e.key==='Escape'){setPeek(false);closePop();closeIntake();ed.select(null);togglePro(false)}});
   window.addEventListener('keyup',function(e){if(e.key==='c')hold(false)});
 
 

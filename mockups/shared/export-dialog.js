@@ -17,6 +17,7 @@
     const s = document.createElement("style");
     s.textContent = `
 .xd{position:absolute;inset:0;z-index:120;display:grid;place-items:center;padding:20px;background:rgba(8,7,6,.78);backdrop-filter:blur(10px);animation:xdin .25s var(--ease) both}
+.xd.xd-fixed{position:fixed}
 .xd.xd-sheet{place-items:end center;padding:0}
 @keyframes xdin{from{opacity:0}to{opacity:1}}
 .xd-card{width:min(540px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden;animation:xdup .4s var(--ease) both}
@@ -79,9 +80,10 @@
   function open(o) {
     css();
     const host = o.host || document.body, M0 = M;
-    const st = { format: "png", quality: 92, scale: 1, recipeMeta: true, strip: true, device: o.device || "desktop", srcW: o.w, srcH: o.h, timer: 0 };
+    const cfg = root.Settings ? root.Settings.get() : { exportFormat: "png", exportQuality: 92, embedRecipe: true, stripMeta: true };
+    const st = { format: cfg.exportFormat, quality: cfg.exportQuality, scale: 1, recipeMeta: cfg.embedRecipe, strip: cfg.stripMeta, device: o.device || "desktop", srcW: o.w, srcH: o.h, timer: 0 };
     const root_ = document.createElement("div");
-    root_.className = "xd" + (o.sheet ? " xd-sheet" : "");
+    root_.className = "xd" + (o.sheet ? " xd-sheet" : "") + (host === document.body ? " xd-fixed" : "");
     root_.dataset.view = "setup";
     root_.setAttribute("role", "dialog"); root_.setAttribute("aria-modal", "true"); root_.setAttribute("aria-labelledby", "xdT");
     root_.innerHTML = `
@@ -129,7 +131,7 @@
       const f = M0.FORMATS[st.format], d = cur(), p = M0.plan(d.w, d.h, st.device), bytes = M0.estimateBytes(st.format, st.quality, d.w * d.h);
       $(root_, "[data-fmt]").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === st.format));
       $(root_, "[data-fmtnote]").textContent = f.note;
-      $(root_, "[data-q]").style.display = f.lossy ? "block" : "none"; $(root_, "[data-qv]").textContent = st.quality;
+      $(root_, "[data-q]").style.display = f.lossy ? "block" : "none"; $(root_, "[data-qv]").textContent = st.quality; $(root_, "[data-qr]").value = st.quality;
       $(root_, "[data-sizeem]").textContent = d.w + " × " + d.h;
       $(root_, "[data-sizes]").innerHTML = M0.SCALES.map((s) => {
         const w = Math.round(st.srcW * s), h = Math.round(st.srcH * s), pl = M0.plan(w, h, st.device);

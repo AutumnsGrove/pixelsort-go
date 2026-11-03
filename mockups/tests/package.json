@@ -12,6 +12,7 @@
     "export": "node export.mjs",
     "peek": "node peek.mjs",
     "states": "node states.mjs",
+    "help": "node help-settings.mjs",
     "masks": "node mask-editor.mjs",
     "phone": "node phone-mask.mjs",
     "layout": "node layout-scan.mjs"
