@@ -18,6 +18,8 @@ interface PixelsortApi {
 	configure(json: string): GoResult;
 	prepare(): GoResult<{ stats: { lines: number; intervals: number; sortable: number; frozen: number } }>;
 	instant(): GoResult;
+	reset(): GoResult;
+	step(n: number): GoResult<{ done: boolean; progress: number; pass: number }>;
 	pixelsPtr(): GoResult<{ ptr: number; len: number }>;
 	copyPixels(dst: Uint8Array): GoResult;
 }

@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import './vendor/wasm_exec.js';
-import type { Request, Response } from './protocol';
+import { adaptAuto, fixedSteps, type Speed } from './animator';
+import type { FrameEvent, Request, Response } from './protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -40,6 +41,78 @@ function takePixels(strategy: 'copy' | 'view'): { rgba: ArrayBuffer } | { error:
 	return r.ok ? { rgba: dst.buffer } : { error: r.error };
 }
 
+// ---- animation: the worker drives the stepper and streams frames; the page acknowledges each one ----
+const anim = {
+	running: false,
+	paused: false,
+	speed: 24 as Speed,
+	carry: 0,
+	autoSteps: 1,
+	awaitingAck: false,
+	last: 0,
+	timer: 0
+};
+
+function stopAnimation(): void {
+	anim.running = false;
+	clearTimeout(anim.timer);
+}
+
+function scheduleTick(): void {
+	clearTimeout(anim.timer);
+	anim.timer = self.setTimeout(tick, 0);
+}
+
+function tick(): void {
+	if (!anim.running || anim.paused || anim.awaitingAck) return;
+	const now = performance.now();
+	let steps: number;
+	if (anim.speed === 'auto') {
+		steps = anim.autoSteps;
+	} else {
+		const r = fixedSteps((now - anim.last) / 1000, anim.speed, anim.carry);
+		steps = r.steps;
+		anim.carry = r.carry;
+	}
+	anim.last = now;
+	if (steps < 1) {
+		scheduleTick();
+		return;
+	}
+	const t0 = performance.now();
+	const r = globalThis.pixelsort.step(steps);
+	const stepMs = performance.now() - t0;
+	if (!r.ok) {
+		stopAnimation();
+		return;
+	}
+	if (anim.speed === 'auto') anim.autoSteps = adaptAuto(anim.autoSteps, stepMs);
+	const px = takePixels('copy');
+	if ('error' in px) {
+		stopAnimation();
+		return;
+	}
+	const frame: FrameEvent = { event: 'frame', rgba: px.rgba, progress: r.progress, pass: r.pass, done: r.done, stepMs };
+	anim.awaitingAck = true;
+	self.postMessage(frame, [px.rgba]);
+	if (r.done) stopAnimation();
+}
+
+function startAnimation(): { ok: true } | { ok: false; error: string } {
+	const reset = globalThis.pixelsort.reset();
+	if (!reset.ok) return reset;
+	Object.assign(anim, {
+		running: true,
+		paused: false,
+		carry: 0,
+		autoSteps: 1,
+		awaitingAck: false,
+		last: performance.now()
+	});
+	scheduleTick();
+	return { ok: true };
+}
+
 function handle(req: Request): { res: Response; transfer: Transferable[] } {
 	const api = globalThis.pixelsort;
 	const done = (r: GoResult): Response => (r.ok ? { id: req.id, ok: true } : fail(req.id, r.error));
@@ -65,7 +138,37 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			return { res: done(api.setSoft(req.radius)), transfer: [] };
 		case 'configure':
 			return { res: done(api.configure(req.json)), transfer: [] };
+		case 'animate': {
+			const prep = api.prepare();
+			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
+			anim.speed = req.speed;
+			const started = startAnimation();
+			if (!started.ok) return { res: fail(req.id, started.error), transfer: [] };
+			return { res: { id: req.id, ok: true, stats: prep.stats }, transfer: [] };
+		}
+		case 'pause':
+			anim.paused = true;
+			return { res: { id: req.id, ok: true }, transfer: [] };
+		case 'resume':
+			anim.paused = false;
+			if (anim.running) {
+				anim.last = performance.now();
+				scheduleTick();
+			}
+			return { res: { id: req.id, ok: true }, transfer: [] };
+		case 'setSpeed':
+			anim.speed = req.speed;
+			return { res: { id: req.id, ok: true }, transfer: [] };
+		case 'restart': {
+			const started = startAnimation();
+			return { res: started.ok ? { id: req.id, ok: true } : fail(req.id, started.error), transfer: [] };
+		}
+		case 'ack':
+			anim.awaitingAck = false;
+			if (anim.running && !anim.paused) scheduleTick();
+			return { res: { id: req.id, ok: true }, transfer: [] }; // the client does not wait for it
 		case 'run': {
+			stopAnimation();
 			const t0 = performance.now();
 			const prep = api.prepare();
 			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
@@ -98,5 +201,5 @@ self.onmessage = async (e: MessageEvent<Request>) => {
 		return;
 	}
 	const { res, transfer } = handle(e.data);
-	self.postMessage(res, transfer);
+	if (e.data.type !== 'ack') self.postMessage(res, transfer);
 };

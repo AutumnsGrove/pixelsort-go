@@ -10,7 +10,10 @@ const server = spawn('pnpm', ['--dir', 'web', 'preview', '--port', '4174'], { st
 await new Promise((r) => setTimeout(r, 2500));
 let exitCode = 0;
 try {
-	const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
+	const browser = await chromium.launch({
+		executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+		args: ['--no-sandbox']
+	});
 	const page = await browser.newPage();
 	await page.goto('http://127.0.0.1:4174/lab/bench');
 	await page.waitForFunction(() => typeof window.bench === 'function', null, { timeout: 30000 });

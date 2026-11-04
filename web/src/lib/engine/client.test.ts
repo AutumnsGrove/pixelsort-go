@@ -118,3 +118,54 @@ describe('crashes', () => {
 		await next;
 	});
 });
+
+describe('animation', () => {
+	const frameEvent = (tag: number, done = false) => ({
+		event: 'frame' as const,
+		rgba: new Uint8Array([tag, 0, 0, 255]).buffer,
+		progress: done ? 1 : 0.5,
+		pass: tag,
+		done,
+		stepMs: 1
+	});
+	const deliver = (w: FakeWorker, f: ReturnType<typeof frameEvent>) =>
+		w.onmessage?.({ data: f } as unknown as MessageEvent<Response>);
+
+	test('frames reach subscribers in order and each is acknowledged after the listeners ran', async () => {
+		const seen: number[] = [];
+		client.onFrame((f) => seen.push(f.pass));
+		const p = client.animate(30);
+		const w = workers[0]!;
+		w.reply({ id: 1, ok: true, stats: { lines: 1, intervals: 1, sortable: 1, frozen: 0 } });
+		await p;
+		deliver(w, frameEvent(1));
+		expect(w.sent.at(-1)?.type).toBe('ack');
+		deliver(w, frameEvent(2));
+		deliver(w, frameEvent(3, true));
+		expect(seen).toEqual([1, 2, 3]);
+		expect(w.sent.filter((m) => m.type === 'ack')).toHaveLength(3);
+	});
+
+	test('unsubscribing stops delivery', () => {
+		const seen: number[] = [];
+		const off = client.onFrame((f) => seen.push(f.pass));
+		client.pause();
+		off();
+		deliver(workers[0]!, frameEvent(1));
+		expect(seen).toEqual([]);
+	});
+
+	test('pause, resume, setSpeed and restart are sent as requests', async () => {
+		const calls = [client.pause(), client.resume(), client.setSpeed('auto'), client.restart()];
+		const w = workers[0]!;
+		expect(w.sent.map((m) => m.type)).toEqual(['pause', 'resume', 'setSpeed', 'restart']);
+		w.sent.forEach((m) => w.reply({ id: m.id, ok: true }));
+		await Promise.all(calls);
+	});
+
+	test('a failed animate rejects with the message', async () => {
+		const p = client.animate(10);
+		workers[0]!.reply({ id: 1, ok: false, error: 'configure first' });
+		await expect(p).rejects.toThrow('configure first');
+	});
+});

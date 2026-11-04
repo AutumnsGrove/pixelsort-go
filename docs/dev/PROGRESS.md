@@ -61,7 +61,7 @@ File: [`phase-3.md`](phase-3.md)
 - [x] P3-T05 Mixed algorithms and progress
 - [x] P3-T06 Soft blend while stepping
 - [x] P3-T07 Session API: step, progress, reset
-- [ ] P3-T08 Animate in the worker and the lab
+- [x] P3-T08 Animate in the worker and the lab
 - [ ] P3-T09 Measure the pass cost
 - [ ] P3-T10 Phase wrap-up
 

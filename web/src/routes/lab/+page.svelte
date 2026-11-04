@@ -2,10 +2,11 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { EngineClient } from '#lib/engine/client';
 	import { decodeFile, defaultLongEdge, workingSize } from '#lib/engine/image-intake';
-	import { defaultParams, keys, modes, type Params } from '#lib/engine/params';
+	import { algos, defaultParams, keys, modes, type Params } from '#lib/engine/params';
 	import type { Stats, Timings } from '#lib/engine/protocol';
 
 	let client: EngineClient | null = null;
+	let unsubscribe: (() => void) | undefined;
 	let params = $state<Params>({ ...defaultParams });
 	let size = $state<{ w: number; h: number } | null>(null);
 	let sourceSize = $state<{ w: number; h: number } | null>(null);
@@ -16,15 +17,33 @@
 	let busy = $state(false);
 	let origCanvas: HTMLCanvasElement | undefined = $state();
 	let sortedCanvas: HTMLCanvasElement | undefined = $state();
+	let animating = $state(false);
+	let paused = $state(false);
+	let auto = $state(false);
+	let speedSlider = $state(50); // 0..100 on a log scale: 1..400 steps per second
+	let progress = $state(0);
+	let pass = $state(0);
+	let finished = $state(false);
 	let debounce: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(() => {
 		isolated = crossOriginIsolated;
 		client = new EngineClient();
+		unsubscribe = client.onFrame((f) => {
+			if (!size) return;
+			draw(sortedCanvas, f.rgba, size.w, size.h);
+			progress = f.progress;
+			pass = f.pass;
+			if (f.done) {
+				finished = true;
+				animating = false;
+			}
+		});
 		client.transfer = new URLSearchParams(location.search).get('transfer') === 'view' ? 'view' : 'copy';
 	});
 	onDestroy(() => {
 		clearTimeout(debounce);
+		unsubscribe?.();
 		client?.dispose();
 	});
 
@@ -50,8 +69,45 @@
 		}
 	}
 
+	const speed = (): number | 'auto' => (auto ? 'auto' : Math.round(Math.pow(400, speedSlider / 100)));
+
+	async function animate(): Promise<void> {
+		if (!client || !size) return;
+		try {
+			await client.configure(params);
+			finished = false;
+			progress = 0;
+			pass = 0;
+			paused = false;
+			animating = true;
+			stats = await client.animate(speed());
+			error = '';
+		} catch (e) {
+			animating = false;
+			error = (e as Error).message;
+		}
+	}
+	async function togglePause(): Promise<void> {
+		if (!client) return;
+		paused = !paused;
+		await (paused ? client.pause() : client.resume());
+	}
+	async function restart(): Promise<void> {
+		finished = false;
+		progress = 0;
+		pass = 0;
+		paused = false;
+		animating = true;
+		await client?.restart();
+	}
+	function speedChanged(): void {
+		void client?.setSpeed(speed());
+	}
+
 	async function sort(): Promise<void> {
 		if (!client || !size) return;
+		animating = false;
+		finished = false;
 		busy = true;
 		try {
 			await client.configure(params);
@@ -70,7 +126,7 @@
 
 	function changed(): void {
 		clearTimeout(debounce);
-		debounce = setTimeout(() => void sort(), 100);
+		debounce = setTimeout(() => void (animating || paused ? animate() : sort()), 100);
 	}
 
 	function onFile(e: Event): void {
@@ -108,6 +164,11 @@
 			></label
 		>
 		<label
+			>algorithm <select bind:value={params.algo} onchange={changed}
+				>{#each algos as a (a)}<option>{a}</option>{/each}</select
+			></label
+		>
+		<label
 			>key <select bind:value={params.key} onchange={changed}
 				>{#each keys as k (k)}<option>{k}</option>{/each}</select
 			></label
@@ -130,6 +191,29 @@
 		<label>edge <input type="range" min="0" max="255" bind:value={params.edge} oninput={changed} /></label>
 		<label>seed <input type="number" min="0" bind:value={params.seed} oninput={changed} /></label>
 		<label><input type="checkbox" bind:checked={params.reverse} onchange={changed} /> reverse</label>
+	</fieldset>
+
+	<fieldset>
+		<legend>Animation</legend>
+		<button type="button" onclick={animate} disabled={!size}>Animate</button>
+		<button type="button" onclick={togglePause} disabled={!animating}>{paused ? 'Resume' : 'Pause'}</button>
+		<button type="button" onclick={restart} disabled={!size}>Restart</button>
+		<button type="button" onclick={sort} disabled={!size}>Instant</button>
+		<label
+			>speed <input
+				type="range"
+				min="0"
+				max="100"
+				bind:value={speedSlider}
+				oninput={speedChanged}
+				disabled={auto}
+				aria-label="speed"
+			/></label
+		>
+		<label><input type="checkbox" bind:checked={auto} onchange={speedChanged} /> auto</label>
+		<progress max="1" value={progress} aria-label="progress"></progress>
+		<span data-testid="pass">pass {pass}</span>
+		<span data-testid="anim-state">{finished ? 'done' : animating ? (paused ? 'paused' : 'animating') : 'idle'}</span>
 	</fieldset>
 
 	{#if error}<p role="alert" class="error">{error}</p>{/if}

@@ -4,7 +4,16 @@
 
 	// Driven by web/scripts/bench.mjs. Loads the engine on the main thread (the transfer strategies cost the same
 	// there as in a worker) and exposes window.bench.
-	type Row = { mp: number; prepare: number; sort: number; copy: number; view: number; viewOk: boolean; send: number; same: boolean };
+	type Row = {
+		mp: number;
+		prepare: number;
+		sort: number;
+		copy: number;
+		view: number;
+		viewOk: boolean;
+		send: number;
+		same: boolean;
+	};
 	let status = $state('loading');
 
 	onMount(async () => {
@@ -29,7 +38,13 @@
 			canvas.width = w;
 			canvas.height = h;
 			const ctx = canvas.getContext('2d')!;
-			const rec = { prepare: [] as number[], sort: [] as number[], copy: [] as number[], view: [] as number[], send: [] as number[] };
+			const rec = {
+				prepare: [] as number[],
+				sort: [] as number[],
+				copy: [] as number[],
+				view: [] as number[],
+				send: [] as number[]
+			};
 			let viewOk = true;
 			let same = true;
 			ps.init(w, h);

@@ -8,7 +8,17 @@ export default ts.config(
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
-	{ languageOptions: { globals: { ...globals.browser, ...globals.node } } },
+	{
+		languageOptions: {
+			globals: {
+				...globals.browser,
+				...globals.node,
+				Go: 'readonly',
+				pixelsort: 'readonly',
+				pixelsortReady: 'readonly'
+			}
+		}
+	},
 	{ files: ['**/*.svelte', '**/*.svelte.ts'], languageOptions: { parserOptions: { parser: ts.parser } } },
 	{ rules: { '@typescript-eslint/no-explicit-any': 'error' } }
 );

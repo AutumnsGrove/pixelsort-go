@@ -1,5 +1,6 @@
 import { defaultParams, type Params } from './params';
-import type { Request, Response, Stats, Timings } from './protocol';
+import type { Speed } from './animator';
+import type { FrameEvent, Request, Response, Stats, Timings } from './protocol';
 
 /** Thrown into every pending promise when the worker dies. The next call starts a fresh worker (without state). */
 export class EngineCrashed extends Error {
@@ -9,6 +10,7 @@ export class EngineCrashed extends Error {
 	}
 }
 
+export type Frame = { rgba: Uint8ClampedArray; progress: number; pass: number; done: boolean; stepMs: number };
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
 
 type Pending = { resolve: (r: Response) => void; reject: (e: Error) => void };
@@ -33,6 +35,7 @@ export class EngineClient {
 	private params: Params = { ...defaultParams };
 	private runInFlight = false;
 	private waiting: Waiting | null = null;
+	private frameListeners = new Set<(f: Frame) => void>();
 	transfer: 'copy' | 'view' = 'copy';
 
 	constructor(private readonly factory: () => Worker = defaultFactory) {}
@@ -93,6 +96,32 @@ export class EngineClient {
 		return this.startRun();
 	}
 
+	/** Subscribes to animation frames. Each frame is acknowledged after the listeners ran, which lets the next one come. */
+	onFrame(cb: (f: Frame) => void): () => void {
+		this.frameListeners.add(cb);
+		return () => this.frameListeners.delete(cb);
+	}
+
+	/** Prepares the current recipe and starts streaming frames. A later run() or animate() replaces it. */
+	async animate(speed: Speed): Promise<Stats> {
+		const res = await this.send({ type: 'animate', speed }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (!res.stats) throw new Error('animate answered without stats');
+		return res.stats;
+	}
+	async pause(): Promise<void> {
+		await this.expectOk(this.send({ type: 'pause' }, []));
+	}
+	async resume(): Promise<void> {
+		await this.expectOk(this.send({ type: 'resume' }, []));
+	}
+	async setSpeed(speed: Speed): Promise<void> {
+		await this.expectOk(this.send({ type: 'setSpeed', speed }, []));
+	}
+	async restart(): Promise<void> {
+		await this.expectOk(this.send({ type: 'restart' }, []));
+	}
+
 	dispose(): void {
 		this.crash('disposed');
 	}
@@ -131,7 +160,11 @@ export class EngineClient {
 	private ensureWorker(): Worker {
 		if (this.worker) return this.worker;
 		const w = this.factory();
-		w.onmessage = (e: MessageEvent<Response>) => {
+		w.onmessage = (e: MessageEvent<Response | FrameEvent>) => {
+			if ('event' in e.data) {
+				this.deliverFrame(e.data);
+				return;
+			}
 			const p = this.pending.get(e.data.id);
 			if (!p) return;
 			this.pending.delete(e.data.id);
@@ -140,6 +173,18 @@ export class EngineClient {
 		w.onerror = (e: ErrorEvent) => this.crash(e.message || 'unknown error');
 		this.worker = w;
 		return w;
+	}
+
+	private deliverFrame(f: FrameEvent): void {
+		const frame: Frame = {
+			rgba: new Uint8ClampedArray(f.rgba),
+			progress: f.progress,
+			pass: f.pass,
+			done: f.done,
+			stepMs: f.stepMs
+		};
+		for (const cb of this.frameListeners) cb(frame);
+		this.worker?.postMessage({ id: this.nextId++, type: 'ack' } satisfies Request);
 	}
 
 	private crash(detail: string): void {
