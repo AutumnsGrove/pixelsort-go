@@ -12,7 +12,7 @@ import (
 
 func newRoot() *cobra.Command {
 	root := &cobra.Command{Use: "pixelsort-go", Short: "A pixel sorter you can watch", SilenceUsage: true}
-	root.AddCommand(newServe(), newVersion())
+	root.AddCommand(newServe(), newVersion(), newRender())
 	return root
 }
 
