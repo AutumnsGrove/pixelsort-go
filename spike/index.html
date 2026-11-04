@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>pixelsort-go spike</title>
+<style>body{font:15px/1.6 ui-monospace,monospace;background:#0a0908;color:#ece4d3;padding:32px}b{color:#ff5a36}</style>
+<h1>Phase 0 spike</h1>
+<pre id="out">starting...</pre>
+<script>
+const out = document.getElementById('out');
+const lines = [];
+const say = (k, v) => { lines.push(k.padEnd(26) + v); out.textContent = lines.join('\n'); };
+say('crossOriginIsolated', String(self.crossOriginIsolated));
+say('SharedArrayBuffer', typeof SharedArrayBuffer === 'function' ? 'available' : 'missing');
+say('secure context', String(self.isSecureContext));
+const w = new Worker('worker.js');
+w.onmessage = (e) => { say('engine.wasm ping()', e.data.ok ? 'engine version ' + e.data.version : 'FAILED: ' + e.data.error); document.title = 'spike: done'; };
+w.onerror = (e) => say('worker error', e.message);
+</script>
