@@ -14,7 +14,7 @@ import (
 func TestProp_PlanInvariants(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(24, 24).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		o := &engine.Options{}
 		if rapid.Bool().Draw(t, "withRegions") {
 			o.Regions = testutil.RegionsGen(im.W, im.H).Draw(t, "regions")

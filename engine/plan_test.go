@@ -224,17 +224,6 @@ func TestPlanIndependentOfOtherLines(t *testing.T) {
 	}
 }
 
-func TestPlanCAReturnsNotImplemented(t *testing.T) {
-	im := testutil.Gradient(8, 8, 0)
-	for _, mode := range []engine.IntervalMode{engine.ModeCA, engine.ModeCAEdges} {
-		p := engine.DefaultParams()
-		p.Mode = mode
-		if _, err := engine.NewPlan(im, p, nil); !errors.Is(err, engine.ErrNotImplemented) {
-			t.Errorf("%s: error = %v, want ErrNotImplemented", mode, err)
-		}
-	}
-}
-
 func TestPlanRejectsBadOptions(t *testing.T) {
 	im := testutil.Gradient(4, 4, 0)
 	p := engine.DefaultParams()

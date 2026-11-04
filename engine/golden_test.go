@@ -29,6 +29,7 @@ func goldenRecipes() []goldenCase {
 	}
 	hue := engine.KeyHue
 	steep := 100
+	caMode, rule54, angle60 := engine.ModeCA, 54, 60
 	checker := testutil.GridCells(97, 61, 16)
 	classOf := testutil.ClassPattern(maxCells(checker), "checker", 1)
 	return []goldenCase{
@@ -44,6 +45,20 @@ func goldenRecipes() []goldenCase {
 			options: &engine.Options{Regions: &engine.Regions{
 				Labels: checker, ClassOf: classOf,
 				Defs: []engine.ClassDef{{}, {Frozen: true}, {Angle: &steep, Key: &hue}},
+			}},
+		},
+		{name: "ca-110-image", w: 97, h: 61, params: with(func(p *engine.Params) { p.Mode, p.Rule, p.Seed = engine.ModeCA, 110, 11 })},
+		{name: "ca-30-line", w: 97, h: 61, params: with(func(p *engine.Params) {
+			p.Mode, p.Rule, p.CASpace, p.Angle, p.Seed = engine.ModeCA, 30, engine.CASpaceLine, 37, 12
+		})},
+		{name: "ca-edges-90-wrap", w: 61, h: 97, params: with(func(p *engine.Params) {
+			p.Mode, p.Rule, p.CABoundary, p.Angle, p.Edge, p.Seed = engine.ModeCAEdges, 90, engine.CABoundaryWrap, 90, 0, 13
+		})},
+		{
+			name: "ca-54-regions", w: 97, h: 61, params: with(func(p *engine.Params) { p.Seed = 14 }),
+			options: &engine.Options{Regions: &engine.Regions{
+				Labels: checker, ClassOf: classOf,
+				Defs: []engine.ClassDef{{}, {Frozen: true}, {Mode: &caMode, Rule: &rule54, Angle: &angle60}},
 			}},
 		},
 		{name: "tiny-1x40", w: 1, h: 40, params: with(func(p *engine.Params) { p.Seed = 9 })},
@@ -83,7 +98,7 @@ func TestGoldenCoversEveryMode(t *testing.T) {
 			regions = true
 		}
 	}
-	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeNone} {
+	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeCA, engine.ModeCAEdges, engine.ModeNone} {
 		if !seen[mode] {
 			t.Errorf("no golden uses mode %q", mode)
 		}

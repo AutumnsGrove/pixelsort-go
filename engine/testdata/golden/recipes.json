@@ -230,6 +230,129 @@
     "sha256": "d576c8e2d141c646b13637b63df6cfd2150a181b8aa469e582f7b8e64db47982"
   },
   {
+    "name": "ca-110-image",
+    "w": 97,
+    "h": 61,
+    "gradientSeed": 3,
+    "params": {
+      "mode": "ca",
+      "key": "luma",
+      "reverse": false,
+      "angle": 0,
+      "length": 83,
+      "randomness": 10,
+      "waveAmp": 70,
+      "wavePeriod": 0,
+      "lo": 51,
+      "hi": 209,
+      "thresholdKey": "luma",
+      "edge": 26,
+      "rule": 110,
+      "cell": 8,
+      "caSpace": "image",
+      "caBoundary": "random",
+      "algo": "oddeven",
+      "seed": 11
+    },
+    "sha256": "dc41e081b9b13866827c3c99421bef0db8bc670ef67b9792b9eb02b258b3cd60"
+  },
+  {
+    "name": "ca-30-line",
+    "w": 97,
+    "h": 61,
+    "gradientSeed": 3,
+    "params": {
+      "mode": "ca",
+      "key": "luma",
+      "reverse": false,
+      "angle": 37,
+      "length": 83,
+      "randomness": 10,
+      "waveAmp": 70,
+      "wavePeriod": 0,
+      "lo": 51,
+      "hi": 209,
+      "thresholdKey": "luma",
+      "edge": 26,
+      "rule": 30,
+      "cell": 8,
+      "caSpace": "line",
+      "caBoundary": "random",
+      "algo": "oddeven",
+      "seed": 12
+    },
+    "sha256": "1cfa1836244d1a6342c3db2d3d3b650832f5ab1c39b848498deec2d4d7eb085f"
+  },
+  {
+    "name": "ca-edges-90-wrap",
+    "w": 61,
+    "h": 97,
+    "gradientSeed": 3,
+    "params": {
+      "mode": "ca-edges",
+      "key": "luma",
+      "reverse": false,
+      "angle": 90,
+      "length": 83,
+      "randomness": 10,
+      "waveAmp": 70,
+      "wavePeriod": 0,
+      "lo": 51,
+      "hi": 209,
+      "thresholdKey": "luma",
+      "edge": 0,
+      "rule": 90,
+      "cell": 8,
+      "caSpace": "image",
+      "caBoundary": "wrap",
+      "algo": "oddeven",
+      "seed": 13
+    },
+    "sha256": "cd1cc6d5cc4bed4e6a9b8e3dc1226cfcb13b90d400835117109d792c660347fd"
+  },
+  {
+    "name": "ca-54-regions",
+    "w": 97,
+    "h": 61,
+    "gradientSeed": 3,
+    "params": {
+      "mode": "random",
+      "key": "luma",
+      "reverse": false,
+      "angle": 0,
+      "length": 83,
+      "randomness": 10,
+      "waveAmp": 70,
+      "wavePeriod": 0,
+      "lo": 51,
+      "hi": 209,
+      "thresholdKey": "luma",
+      "edge": 26,
+      "rule": 110,
+      "cell": 8,
+      "caSpace": "image",
+      "caBoundary": "random",
+      "algo": "oddeven",
+      "seed": 14
+    },
+    "regions": {
+      "cellSize": 16,
+      "pattern": "checker",
+      "defs": [
+        {},
+        {
+          "frozen": true
+        },
+        {
+          "angle": 60,
+          "mode": "ca",
+          "rule": 54
+        }
+      ]
+    },
+    "sha256": "06956557e859bfcec4a233d0043f0f86ec05f7f3ac90964a26edf1527b3f25c1"
+  },
+  {
     "name": "tiny-1x40",
     "w": 1,
     "h": 40,

@@ -32,3 +32,16 @@ commit and explain why, or find the bug.
 `regions.go` cells and classes · `intervals.go` and `plan.go` cutting · `sorter.go` the instant stable sort ·
 `edges.go` the Laplacian map · `feather.go` the soft-mask blur. The stepper (phase 3) and cellular automata
 (phase 4) are not here yet.
+
+## Cellular-automaton intervals (`ca`, `ca-edges`)
+
+An elementary CA (Wolfram rule 0..255) makes a 0/1 mask, and a new interval starts wherever the mask turns on along a
+sort line (`ca`) or at the edges of the mask (`ca-edges`). The grid has cells of `Cell` per mille of the width, its
+first row is random from `NewStream(seed, 0xCA000000|rule)`, and each row comes from the one above by the rule, with
+`CABoundary` deciding the ends (`random`, `wrap`, `fixed`). The mask is expanded by nearest neighbour.
+
+There are two places to lay the grid (`CASpace`):
+
+- **`image`**: over the picture. Read along a sort line at an angle, the pattern is sheared into slanted slivers.
+- **`line`**: over the sort lines (row = line number, column = index along the line), so the pattern turns with the
+  sort and stays blocky and aligned with the direction of the streaks. At angle 0 the two are identical.

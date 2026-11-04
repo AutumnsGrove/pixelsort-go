@@ -58,12 +58,6 @@ func ParamsGen() *rapid.Generator[engine.Params] {
 		engine.ModeCA, engine.ModeCAEdges, engine.ModeNone})
 }
 
-// ParamsGenNoCA draws a valid recipe without the cellular-automaton modes, which NewPlan rejects until phase 4.
-func ParamsGenNoCA() *rapid.Generator[engine.Params] {
-	return paramsGen([]engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges,
-		engine.ModeNone})
-}
-
 func paramsGen(modes []engine.IntervalMode) *rapid.Generator[engine.Params] {
 	keys := []engine.SortKey{engine.KeyLuma, engine.KeyValue, engine.KeyIntensity, engine.KeyMinimum, engine.KeyHue,
 		engine.KeySaturation, engine.KeyRed, engine.KeyGreen, engine.KeyBlue, engine.KeyAlpha}

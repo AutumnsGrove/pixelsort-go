@@ -16,6 +16,20 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · Phase 4 results
+
+- `ca` and `ca-edges` work in both spaces; all earlier properties (plan invariants, stepper equals sort, ...) now draw CA
+  recipes too (`ParamsGenNoCA` and `ErrNotImplemented` are gone). Four CA goldens added; WASM matches all 14 recipes,
+  instant and stepped. Fuzz (`FuzzCARule`) clean. 8 MP plan with CA: about 170 ms (image) / 165 ms (line).
+- **The plan's rule-90 test vectors were wrong** (rows 2 and 3). Re-derived by hand: `0100010` and `1010101`; the test
+  carries the working. Rules 30 and 110 matched the plan.
+- `Options.CAMask` is an exported hook (instead of the plan's unexported test variable) so external tests can supply a
+  known mask without a package-level variable.
+- **UI default recommendation: `line` space.** Rendered a synthetic landscape at angles 0 and 30 with rule 110
+  (`/tmp` scratch, not committed). Image space shears the cells into thin slanted slivers at 30 degrees, which reads as
+  noise; line space keeps chunky blocks aligned with the streaks, which reads as intentional. They are identical at 0,
+  so nothing is lost by defaulting to `line`. Worth a look on a real photo.
+
 ## 2026-11-04 · Phase 3 results
 
 - Stepper: odd-even, insertion, merge and reveal, mixed per region, with monotone progress and soft blending. Stepping to

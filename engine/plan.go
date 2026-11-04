@@ -13,6 +13,9 @@ type Options struct {
 	Regions *Regions // nil = the whole image is one region
 	Mask    []uint8  // len W*H or nil; non-zero = frozen (a hard barrier that never moves)
 	Soft    []uint8  // len W*H or nil; 0..255 alpha blending the result back toward the original (feather)
+	// CAMask, when non-nil (len W*H, 0/1 per pixel position), replaces the generated cellular-automaton mask for
+	// every ca and ca-edges class. It exists so tests and tools can drive the cutting rules with a known pattern.
+	CAMask []uint8
 }
 
 // Stats describes what a plan decided to do, for the UI and for tests.
@@ -35,13 +38,10 @@ type Plan struct {
 	Algos     []Algo // per interval, from its class's effective params
 	Stats     Stats
 	soft      []uint8 // the Soft option, kept for Sort's final blend
+	ca        *caCache
 }
 
-// ErrNotImplemented marks behaviour a later phase adds. Today only the cellular-automaton modes use it.
-var ErrNotImplemented = errors.New("engine: not implemented yet")
-
-// NewPlan validates the recipe and the options, then decides every key, line and interval. It returns
-// ErrNotImplemented for the ca modes, which arrive in phase 4.
+// NewPlan validates the recipe and the options, then decides every key, line and interval.
 func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 	if im == nil {
 		return nil, errors.New("engine: NewPlan: nil image")
@@ -64,6 +64,9 @@ func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 	n := im.W * im.H
 	if opts.Mask != nil && len(opts.Mask) != n {
 		return nil, fmt.Errorf("engine: mask has %d bytes for a %dx%d image: %w", len(opts.Mask), im.W, im.H, ErrBadData)
+	}
+	if opts.CAMask != nil && len(opts.CAMask) != n {
+		return nil, fmt.Errorf("engine: CA mask has %d bytes for a %dx%d image: %w", len(opts.CAMask), im.W, im.H, ErrBadData)
 	}
 	if opts.Soft != nil && len(opts.Soft) != n {
 		return nil, fmt.Errorf("engine: soft mask has %d bytes for a %dx%d image: %w", len(opts.Soft), im.W, im.H, ErrBadData)
@@ -92,9 +95,6 @@ func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 				return nil, fmt.Errorf("engine: class %d: %w", c, err)
 			}
 			return nil, err
-		}
-		if eff[c].Mode == ModeCA || eff[c].Mode == ModeCAEdges {
-			return nil, fmt.Errorf("engine: mode %q arrives in phase 4: %w", eff[c].Mode, ErrNotImplemented)
 		}
 	}
 
@@ -156,6 +156,7 @@ func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 		soft:  opts.Soft,
 	}
 	pl.Stats.Lines = len(pl.Lines.Starts) - 1
+	pl.ca = newCACache(pl, p.Seed, opts.CAMask)
 	pl.buildIntervals(p, eff, classAt, frozen, edges)
 	return pl, nil
 }

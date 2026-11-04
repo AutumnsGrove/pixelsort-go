@@ -69,12 +69,12 @@ File: [`phase-3.md`](phase-3.md)
 
 File: [`phase-4.md`](phase-4.md)
 
-- [ ] P4-T01 The automaton
-- [ ] P4-T02 The two interval modes
-- [ ] P4-T03 Line space
-- [ ] P4-T04 Rule catalogue
-- [ ] P4-T05 Goldens, benchmarks, WASM
-- [ ] P4-T06 Phase wrap-up
+- [x] P4-T01 The automaton
+- [x] P4-T02 The two interval modes
+- [x] P4-T03 Line space
+- [x] P4-T04 Rule catalogue
+- [x] P4-T05 Goldens, benchmarks, WASM
+- [x] P4-T06 Phase wrap-up
 
 ## Phase 5: the real UI
 

@@ -13,7 +13,7 @@ import (
 // algorithm), a mask and a soft plane.
 func stepperInput(t *rapid.T) (*engine.Image, engine.Params, *engine.Options) {
 	im := testutil.ImageGen(20, 20).Draw(t, "image")
-	p := testutil.ParamsGenNoCA().Draw(t, "params")
+	p := testutil.ParamsGen().Draw(t, "params")
 	o := &engine.Options{}
 	switch rapid.IntRange(0, 3).Draw(t, "extras") {
 	case 1:
