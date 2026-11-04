@@ -4,6 +4,9 @@ package engine
 // of the given radius in pixels, window 2r+1, edges replicated, rounded to nearest. It is the Soft option of a plan
 // (decision E11). radius <= 0 returns the hard mask itself.
 //
+// mask must hold exactly w*h bytes and w, h must be positive. Feather has no error return, so a mismatch is a
+// programmer error and panics; whoever accepts a mask from outside (the session API) checks its length first.
+//
 // The mask stays a hard barrier for sorting; this plane only decides how much of the sorted result is blended back
 // toward the original, so a feathered edge fades rather than stops.
 func Feather(mask []uint8, w, h, radius int) []uint8 {

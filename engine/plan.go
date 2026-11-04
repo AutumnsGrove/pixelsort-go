@@ -46,6 +46,14 @@ func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 	if im == nil {
 		return nil, errors.New("engine: NewPlan: nil image")
 	}
+	// Image's fields are exported, so a caller can build one that disagrees with itself. Check before allocating
+	// anything sized from W and H: in WebAssembly a panic (or a huge allocation) ends the whole Go runtime.
+	if err := checkSize(im.W, im.H); err != nil {
+		return nil, err
+	}
+	if len(im.Pix) != im.W*im.H {
+		return nil, fmt.Errorf("engine: %d pixels for a %dx%d image: %w", len(im.Pix), im.W, im.H, ErrBadData)
+	}
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}

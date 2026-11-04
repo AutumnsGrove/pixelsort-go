@@ -250,6 +250,35 @@ func TestPlanRejectsBadOptions(t *testing.T) {
 	}
 }
 
+// TestPlanRejectsInconsistentImage: Image has exported fields, so a caller can build one whose Pix does not match
+// its size. That must be an error, not a panic: in WebAssembly a panic ends the whole Go runtime.
+func TestPlanRejectsInconsistentImage(t *testing.T) {
+	tests := []struct {
+		name string
+		im   *engine.Image
+		want error
+	}{
+		{"nil pixels", &engine.Image{W: 2, H: 2}, engine.ErrBadData},
+		{"too few pixels", &engine.Image{W: 2, H: 2, Pix: make([]uint32, 3)}, engine.ErrBadData},
+		{"too many pixels", &engine.Image{W: 2, H: 2, Pix: make([]uint32, 5)}, engine.ErrBadData},
+		{"zero width", &engine.Image{W: 0, H: 2}, engine.ErrBadSize},
+		{"negative height", &engine.Image{W: 2, H: -1}, engine.ErrBadSize},
+		{"larger than MaxPixels", &engine.Image{W: 1 << 20, H: 1 << 20}, engine.ErrBadSize},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("NewPlan panicked: %v", r)
+				}
+			}()
+			if _, err := engine.NewPlan(tc.im, engine.DefaultParams(), nil); !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
 // TestPlanRegionOverrides: the left half is a frozen class, the right half sorts at 90 degrees, so no interval may
 // touch the left half and every interval in the right half must stay in one column.
 func TestPlanRegionOverrides(t *testing.T) {
