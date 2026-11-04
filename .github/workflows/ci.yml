@@ -28,3 +28,23 @@ jobs:
         run: make wasm-test
       - name: WASM hello under Node
         run: make hello
+      - name: WASM output equals the native goldens
+        run: node web/scripts/wasm-golden.mjs
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: make wasm
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web check
+      - run: pnpm --dir web lint
+      - run: pnpm --dir web test
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - run: make e2e

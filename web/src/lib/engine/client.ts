@@ -61,7 +61,10 @@ export class EngineClient {
 		const l = labels ? labels.slice().buffer : null;
 		const c = classOf ? classOf.slice().buffer : null;
 		await this.expectOk(
-			this.send({ type: 'setRegions', labels: l, classOf: c, defsJson: labels ? JSON.stringify(defs) : null }, [l, c].filter((b): b is ArrayBuffer => b !== null))
+			this.send(
+				{ type: 'setRegions', labels: l, classOf: c, defsJson: labels ? JSON.stringify(defs) : null },
+				[l, c].filter((b): b is ArrayBuffer => b !== null)
+			)
 		);
 	}
 

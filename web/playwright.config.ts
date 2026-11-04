@@ -8,5 +8,10 @@ export default defineConfig({
 	timeout: 30_000,
 	use: { baseURL: 'http://127.0.0.1:4173', launchOptions: { executablePath, args: ['--no-sandbox'] } },
 	projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
-	webServer: { command: 'pnpm build && pnpm preview', url: 'http://127.0.0.1:4173', reuseExistingServer: !process.env.CI, timeout: 120_000 }
+	webServer: {
+		command: 'pnpm build && pnpm preview',
+		url: 'http://127.0.0.1:4173',
+		reuseExistingServer: !process.env.CI,
+		timeout: 120_000
+	}
 });

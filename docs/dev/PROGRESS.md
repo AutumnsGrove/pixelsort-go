@@ -44,10 +44,10 @@ File: [`phase-2.md`](phase-2.md)
 - [x] P2-T02 The WASM binding
 - [x] P2-T03 The web app scaffold
 - [x] P2-T04 Worker, protocol and client
-- [ ] P2-T05 The lab page
+- [x] P2-T05 The lab page
 - [ ] P2-T06 Measure: zero-copy or copy, and what a pass costs
 - [x] P2-T07 WASM equals native
-- [ ] P2-T08 Browser smoke test and CI
+- [x] P2-T08 Browser smoke test and CI
 - [ ] P2-T09 Phase wrap-up
 
 ## Phase 3: watch the sort happen

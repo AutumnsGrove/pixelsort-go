@@ -2,7 +2,18 @@
 // engine/testdata/params-cases.json keeps the two honest.
 
 export const modes = ['random', 'wave', 'threshold', 'edges', 'ca', 'ca-edges', 'none'] as const;
-export const keys = ['luma', 'value', 'intensity', 'minimum', 'hue', 'saturation', 'red', 'green', 'blue', 'alpha'] as const;
+export const keys = [
+	'luma',
+	'value',
+	'intensity',
+	'minimum',
+	'hue',
+	'saturation',
+	'red',
+	'green',
+	'blue',
+	'alpha'
+] as const;
 export const algos = ['oddeven', 'insertion', 'merge', 'reveal'] as const;
 export const caSpaces = ['image', 'line'] as const;
 export const caBoundaries = ['random', 'wrap', 'fixed'] as const;
@@ -79,11 +90,13 @@ const enums: Record<string, readonly string[]> = {
 /** Returns a message naming the first problem with a recipe, or null when it is valid. */
 export function validateParams(p: Params): string | null {
 	for (const [name, list] of Object.entries(enums)) {
-		if (!list.includes((p as unknown as Record<string, unknown>)[name] as string)) return `${name} ${JSON.stringify((p as unknown as Record<string, unknown>)[name])}`;
+		if (!list.includes((p as unknown as Record<string, unknown>)[name] as string))
+			return `${name} ${JSON.stringify((p as unknown as Record<string, unknown>)[name])}`;
 	}
 	for (const [name, [lo, hi]] of Object.entries(intRanges)) {
 		const v = (p as unknown as Record<string, unknown>)[name];
-		if (typeof v !== 'number' || !Number.isInteger(v) || v < lo || v > hi) return `${name} ${String(v)} outside ${lo}..${hi}`;
+		if (typeof v !== 'number' || !Number.isInteger(v) || v < lo || v > hi)
+			return `${name} ${String(v)} outside ${lo}..${hi}`;
 	}
 	if (typeof p.reverse !== 'boolean') return 'reverse must be true or false';
 	if (p.lo > p.hi) return `lo ${p.lo} is above hi ${p.hi}`;
@@ -98,7 +111,8 @@ export function parseParams(text: string): { ok: true; params: Params } | { ok: 
 	} catch (e) {
 		return { ok: false, error: `not JSON: ${(e as Error).message}` };
 	}
-	if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ok: false, error: 'a recipe is an object' };
+	if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+		return { ok: false, error: 'a recipe is an object' };
 	for (const name of Object.keys(raw)) {
 		if (!(name in defaultParams)) return { ok: false, error: `unknown field ${name}` };
 	}
