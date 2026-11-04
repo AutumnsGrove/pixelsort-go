@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"encoding/json"
 	"image"
 	"image/png"
 	"os"
@@ -53,6 +54,9 @@ func goldenRecipes() []goldenCase {
 // TestGolden pins the engine's exact output. A changed hash is a behaviour change: bump EngineVersion in the same
 // commit and say why, or find the bug. The same files are checked on arm64, amd64 and (from phase 2) WASM.
 func TestGolden(t *testing.T) {
+	if testutil.Updating() {
+		writeRecipes(t)
+	}
 	for _, tc := range goldenRecipes() {
 		t.Run(tc.name, func(t *testing.T) {
 			im := testutil.Gradient(tc.w, tc.h, 3)
@@ -111,5 +115,50 @@ func writePNG(t *testing.T, name string, im *engine.Image) {
 	}()
 	if err := png.Encode(f, nrgba); err != nil {
 		t.Fatalf("preview: %v", err)
+	}
+}
+
+// recipeFile is one entry of recipes.json: enough for another program (the WASM check in Node) to rebuild the
+// input and the recipe and compare its output hash with the golden.
+type recipeFile struct {
+	Name         string         `json:"name"`
+	W            int            `json:"w"`
+	H            int            `json:"h"`
+	GradientSeed uint32         `json:"gradientSeed"`
+	Params       engine.Params  `json:"params"`
+	Regions      *recipeRegions `json:"regions,omitempty"`
+	SHA256       string         `json:"sha256"`
+}
+
+// recipeRegions describes the checker grid used by the region golden; the JS side rebuilds it with the same
+// integer formulas as testutil.GridCells and testutil.ClassPattern("checker").
+type recipeRegions struct {
+	CellSize int               `json:"cellSize"`
+	Pattern  string            `json:"pattern"`
+	Defs     []engine.ClassDef `json:"defs"`
+}
+
+// writeRecipes regenerates testdata/golden/recipes.json from the table above. It runs only with -update.
+func writeRecipes(t *testing.T) {
+	t.Helper()
+	var out []recipeFile
+	for _, tc := range goldenRecipes() {
+		raw, err := os.ReadFile(filepath.Join("testdata", "golden", tc.name+".sha256"))
+		sum := ""
+		if err == nil {
+			sum = string(raw[:len(raw)-1])
+		}
+		rf := recipeFile{Name: tc.name, W: tc.w, H: tc.h, GradientSeed: 3, Params: tc.params, SHA256: sum}
+		if tc.options != nil && tc.options.Regions != nil {
+			rf.Regions = &recipeRegions{CellSize: 16, Pattern: "checker", Defs: tc.options.Regions.Defs}
+		}
+		out = append(out, rf)
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		t.Fatalf("recipes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join("testdata", "golden", "recipes.json"), append(data, '\n'), 0o600); err != nil {
+		t.Fatalf("recipes: %v", err)
 	}
 }

@@ -1,18 +1,99 @@
 //go:build js && wasm
 
-// Command wasm is the browser entry point: it exposes the engine to JavaScript as globalThis.pixelsort.
+// Command wasm is the browser entry point: it exposes the engine session to JavaScript as globalThis.pixelsort.
+// It only converts values; every rule lives in engine/api.
 package main
 
 import (
+	"errors"
 	"syscall/js"
 
-	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/engine/api"
 )
 
 func main() {
-	api := js.Global().Get("Object").New()
-	api.Set("ping", js.FuncOf(func(this js.Value, args []js.Value) any { return engine.EngineVersion }))
-	js.Global().Set("pixelsort", api)
+	s := api.NewSession()
+	fns := map[string]func([]js.Value) (any, error){
+		"version": func([]js.Value) (any, error) { return result(map[string]any{"version": api.Version()}), nil },
+		"init": func(a []js.Value) (any, error) {
+			if len(a) < 2 {
+				return nil, errors.New("init needs w and h")
+			}
+			return okOr(s.Init(a[0].Int(), a[1].Int()))
+		},
+		"setImage": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("setImage needs RGBA bytes")
+			}
+			return okOr(s.SetImage(bytesFrom(a[0])))
+		},
+		"setRegions": func(a []js.Value) (any, error) {
+			if len(a) < 3 {
+				return nil, errors.New("setRegions needs labels, classOf and defs")
+			}
+			if isNull(a[0]) {
+				return okOr(s.SetRegions(nil, nil, nil))
+			}
+			return okOr(s.SetRegions(u16From(a[0]), bytesFrom(a[1]), []byte(a[2].String())))
+		},
+		"setMask": func(a []js.Value) (any, error) {
+			if len(a) < 1 || isNull(a[0]) {
+				return okOr(s.SetMask(nil))
+			}
+			return okOr(s.SetMask(bytesFrom(a[0])))
+		},
+		"setSoft": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("setSoft needs a radius")
+			}
+			return okOr(s.SetSoft(a[0].Int()))
+		},
+		"configure": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("configure needs JSON")
+			}
+			return okOr(s.Configure([]byte(a[0].String())))
+		},
+		"prepare": func([]js.Value) (any, error) {
+			st, err := s.Prepare()
+			if err != nil {
+				return nil, err
+			}
+			o := js.Global().Get("Object").New()
+			o.Set("lines", st.Lines)
+			o.Set("intervals", st.Intervals)
+			o.Set("sortable", st.SortablePixels)
+			o.Set("frozen", st.FrozenPixels)
+			return result(map[string]any{"stats": o}), nil
+		},
+		"instant": func([]js.Value) (any, error) { return okOr(s.FinishInstant()) },
+		"pixelsPtr": func([]js.Value) (any, error) {
+			px := s.Pixels()
+			return result(map[string]any{"ptr": int(pixelAddr(px)), "len": len(px) * 4}), nil
+		},
+		"copyPixels": func(a []js.Value) (any, error) {
+			px := pixelBytes(s.Pixels())
+			if len(a) < 1 || a[0].Get("length").Int() != len(px) {
+				return nil, errors.New("copyPixels needs a Uint8Array of exactly 4*w*h bytes")
+			}
+			js.CopyBytesToJS(a[0], px)
+			return result(nil), nil
+		},
+	}
+	pixelsort := js.Global().Get("Object").New()
+	for name, f := range fns {
+		pixelsort.Set(name, guard(f))
+	}
+	pixelsort.Set("ping", pixelsort.Get("version")) // phase 0's name, kept as an alias
+	js.Global().Set("pixelsort", pixelsort)
 	js.Global().Set("pixelsortReady", true)
 	select {} // keep the Go runtime alive so JavaScript can call back in
+}
+
+// okOr turns an error into the failure result and success into {ok: true}.
+func okOr(err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return result(nil), nil
 }
