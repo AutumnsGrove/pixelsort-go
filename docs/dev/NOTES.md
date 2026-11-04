@@ -16,6 +16,16 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · Phase 3 results
+
+- Stepper: odd-even, insertion, merge and reveal, mixed per region, with monotone progress and soft blending. Stepping to
+  completion equals `Sort()` (property, fuzz 20 s clean, and in WASM for all ten goldens, stepped in batches of 50).
+- Per-pass costs are in `docs/perf.md`. Odd-even in WASM: 4.2 ms at 1 MP, 8.7 ms at 2 MP. **Merge is the slow one**
+  (21 ms/pass native at 2 MP); insertion and reveal are cheap per pass but insertion needs `n-1` passes, so on a long
+  interval it takes far more passes. The UI should decide what to expose (e.g. keep merge for smaller sizes).
+- Reveal's pass bound is not `maxLen+2` (it needs `intervals/6` passes); the bound tests exempt it.
+- The lab's animation was checked in Chromium: every algorithm ends on the instant canvas hash.
+
 ## 2026-11-04 · Phase 2 results and environment notes (cloud session)
 
 - **Numbers** (docs/perf.md, a 4-thread 2.1 GHz Xeon sandbox, Chromium 153, so slower than an M2): 2 MP `prepare` 69 ms +

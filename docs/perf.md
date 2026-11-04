@@ -18,3 +18,21 @@ failed; otherwise copy. At 8 MP copy is 123.7 ms and view is 139.2 ms, so the ch
 **copy**. Both give identical pixels (checked every run).
 Both strategies stay in `worker.ts`; `/lab?transfer=copy|view` picks one so this can be re-measured. Phone numbers are
 [HUMAN], optional: run `/lab/bench` on a phone and paste the table here.
+
+## Stepper pass cost
+
+One `Step()` on a mid-sort stepper (`go test ./engine -bench StepPass`, native amd64, same sandbox machine; Gradient
+image, random mode, length 50 per mille, angle 30; medians of 20 passes, ms):
+
+| MP | odd-even | insertion | merge | reveal |
+|---|---|---|---|---|
+| 1 | 3.0 | 1.6 | 9.1 | 0.08 |
+| 2 | 7.9 | 2.0 | 21.1 | 0.10 |
+| 8 | 59 | 6.9 | 124 | 0.69 |
+| 24 | 238 | 15.3 | 354 | 2.3 |
+
+No pass allocates. In WebAssembly (`node web/scripts/bench-step.mjs`), an odd-even pass is **4.2 ms at 1 MP and 8.7 ms
+at 2 MP**, so 60 fps is plausible at 2 MP for odd-even (the target was under about 12 ms). Merge costs about 2.5x
+odd-even per pass (it gathers and rewrites every span), so it is not watchable at 60 fps above about 1 MP in this
+sandbox; the working copy is capped at 1920 px (about 2-3 MP), so the UI should lower the steps-per-frame or draw
+fewer frames for merge at large sizes (the lab's auto speed already adapts the steps per frame, never the cost of one).
