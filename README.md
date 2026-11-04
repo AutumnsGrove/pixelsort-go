@@ -7,8 +7,28 @@ SvelteKit front end drives it, and a small Go server keeps a gallery of every ru
 an earlier Python/Gradio project, [Pixelsorting](https://github.com/AutumnsGrove/Pixelsorting), which stays as an
 archive of the original.
 
-> **Status: design phase.** There is no Go code yet. What exists is a complete plan and a set of working,
-> throwaway mockups that settle the design before the build starts.
+> **Status: early build.** Phase 0 is in: the repo builds, lints and tests itself with `make check`, and the
+> engine's WebAssembly runs inside a web worker. The engine itself lands in phase 1. The plan and the throwaway
+> mockups are still the reference for what it will look like.
+
+## Develop
+
+Requires Go 1.27, Node, `pnpm` and `golangci-lint` v2. The commands live in the `Makefile`:
+
+| Command | What it does |
+|---|---|
+| `make check` | format check, vet, lint and the fast tests — run before every commit |
+| `make test` | every Go test, with the race detector |
+| `make fuzz` | a short run of every fuzz target (`FUZZTIME=2s` to shorten) |
+| `make wasm` | build the engine to WebAssembly in `build/` |
+| `make wasm-test` | run the engine's tests inside WebAssembly under Node |
+| `make hello` | load the built WASM in Node and call it |
+| `make spike` | serve the phase 0 spike page on `127.0.0.1:8895` |
+| `make bench` | benchmarks |
+| `make web` `make web-test` `make e2e` | the SvelteKit app (phases 5+) |
+
+How the project is built — conventions, the test-first loop, one commit per task — is in
+[`docs/dev/README.md`](docs/dev/README.md). Start there.
 
 ## What is here
 

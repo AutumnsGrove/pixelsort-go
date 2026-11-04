@@ -15,7 +15,7 @@ File: [`phase-0.md`](phase-0.md)
 - [x] P0-T07 The browser spike: worker, page, isolation report
 - [x] P0-T08 CI
 - [ ] P0-T09 [HUMAN] Check the headers survive `tailscale serve`
-- [ ] P0-T10 Repo docs and bookkeeping
+- [x] P0-T10 Repo docs and bookkeeping
 
 ## Phase 1: the engine, native Go
 
