@@ -1,8 +1,19 @@
 import { describe, expect, test } from 'vitest';
 import { BUILTIN, OWNED, chips, diff, fromParams, mulberry32, roll, rolls, type Recipe, type Spec } from './presets';
 
-const base: Recipe = { mode: 'random', length: 40, randomness: 10, lo: 51, hi: 209, edge: 26, angle: 0, key: 'luma', reverse: false };
-const inRange = (v: number, [lo = 0, hi = 0, step = 1]: number[]) => v >= Math.round(lo) - 1e-9 && v <= Math.round(hi) + 1e-9;
+const base: Recipe = {
+	mode: 'random',
+	length: 40,
+	randomness: 10,
+	lo: 51,
+	hi: 209,
+	edge: 26,
+	angle: 0,
+	key: 'luma',
+	reverse: false
+};
+const inRange = (v: number, [lo = 0, hi = 0, step = 1]: number[]) =>
+	v >= Math.round(lo) - 1e-9 && v <= Math.round(hi) + 1e-9;
 
 test('the eight built-ins from the Python app, in order', () => {
 	expect(BUILTIN.map((p) => p.name).join()).toBe('Main,File,Random,Kims,Gentle,Intense,Waves,Edges');
@@ -41,7 +52,11 @@ test('Gentle, Intense, Waves and Edges are fixed; Main, File, Random and Kims ro
 });
 
 test('Gentle matches the Python values (in engine units)', () => {
-	const g = roll(BUILTIN.find((p) => p.id === 'gentle')!, Math.random, base);
+	const g = roll(
+		BUILTIN.find((p) => p.id === 'gentle')!,
+		Math.random,
+		base
+	);
 	expect(g).toMatchObject({ randomness: 5, length: 13, lo: 77, hi: 178, key: 'luma' });
 });
 

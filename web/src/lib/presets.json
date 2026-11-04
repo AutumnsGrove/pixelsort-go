@@ -1,22 +1,72 @@
 {
 	"owned": ["mode", "length", "randomness", "lo", "hi", "edge", "angle", "key", "reverse"],
 	"presets": [
-		{ "id": "main", "name": "Main", "desc": "Long runs, a lot left alone, any direction.",
-			"spec": { "mode": "random", "key": "intensity", "randomness": [35, 64], "length": [75, 162.5, 12.5], "angle": [0, 359] } },
-		{ "id": "file", "name": "File", "desc": "Sorts only along edges. Gritty, structural.",
-			"spec": { "mode": "edges", "key": "value", "randomness": [15, 64], "angle": 0 } },
-		{ "id": "random", "name": "Random", "desc": "Dice on every knob. Anything can happen.",
-			"spec": { "mode": { "pick": ["random", "threshold", "edges", "wave", "none"] }, "key": { "pick": ["luma", "hue", "intensity", "value", "saturation"] },
-				"randomness": [5, 74], "length": [25, 237.5, 12.5], "angle": [0, 359], "lo": [25.5, 114.75, 12.75], "hi": [127.5, 242.25, 12.75] } },
-		{ "id": "kims", "name": "Kims", "desc": "Kim Asendorf’s original: threshold, straight up.",
-			"spec": { "mode": "threshold", "key": { "pick": ["luma", "hue", "intensity", "value", "saturation"] }, "angle": 90, "hi": [38.25, 214.2, 2.55] } },
-		{ "id": "gentle", "name": "Gentle", "desc": "Subtle. Short runs, little unsorted.",
-			"spec": { "mode": "threshold", "key": "luma", "randomness": 5, "length": 13, "angle": 0, "lo": 77, "hi": 178 } },
-		{ "id": "intense", "name": "Intense", "desc": "Aggressive. Big runs, diagonal, hue-sorted.",
-			"spec": { "mode": "random", "key": "hue", "randomness": 50, "length": 100, "angle": 45, "lo": 26, "hi": 230 } },
-		{ "id": "waves", "name": "Waves", "desc": "Rolling intervals for an organic flow.",
-			"spec": { "mode": "wave", "key": "saturation", "randomness": 20, "length": 38, "angle": 15 } },
-		{ "id": "edges", "name": "Edges", "desc": "Follows the picture’s own outlines.",
-			"spec": { "mode": "edges", "key": "intensity", "randomness": 15, "angle": 0 } }
+		{
+			"id": "main",
+			"name": "Main",
+			"desc": "Long runs, a lot left alone, any direction.",
+			"spec": {
+				"mode": "random",
+				"key": "intensity",
+				"randomness": [35, 64],
+				"length": [75, 162.5, 12.5],
+				"angle": [0, 359]
+			}
+		},
+		{
+			"id": "file",
+			"name": "File",
+			"desc": "Sorts only along edges. Gritty, structural.",
+			"spec": { "mode": "edges", "key": "value", "randomness": [15, 64], "angle": 0 }
+		},
+		{
+			"id": "random",
+			"name": "Random",
+			"desc": "Dice on every knob. Anything can happen.",
+			"spec": {
+				"mode": { "pick": ["random", "threshold", "edges", "wave", "none"] },
+				"key": { "pick": ["luma", "hue", "intensity", "value", "saturation"] },
+				"randomness": [5, 74],
+				"length": [25, 237.5, 12.5],
+				"angle": [0, 359],
+				"lo": [25.5, 114.75, 12.75],
+				"hi": [127.5, 242.25, 12.75]
+			}
+		},
+		{
+			"id": "kims",
+			"name": "Kims",
+			"desc": "Kim Asendorf’s original: threshold, straight up.",
+			"spec": {
+				"mode": "threshold",
+				"key": { "pick": ["luma", "hue", "intensity", "value", "saturation"] },
+				"angle": 90,
+				"hi": [38.25, 214.2, 2.55]
+			}
+		},
+		{
+			"id": "gentle",
+			"name": "Gentle",
+			"desc": "Subtle. Short runs, little unsorted.",
+			"spec": { "mode": "threshold", "key": "luma", "randomness": 5, "length": 13, "angle": 0, "lo": 77, "hi": 178 }
+		},
+		{
+			"id": "intense",
+			"name": "Intense",
+			"desc": "Aggressive. Big runs, diagonal, hue-sorted.",
+			"spec": { "mode": "random", "key": "hue", "randomness": 50, "length": 100, "angle": 45, "lo": 26, "hi": 230 }
+		},
+		{
+			"id": "waves",
+			"name": "Waves",
+			"desc": "Rolling intervals for an organic flow.",
+			"spec": { "mode": "wave", "key": "saturation", "randomness": 20, "length": 38, "angle": 15 }
+		},
+		{
+			"id": "edges",
+			"name": "Edges",
+			"desc": "Follows the picture’s own outlines.",
+			"spec": { "mode": "edges", "key": "intensity", "randomness": 15, "angle": 0 }
+		}
 	]
 }

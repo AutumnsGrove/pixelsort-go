@@ -11,9 +11,15 @@
 import data from './presets.json';
 import type { Params } from './engine/params';
 
-export type Spec = Record<string, number | string | boolean | number[] | { pick: (string | number)[] } | { around: [number, number] }>;
+export type Spec = Record<
+	string,
+	number | string | boolean | number[] | { pick: (string | number)[] } | { around: [number, number] }
+>;
 export type Preset = { id: string; name: string; desc: string; spec: Spec };
-export type Recipe = Pick<Params, 'mode' | 'length' | 'randomness' | 'lo' | 'hi' | 'edge' | 'angle' | 'key' | 'reverse'>;
+export type Recipe = Pick<
+	Params,
+	'mode' | 'length' | 'randomness' | 'lo' | 'hi' | 'edge' | 'angle' | 'key' | 'reverse'
+>;
 
 export const BUILTIN: readonly Preset[] = data.presets as Preset[];
 export const OWNED = data.owned as (keyof Recipe)[];
@@ -61,7 +67,9 @@ export function roll(preset: Pick<Preset, 'spec'>, rnd: () => number = Math.rand
 
 /** Does this preset roll anything? (decides whether "roll again" is offered) */
 export function rolls(preset: Pick<Preset, 'spec'>): boolean {
-	return Object.values(preset.spec).some((v) => Array.isArray(v) || (typeof v === 'object' && v !== null && ('pick' in v || 'around' in v)));
+	return Object.values(preset.spec).some(
+		(v) => Array.isArray(v) || (typeof v === 'object' && v !== null && ('pick' in v || 'around' in v))
+	);
 }
 
 function describeField(key: string, v: Spec[string]): string {

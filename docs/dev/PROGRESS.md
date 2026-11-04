@@ -84,10 +84,10 @@ File: [`phase-5.md`](phase-5.md)
 - [ ] P5-T02 Settings, storage and the pure settings module
 - [ ] P5-T03 The engine store and the preview pipeline
 - [x] P5-T04 Port presets
-- [ ] P5-T05 Port export model
+- [x] P5-T05 Port export model
 - [ ] P5-T06 Port states
 - [ ] P5-T07 Port errors
-- [ ] P5-T08 Port naming
+- [x] P5-T08 Port naming
 - [ ] P5-T09 Port runs data and virtual list
 - [ ] P5-T10 Port help data
 - [ ] P5-T11 Port updater model

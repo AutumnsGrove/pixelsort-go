@@ -10,7 +10,10 @@ const { instance } = await WebAssembly.instantiate(readFileSync(path.join(dir, '
 go.run(instance);
 while (!globalThis.pixelsortReady) await new Promise((r) => setTimeout(r, 10));
 const ps = globalThis.pixelsort;
-for (const [name, w, h] of [['1MP', 1000, 1000], ['2MP', 1600, 1250]]) {
+for (const [name, w, h] of [
+	['1MP', 1000, 1000],
+	['2MP', 1600, 1250]
+]) {
 	const rgba = new Uint8Array(w * h * 4);
 	for (let i = 0; i < w * h; i++) rgba.set([(i * 7) & 255, ((i / w) | 0) & 255, (i * 13) & 255, 255], i * 4);
 	ps.init(w, h);
@@ -26,6 +29,8 @@ for (const [name, w, h] of [['1MP', 1000, 1000], ['2MP', 1600, 1250]]) {
 		if (r.done) break;
 	}
 	times.sort((a, b) => a - b);
-	console.log(`${name} odd-even pass in WASM: median ${times[times.length >> 1].toFixed(1)} ms (min ${times[0].toFixed(1)}, max ${times.at(-1).toFixed(1)})`);
+	console.log(
+		`${name} odd-even pass in WASM: median ${times[times.length >> 1].toFixed(1)} ms (min ${times[0].toFixed(1)}, max ${times.at(-1).toFixed(1)})`
+	);
 }
 process.exit(0);
