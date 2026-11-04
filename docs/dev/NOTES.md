@@ -16,6 +16,24 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · Phase 2 results and environment notes (cloud session)
+
+- **Numbers** (docs/perf.md, a 4-thread 2.1 GHz Xeon sandbox, Chromium 153, so slower than an M2): 2 MP `prepare` 69 ms +
+  `sort` 32 ms; 8 MP 286 + 158 ms; 24 MP 823 + 535 ms. That is above PLAN.md's hoped-for ~15 ms pass at 2 MP for
+  an instant sort, though the stepper (phase 3) is what the live preview runs, not this. Re-measure on your Mac.
+  **Transfer strategy: copy** (view was not 20% faster at 8 MP; both give identical pixels). `/lab?transfer=view` re-tests.
+- **`golangci-lint` does not run in this container** (the installed binary is built with Go 1.25, `go.mod` says 1.27).
+  `make check`'s lint step is therefore unverified for everything written in the cloud session: `gofmt`, `go vet`
+  and all tests pass. Run `make check` locally and fix whatever the linter finds.
+- **`make wasm-test` fails in this container** with "total length of command line and environment variables exceeds
+  limit" (the container's environment is huge); with a clean environment (`env -i ...`) it passes.
+- **SvelteKit is 3.x here** (not what the plan was written against): config lives in the `sveltekit()` plugin in
+  `vite.config.ts` (no `svelte.config.js`), `$lib` is gone (use `#lib/x`, mapped to `src/lib/x.ts` in package.json
+  `imports`; for `.svelte` or `.js` use a relative import), and TypeScript is pinned to 5.x because Kit 3.1 needs
+  its JS API. `server.headers`/`preview.headers` did not reach Kit's handlers, so a tiny plugin sets COOP/COEP.
+- **Playwright**: this machine has a pre-installed Chromium; set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+  CI uses `playwright install`.
+
 ## 2026-11-04 · Review of phases 0 and 1 (fixes on `fix/phase-1-review`)
 
 Reviewed by running every check independently and probing weak spots. Verdict: sound, merged. Three findings, fixed
