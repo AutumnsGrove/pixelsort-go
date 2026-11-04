@@ -109,9 +109,9 @@ File: [`phase-5.md`](phase-5.md)
 
 File: [`phase-6.md`](phase-6.md)
 
-- [ ] P6-T01 Config
-- [ ] P6-T02 Database and migrations
-- [ ] P6-T03 Blob store
+- [x] P6-T01 Config
+- [x] P6-T02 Database and migrations
+- [x] P6-T03 Blob store
 - [ ] P6-T04 HTTP foundations
 - [ ] P6-T05 Create a run
 - [ ] P6-T06 Read, list, update
