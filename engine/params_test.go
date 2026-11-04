@@ -95,8 +95,22 @@ func TestParseRejectsUnknownField(t *testing.T) {
 }
 
 func TestParseRejectsTrailingData(t *testing.T) {
-	if _, err := engine.ParseParams([]byte(`{} {}`)); err == nil {
-		t.Fatal("ParseParams accepted trailing data")
+	// Anything after the object is a mistake, whether or not it is itself valid JSON. The invalid cases matter:
+	// a decoder reports them as an error, which is easy to mistake for "nothing follows".
+	for _, in := range []string{`{} {}`, `{} 5`, `{} x`, `{"angle":1} }`, `{} ]`, `{} {`, `{}"a"`} {
+		_, err := engine.ParseParams([]byte(in))
+		if !errors.Is(err, engine.ErrInvalidParams) {
+			t.Errorf("ParseParams(%q) error = %v, want ErrInvalidParams for trailing data", in, err)
+		}
+	}
+}
+
+func TestParseAllowsTrailingWhitespace(t *testing.T) {
+	// A file saved by an editor ends in a newline; that must not be an error.
+	for _, in := range []string{"{}\n", "{}  \t\r\n", "{\"angle\":45}\n\n"} {
+		if _, err := engine.ParseParams([]byte(in)); err != nil {
+			t.Errorf("ParseParams(%q) = %v, want success", in, err)
+		}
 	}
 }
 

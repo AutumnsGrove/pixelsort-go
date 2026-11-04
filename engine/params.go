@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 )
 
 // IntervalMode is how a line is cut into sortable intervals (PLAN.md 3.3, decision E7).
@@ -196,7 +197,9 @@ func ParseParams(data []byte) (Params, error) {
 	if err := dec.Decode(&p); err != nil {
 		return Params{}, fmt.Errorf("engine: parse params: %w", err)
 	}
-	if _, err := dec.Token(); err == nil {
+	// Only end of input may follow the object. A decoder reports garbage such as "x" or "}" as an error too, so
+	// "no error" is not the test: io.EOF is.
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return Params{}, fmt.Errorf("engine: parse params: trailing data after the recipe: %w", ErrInvalidParams)
 	}
 	if err := p.Validate(); err != nil {
