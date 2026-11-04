@@ -16,6 +16,22 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · P1-T09 · Wave intervals do not average to `length`
+
+Chose: the wave formula of decision E7 exactly, and a test that pins its *range* (about 8..56 px at `length` 30)
+rather than its mean. Because: the width is a function of the position along the line, so short segments get
+sampled more often than long ones and the average interval is the harmonic mean (about 21 px for `length` 30), not
+the arithmetic one. `random`, which draws each width independently, is the mode whose mean equals `length` — that is
+the promise PLAN.md 3.3 makes about the slider. Alternative: accumulate widths and correct, which would be a
+behaviour change to a spec the mockups already show.
+
+## 2026-11-04 · P1-T01 · Branch base for phase 1
+
+Chose: `build/phase-1` created from `build/phase-0`, not from `main`. Because: `AGENT.md` assumes the previous
+phase has been merged when the next starts, and phase 0 is still waiting for review (`P0-T09` is Autumn's). Branching
+from `main` would have meant a tree with no `go.mod`. Alternative: wait for the merge, or cherry-pick phase 0 into
+the new branch.
+
 ## 2026-11-04 · P0-T01 · How much of the old `.gitignore` survives?
 
 Chose: the list from the task, plus the entries the repo already relied on (`.DS_Store`, `.env.*` with
