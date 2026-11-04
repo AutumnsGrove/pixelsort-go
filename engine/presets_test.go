@@ -56,7 +56,8 @@ func TestBuiltInPresetsRollToValidParams(t *testing.T) {
 		// Try each candidate of each field with every other field at its first candidate.
 		for field, vals := range candidates {
 			for _, val := range vals {
-				recipe := map[string]any{}
+				// The web app's base recipe fills every owned field the preset leaves out.
+				recipe := map[string]any{"lo": 51.0, "hi": 209.0}
 				for k, c := range candidates {
 					recipe[k] = c[0]
 					if f, ok := recipe[k].(float64); ok {
