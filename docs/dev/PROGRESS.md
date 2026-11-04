@@ -13,7 +13,7 @@ File: [`phase-0.md`](phase-0.md)
 - [x] P0-T05 A fuzz target, so `make fuzz` has something to run
 - [x] P0-T06 The engine as WebAssembly, under Node
 - [x] P0-T07 The browser spike: worker, page, isolation report
-- [ ] P0-T08 CI
+- [x] P0-T08 CI
 - [ ] P0-T09 [HUMAN] Check the headers survive `tailscale serve`
 - [ ] P0-T10 Repo docs and bookkeeping
 
