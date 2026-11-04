@@ -89,7 +89,8 @@ func (s *Service) Restore(ctx context.Context, ids []int64) error {
 		return nil
 	}
 	set, args := inClause(ids)
-	if _, err := s.DB.ExecContext(ctx, "UPDATE runs SET trashed_at = NULL WHERE id IN "+set, args...); err != nil {
+	query := "UPDATE runs SET trashed_at = NULL WHERE id IN " + set //nolint:gosec // G202: set holds only "?" placeholders; values are bound
+	if _, err := s.DB.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("runs: restore: %w", err)
 	}
 	return nil

@@ -79,7 +79,7 @@ test('every request stays on this origin and fonts load', async ({ page }) => {
 	await page.goto('/studio');
 	await waitDone(page);
 	expect(foreign).toEqual([]);
-	expect(await page.evaluate(() => document.fonts.check("16px 'Instrument Serif'"))).toBe(true);
+	expect(await page.evaluate(() => document.fonts.check("italic 16px 'Instrument Serif'"))).toBe(true);
 });
 
 test('Archive lists runs from the API, stars and trashes them', async ({ page }) => {
