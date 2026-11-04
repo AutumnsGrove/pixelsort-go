@@ -43,7 +43,7 @@ File: [`phase-2.md`](phase-2.md)
 - [x] P2-T01 The session API (pure Go)
 - [x] P2-T02 The WASM binding
 - [x] P2-T03 The web app scaffold
-- [ ] P2-T04 Worker, protocol and client
+- [x] P2-T04 Worker, protocol and client
 - [ ] P2-T05 The lab page
 - [ ] P2-T06 Measure: zero-copy or copy, and what a pass costs
 - [x] P2-T07 WASM equals native
