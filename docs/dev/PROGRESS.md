@@ -54,12 +54,12 @@ File: [`phase-2.md`](phase-2.md)
 
 File: [`phase-3.md`](phase-3.md)
 
-- [ ] P3-T01 Stepper skeleton and odd-even transposition
-- [ ] P3-T02 Insertion
-- [ ] P3-T03 Bottom-up merge
-- [ ] P3-T04 Reveal
-- [ ] P3-T05 Mixed algorithms and progress
-- [ ] P3-T06 Soft blend while stepping
+- [x] P3-T01 Stepper skeleton and odd-even transposition
+- [x] P3-T02 Insertion
+- [x] P3-T03 Bottom-up merge
+- [x] P3-T04 Reveal
+- [x] P3-T05 Mixed algorithms and progress
+- [x] P3-T06 Soft blend while stepping
 - [ ] P3-T07 Session API: step, progress, reset
 - [ ] P3-T08 Animate in the worker and the lab
 - [ ] P3-T09 Measure the pass cost
