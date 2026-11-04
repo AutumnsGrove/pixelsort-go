@@ -66,6 +66,17 @@ func main() {
 			o.Set("frozen", st.FrozenPixels)
 			return result(map[string]any{"stats": o}), nil
 		},
+		"reset": func([]js.Value) (any, error) { return okOr(s.Reset()) },
+		"step": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("step needs a pass count")
+			}
+			done, err := s.Step(a[0].Int())
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"done": done, "progress": s.Progress(), "pass": s.Pass()}), nil
+		},
 		"instant": func([]js.Value) (any, error) { return okOr(s.FinishInstant()) },
 		"pixelsPtr": func([]js.Value) (any, error) {
 			px := s.Pixels()

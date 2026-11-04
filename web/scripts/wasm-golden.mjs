@@ -57,14 +57,20 @@ for (const rc of recipes) {
 	}
 	ok(ps.configure(JSON.stringify(rc.params)), 'configure');
 	ok(ps.prepare(), 'prepare');
-	ok(ps.instant(), 'instant');
-	const dst = new Uint8Array(rc.w * rc.h * 4);
-	ok(ps.copyPixels(dst), 'copyPixels');
-	const got = createHash('sha256').update(dst).digest('hex');
-	if (got === rc.sha256) console.log(`ok   ${rc.name}`);
-	else {
-		failed++;
-		console.log(`FAIL ${rc.name}: ${got} != ${rc.sha256}`);
+	for (const how of ['instant', 'stepped']) {
+		if (how === 'instant') ok(ps.instant(), 'instant');
+		else {
+			ok(ps.reset(), 'reset');
+			for (let n = 0; !ok(ps.step(50), 'step').done; n++) if (n > 100000) throw new Error('stepper did not finish');
+		}
+		const dst = new Uint8Array(rc.w * rc.h * 4);
+		ok(ps.copyPixels(dst), 'copyPixels');
+		const got = createHash('sha256').update(dst).digest('hex');
+		if (got === rc.sha256) console.log(`ok   ${rc.name} (${how})`);
+		else {
+			failed++;
+			console.log(`FAIL ${rc.name} (${how}): ${got} != ${rc.sha256}`);
+		}
 	}
 }
 process.exit(failed ? 1 : 0);

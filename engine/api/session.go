@@ -26,6 +26,7 @@ type Session struct {
 	hasCfg  bool
 	plan    *engine.Plan
 	result  *engine.Image
+	stepper *engine.Stepper
 }
 
 // NewSession returns an empty session; call Init first.
@@ -140,7 +141,7 @@ func (s *Session) Prepare() (engine.Stats, error) {
 	if err != nil {
 		return engine.Stats{}, fmt.Errorf("api: prepare: %w", err)
 	}
-	s.plan, s.result = pl, nil
+	s.plan, s.result, s.stepper = pl, nil, nil
 	return pl.Stats, nil
 }
 
@@ -150,13 +151,64 @@ func (s *Session) FinishInstant() error {
 		return fmt.Errorf("api: finish before prepare: %w", ErrState)
 	}
 	s.result = s.plan.Sort()
+	s.stepper = nil
 	return nil
 }
 
-// Pixels returns the current pixel buffer: the original until FinishInstant, the sorted image after. Nil before Init.
+// Reset starts (or restarts) a stepped sort of the prepared plan: the pixels return to the original.
+func (s *Session) Reset() error {
+	if s.plan == nil {
+		return fmt.Errorf("api: reset before prepare: %w", ErrState)
+	}
+	s.stepper, s.result = s.plan.NewStepper(), nil
+	return nil
+}
+
+// MaxStepsPerCall bounds Step's n so one call cannot monopolise the worker for long.
+const MaxStepsPerCall = 10000
+
+// Step advances up to n passes (1..MaxStepsPerCall), stopping early once the sort is done.
+func (s *Session) Step(n int) (done bool, err error) {
+	if s.stepper == nil {
+		return false, fmt.Errorf("api: step before reset: %w", ErrState)
+	}
+	if n < 1 || n > MaxStepsPerCall {
+		return false, fmt.Errorf("api: step count %d outside 1..%d", n, MaxStepsPerCall)
+	}
+	for i := 0; i < n; i++ {
+		if s.stepper.Step() {
+			return true, nil
+		}
+	}
+	return s.stepper.Done(), nil
+}
+
+// Progress is 0..1 for the stepped sort; 1 after FinishInstant, 0 before any Reset.
+func (s *Session) Progress() float64 {
+	switch {
+	case s.stepper != nil:
+		return s.stepper.Progress()
+	case s.result != nil:
+		return 1
+	}
+	return 0
+}
+
+// Pass is the number of passes the stepper has run.
+func (s *Session) Pass() int {
+	if s.stepper == nil {
+		return 0
+	}
+	return s.stepper.Pass()
+}
+
+// Pixels returns the current pixel buffer: the original until FinishInstant or Reset, then the sorted image or the
+// stepper's live image. With a feather the stepper blends into a scratch buffer on every call, so re-fetch per frame. Nil before Init.
 // The slice stays valid until the next Init, SetImage or FinishInstant.
 func (s *Session) Pixels() []uint32 {
 	switch {
+	case s.stepper != nil:
+		return s.stepper.Image().Pix
 	case s.result != nil:
 		return s.result.Pix
 	case s.image != nil:
@@ -166,4 +218,4 @@ func (s *Session) Pixels() []uint32 {
 }
 
 // invalidate drops the plan and result after any input changed.
-func (s *Session) invalidate() { s.plan, s.result = nil, nil }
+func (s *Session) invalidate() { s.plan, s.result, s.stepper = nil, nil, nil }
