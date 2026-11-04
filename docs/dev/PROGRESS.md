@@ -81,16 +81,16 @@ File: [`phase-4.md`](phase-4.md)
 File: [`phase-5.md`](phase-5.md)
 
 - [ ] P5-T01 Design tokens, fonts, icons, app shell
-- [ ] P5-T02 Settings, storage and the pure settings module
+- [x] P5-T02 Settings, storage and the pure settings module
 - [ ] P5-T03 The engine store and the preview pipeline
 - [x] P5-T04 Port presets
 - [x] P5-T05 Port export model
 - [x] P5-T06 Port states
 - [x] P5-T07 Port errors
 - [x] P5-T08 Port naming
-- [ ] P5-T09 Port runs data and virtual list
-- [ ] P5-T10 Port help data
-- [ ] P5-T11 Port updater model
+- [x] P5-T09 Port runs data and virtual list
+- [x] P5-T10 Port help data
+- [x] P5-T11 Port updater model
 - [ ] P5-T12 Stage, dock and popovers
 - [ ] P5-T13 The angle dial
 - [ ] P5-T14 Intake, working copy, compare, "what can move"
