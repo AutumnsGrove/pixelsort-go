@@ -83,7 +83,7 @@ File: [`phase-5.md`](phase-5.md)
 - [ ] P5-T01 Design tokens, fonts, icons, app shell
 - [ ] P5-T02 Settings, storage and the pure settings module
 - [ ] P5-T03 The engine store and the preview pipeline
-- [ ] P5-T04 Port presets
+- [x] P5-T04 Port presets
 - [ ] P5-T05 Port export model
 - [ ] P5-T06 Port states
 - [ ] P5-T07 Port errors
