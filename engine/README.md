@@ -23,15 +23,15 @@ sort. A `Plan` is immutable, so `Sort` can run again and again (that is how a li
    `testdata/slopes.golden` on arm64, amd64 and WASM.
 3. No map iteration order and no goroutine scheduling reaches the output: iterate slices, or sort map keys.
 
-`testdata/golden/*.sha256` pin ten recipes. A changed hash is a behaviour change: bump `EngineVersion` in the same
+`testdata/golden/*.sha256` pin fourteen recipes. A changed hash is a behaviour change: bump `EngineVersion` in the same
 commit and explain why, or find the bug.
 
 ## Files
 
 `image.go` pixels · `params.go` the recipe · `keys.go` sort keys · `lines.go` the scanline partition ·
 `regions.go` cells and classes · `intervals.go` and `plan.go` cutting · `sorter.go` the instant stable sort ·
-`edges.go` the Laplacian map · `feather.go` the soft-mask blur. The stepper (phase 3) and cellular automata
-(phase 4) are not here yet.
+`edges.go` the Laplacian map · `feather.go` the soft-mask blur · `stepper*.go` the animated sort (phase 3) ·
+`ca.go` and `carules.go` cellular automata (phase 4) · `api/` the session boundary the WASM binding wraps.
 
 ## Cellular-automaton intervals (`ca`, `ca-edges`)
 
