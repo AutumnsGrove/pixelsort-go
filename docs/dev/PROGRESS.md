@@ -8,7 +8,7 @@ File: [`phase-0.md`](phase-0.md)
 
 - [x] P0-T01 Module, repo hygiene, engine stub
 - [x] P0-T02 Version package and CLI root
-- [ ] P0-T03 Cross-origin isolation middleware and static handler
+- [x] P0-T03 Cross-origin isolation middleware and static handler
 - [ ] P0-T04 Lint config and Makefile
 - [ ] P0-T05 A fuzz target, so `make fuzz` has something to run
 - [ ] P0-T06 The engine as WebAssembly, under Node
