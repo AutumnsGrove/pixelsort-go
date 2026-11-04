@@ -58,6 +58,14 @@ The page is served by the container being replaced, so while updating it polls `
 
 A `result` older than this run's request is never read as this run's answer.
 
+## The dot
+
+Studio's gear, the phone's gear and the Archive's Settings link show a small dot while an update is waiting, and say so to a screen reader (" — an update is ready"). It answers one question and nothing more:
+
+- It reads `GET /api/update/available` (a file the watcher wrote, no network) when a page opens and about once an hour after. It **never starts a check**: only the watcher's own timer and the Check button do that, so opening the app can never cause outside traffic.
+- It is set when Settings sees "available", and cleared when Settings sees "up to date" or "updated". Checking, updating, failing or a quiet watcher never clear it, since none of those mean the update is gone.
+- A tab already open loses the dot when the update lands in another tab (`storage` event; the real app: the next hourly read, or the reload after an update).
+
 ## Not decided
 
 - The same four points as Warbler: confirm the port, the folder name, whether the Meridian additions go in as a PR, and make the first GHCR package public.

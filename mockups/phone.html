@@ -292,6 +292,7 @@
 <script src="shared/presets.js"></script>
 <script src="shared/errors.js"></script>
 <script src="shared/naming.js"></script>
+<script src="shared/updater.js"></script>
 <script src="shared/help.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
@@ -524,6 +525,7 @@
   $('#mX').onclick=function(){$('#mShare').classList.remove('on')};
 
   /* ---- new image ---- */
+  Updater.badge($('#icSet'));
   /* naming: tap the caption (shared/naming.js) */
   var phoneName='sunset-ridge',capCtl=null;
   function autoName(){return Naming.suggest(d.params)}

@@ -6,10 +6,15 @@
  *   Updater.deriveView(input)      pure: what the block should say. Port this one; it is the state machine.
  *   Updater.createSim(opts)        a stand-in for the watcher + the five /api/update endpoints, driven by a clock
  *   Updater.mount({ host, ... })   renders the block, polls while something is happening, never while idle
+ *   Updater.badge(el)              a small dot on any Settings entry point while an update is waiting
+ *   Updater.ready                  what the dot reads: set when a check finds an update, cleared once up to date
  *
  * Mockup switches (Settings page): ?update=ready (default: up to date, "Check" finds one) · available · uptodate ·
  * fail (rolls back fine) · rollbackfail · silent (the watcher never answers) · none (not installed) · stale
- * (watcher went quiet) · &updatefast (10x quicker).
+ * (watcher went quiet) · &updatefast (10x quicker). On any other page, ?update=available lights the dot.
+ *
+ * The dot never starts a check and never goes online: the real app reads GET /api/update/available (a file the
+ * watcher wrote) when a page opens and about once an hour after. It answers "is one waiting?", nothing more.
  */
 (function (root) {
   "use strict";
@@ -119,6 +124,41 @@
     };
   }
 
+  /* ---- the dot ----------------------------------------------------------------------------------------------- */
+  const READY_KEY = "pixelsort.mock.update-ready";
+  const ls = () => root.localStorage || (typeof globalThis !== "undefined" ? globalThis.localStorage : null);
+  const ready = {
+    get() { try { const v = JSON.parse(ls().getItem(READY_KEY) || "null"); return v && typeof v.latest === "string" ? v : null; } catch (e) { return null; } },
+    set(latest) { try { ls().setItem(READY_KEY, JSON.stringify({ latest: String(latest || "") })); } catch (e) { /* ignore */ } },
+    clear() { try { ls().removeItem(READY_KEY); } catch (e) { /* ignore */ } },
+  };
+  /** Keep the stored flag in step with what Settings just learned. Only a definite answer changes it. */
+  function remember(view) {
+    if (view.kind === "available") ready.set(view.latest);
+    else if (view.kind === "up_to_date" || view.kind === "done") ready.clear();
+  }
+
+  /** Put a dot on `el` while an update is waiting. Follows changes made in another tab. Returns { refresh }. */
+  function badge(el, o) {
+    o = o || {}; css();
+    if (!el) return { refresh() {} };
+    if (/[?&]update=available\b/.test((o.search != null ? o.search : (root.location ? root.location.search : "")))) ready.set("new");
+    if (getComputedStyle(el).position === "static") el.style.position = "relative";
+    const label0 = el.getAttribute("aria-label"), title0 = el.getAttribute("title");
+    let dot = null;
+    function refresh() {
+      const on = !!ready.get();
+      if (on && !dot) { dot = document.createElement("i"); dot.className = "up-badge"; dot.setAttribute("aria-hidden", "true"); if ((el.textContent || "").trim()) dot.classList.add("inline"); el.appendChild(dot); }
+      if (!on && dot) { dot.remove(); dot = null; }
+      const note = " \u2014 an update is ready";
+      if (label0 != null) el.setAttribute("aria-label", label0 + (on ? note : ""));
+      else if (on) el.setAttribute("aria-label", (el.textContent || "").trim() + note); else el.removeAttribute("aria-label");
+      if (title0 != null) el.setAttribute("title", title0 + (on ? note : "")); else if (on) el.setAttribute("title", "An update is ready"); else el.removeAttribute("title");
+    }
+    if (root.addEventListener) root.addEventListener("storage", (e) => { if (!e.key || e.key === READY_KEY) refresh(); });
+    refresh(); return { refresh };
+  }
+
   /* ------------------------------------------------------------------------------------------------------------
    * UI
    * ---------------------------------------------------------------------------------------------------------- */
@@ -148,6 +188,9 @@
 .up-bar{height:3px;border-radius:2px;background:var(--faint2);overflow:hidden}
 .up-bar i{display:block;height:100%;width:38%;background:var(--gold);border-radius:2px;animation:upslide 1.5s ease-in-out infinite}
 @keyframes upslide{0%{margin-left:-38%}100%{margin-left:100%}}
+#icSet .up-badge{top:8px;right:8px}
+.up-badge{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:var(--ver);box-shadow:0 0 0 2px var(--ink,#0a0908),0 0 10px var(--ver);pointer-events:none}
+a > .up-badge.inline,.up-badge.inline{position:static;display:inline-block;margin-left:7px;vertical-align:middle}
 .up-mock{display:inline-block;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;border:1px solid var(--faint);border-radius:999px;padding:2px 8px;color:var(--dim);margin-left:8px;vertical-align:middle}
 @media (max-width:620px){.up-facts{grid-template-columns:1fr;gap:2px}.up-facts dd{margin-bottom:8px}}
 `;
@@ -231,6 +274,7 @@
         (c.text ? '<p class="up-text">' + c.text + '</p>' : "") +
         (c.act ? '<div class="up-act">' + c.act.map((a) => '<button class="btn' + (a.primary ? " pri" : "") + '" data-act="' + a.id + '"' + (a.disabled ? " disabled" : "") + '>' + a.label + '</button>').join("") + '</div>' : "") +
         (c.small ? '<p class="up-small">' + esc(c.small) + '</p>' : "") + (actionError ? '<p class="up-small">' + esc(actionError) + '</p>' : "") + '</div>';
+      remember(v);
       host.innerHTML = facts + '<div aria-live="polite">' + body + '</div>';
       host.dataset.kind = v.kind;
       host.querySelectorAll("[data-act]").forEach((b) => { b.onclick = () => act(b.dataset.act); });
@@ -242,6 +286,6 @@
     return { refresh: () => refresh().then(paint), paint, state: st, kind: () => lastKind, stop };
   }
 
-  const api = { STALE_HEARTBEAT_MS, NO_ANSWER_MS, SLOW_MS, VERSION_RE, DIGEST_RE, REQUEST_BODY, short, blockReason, validRequest, staleTab, deriveView, createSim, mount };
+  const api = { STALE_HEARTBEAT_MS, NO_ANSWER_MS, SLOW_MS, VERSION_RE, DIGEST_RE, REQUEST_BODY, short, blockReason, validRequest, staleTab, deriveView, createSim, mount, badge, ready, remember };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Updater = api;
 })(typeof self !== "undefined" ? self : this);

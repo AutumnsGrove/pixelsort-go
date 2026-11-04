@@ -1,8 +1,9 @@
 import { chromium, mock, shared } from './lib.mjs';
 const b = await chromium.launch(); const errs=[];
-const pages=[['studio.html',''],['studio.html','?empty'],['gallery.html',''],['gallery.html','?viewer'],['gallery.html','?share'],['gallery.html','?albums'],['share.html',''],['index.html',''],['settings.html',''],['studio.html','?first&tour'],['studio.html','?used=51.3'],['studio.html','?offline'],['gallery.html','?used=51.3'],['gallery.html','?empty'],['gallery.html','?offline'],['studio.html','?runs=2000'],['gallery.html','?runs=2000'],['studio.html','?error=engine'],['studio.html','?error=save'],['phone.html','?error=engine'],['settings.html','?update=available'],['settings.html','?update=fail&updatefast']];
+const pages=[['studio.html',''],['studio.html','?empty'],['gallery.html',''],['gallery.html','?viewer'],['gallery.html','?share'],['gallery.html','?albums'],['share.html',''],['index.html',''],['settings.html',''],['studio.html','?first&tour'],['studio.html','?used=51.3'],['studio.html','?offline'],['gallery.html','?used=51.3'],['gallery.html','?empty'],['gallery.html','?offline'],['studio.html','?runs=2000'],['gallery.html','?runs=2000'],['studio.html','?error=engine'],['studio.html','?error=save'],['phone.html','?error=engine'],['settings.html','?update=available'],['studio.html','?update=available'],['phone.html','?update=available'],['gallery.html','?update=available'],['settings.html','?update=fail&updatefast']];
 const sizes=[[840,627],[1024,720],[1920,1080],[390,844]];
-for (const [f,q] of pages) for (const [w,h] of sizes) {
+const wide=[[1280,800],[1366,768],[1440,900]];   // the Studio top bar is the tightest bar there is
+for (const [f,q] of pages) for (const [w,h] of (f==='studio.html'?sizes.concat(wide):sizes)) {
   const p = await b.newPage({ viewport: { width: w, height: h } });
   p.on('pageerror',e=>errs.push(f+q+' '+e.message));
   await p.goto(mock(f+q)); await p.waitForTimeout(1200);

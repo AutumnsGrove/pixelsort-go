@@ -271,6 +271,7 @@
 <script src="shared/runs-data.js"></script>
 <script src="shared/errors.js"></script>
 <script src="shared/naming.js"></script>
+<script src="shared/updater.js"></script>
 <script src="shared/states.js"></script>
 <script>
 (function(){
@@ -417,6 +418,7 @@
     var p=r.p,rows=[['intervals',p.mode],['sort by',p.key+(p.reverse?' ↓':' ↑')],['angle',p.angle+'°']];if(p.mode==='random'||p.mode==='wave')rows.push(['length',p.length+' px']);if(p.mode==='threshold')rows.push(['band',p.lo.toFixed(2)+' – '+p.hi.toFixed(2)]);if(p.mode==='ca')rows.push(['rule',p.rule+' · cell '+p.cell]);rows.push(['unsorted',p.randomness+' %']);rows.push(['algorithm','odd-even']);
     $('#vRecipe').innerHTML=rows.map(function(x){return '<div><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'}).join('');
     $('#vStar').textContent=r.starred?'Unstar':'Star';$('#viewer').classList.add('on')}
+  Updater.badge(document.querySelector('.links a[href="settings.html"]'));
   /* naming: click the title (shared/naming.js). Cleared goes back to the name the run was born with. */
   var vCtl=Naming.attach($('#vTitle'),{label:'Run name',get:function(){return cur>=0&&runs[cur]?runs[cur].name:''},
     fallback:function(){return ORIGNAME[cur]||'Untitled'},

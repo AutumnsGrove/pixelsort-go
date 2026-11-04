@@ -71,6 +71,20 @@ ok(U.staleTab('r13.327bb45', 'r14.9a1c4e2') && !U.staleTab('r13.327bb45', 'r13.3
   const s3 = U.createSim({ scenario: 'none', now: () => t }); ok((await s3.getVersion()).updater === 'not installed', 'sim none: reports no updater');
 }
 
+// ---- pure: the dot's flag ----
+{
+  const mem = {}; globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
+  const R = U.ready; ok(R.get() === null, 'dot flag: starts empty');
+  U.remember({ kind: 'available', latest: 'abc' }); ok(R.get() && R.get().latest === 'abc', 'dot flag: set when a check finds an update');
+  for (const k of ['checking', 'updating', 'failed', 'no_updater', 'loading']) { U.remember({ kind: k }); }
+  ok(R.get() && R.get().latest === 'abc', 'dot flag: unsure states (checking, updating, failed, no updater) never clear it');
+  U.remember({ kind: 'up_to_date' }); ok(R.get() === null, 'dot flag: cleared once up to date');
+  U.remember({ kind: 'available', latest: 'abc' }); U.remember({ kind: 'done', version: 'r14.x' }); ok(R.get() === null, 'dot flag: cleared after an update lands');
+  mem['pixelsort.mock.update-ready'] = '{not json'; ok(R.get() === null, 'dot flag: a damaged value reads as empty');
+  mem['pixelsort.mock.update-ready'] = JSON.stringify({ latest: 5 }); ok(R.get() === null, 'dot flag: a wrong shape reads as empty');
+  delete globalThis.localStorage;
+}
+
 // ---- the Settings page ----
 const b = await chromium.launch();
 const open = async (qs, vp = { width: 1280, height: 900 }) => { const p = await b.newPage({ viewport: vp }); p.on('pageerror', (e) => errs.push(qs + ' PAGEERR ' + e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(qs + ': ' + m.text()); }); await p.goto(mock('settings.html' + qs)); await p.waitForFunction(() => document.querySelector('#upMount').dataset.kind && document.querySelector('#upMount').dataset.kind !== 'loading', null, { timeout: 5000 }).catch(() => {}); return p; };
@@ -108,6 +122,23 @@ p = await open('?update=uptodate&updatefast'); await p.click('[data-act=check]')
 // blocked while an export runs
 p = await open('?update=available&busyexport');
 ok((await kind(p)) === 'available' && (await p.locator('[data-act=update]').isDisabled()) && /Finish your export/.test(await text(p)), 'busy: Update is disabled and says why'); await p.close();
+
+// the dot: found in Settings, shown on every way in, gone after updating (one browser context = one localStorage)
+{
+  const c2 = await b.newContext(), pg = async (f, vp = { width: 1280, height: 800 }) => { const x = await c2.newPage(); await x.setViewportSize(vp); x.on('pageerror', (e) => errs.push(f + ' PAGEERR ' + e.message)); await x.goto(mock(f)); await x.waitForTimeout(700); return x; };
+  const dots = (x, sel) => x.locator(sel + ' .up-badge').count();
+  let s = await pg('studio.html'); ok((await dots(s, '#bSet')) === 0, 'dot: none on Studio while nothing is waiting'); ok(await s.locator('#bSet').isVisible() && (await s.locator('#bSet').getAttribute('href')) === 'settings.html', 'dot: Studio has a way into Settings now'); await s.close();
+  const st = await pg('settings.html?updatefast'); await st.click('[data-act=check]'); await waitKind(st, 'available');
+  s = await pg('studio.html'); ok((await dots(s, '#bSet')) === 1 && /update is ready/.test(await s.locator('#bSet').getAttribute('aria-label')), 'dot: once a check finds one, Studio shows it, and says so to a screen reader'); const bb = await s.locator('#bSet').boundingBox(); ok(bb.width >= 27 && bb.height >= 27, 'dot: the Studio button stays a proper size');
+  const ph = await pg('phone.html', { width: 390, height: 844 }); ok((await dots(ph, '#icSet')) === 1, 'dot: and on the phone'); const pb = await ph.locator('#icSet').boundingBox(); ok(pb.width >= 36 && pb.height >= 36, 'dot: the phone button stays tappable (' + Math.round(pb.width) + ' px)');
+  const ar = await pg('gallery.html'); ok((await ar.locator('.links a[href="settings.html"] .up-badge').count()) === 1, 'dot: and beside Settings in the Archive');
+  const lk = await ar.evaluate(() => { const d = document.querySelector('.links a[href="settings.html"] .up-badge').getBoundingClientRect(), a = document.querySelector('.links a[href="settings.html"]').getBoundingClientRect(); return d.left >= a.left && d.right <= a.right + 14 && d.width < 12; }); ok(lk, 'dot: it sits inside the Archive link, a small dot');
+  await st.click('[data-act=update]'); ok(await waitKind(st, 'done', 8000) && await waitKind(st, 'up_to_date', 6000), 'dot: update goes through');
+  await s.waitForTimeout(300); ok((await dots(s, '#bSet')) === 0 && !/update is ready/.test((await s.locator('#bSet').getAttribute('aria-label')) || ''), 'dot: an open Studio tab loses the dot when the update lands');
+  await s.reload(); await s.waitForTimeout(500); ok((await dots(s, '#bSet')) === 0, 'dot: and it stays gone on reload');
+  const q = await pg('studio.html?update=available'); ok((await dots(q, '#bSet')) === 1, 'dot: ?update=available lights it on any page for the mockup');
+  for (const x of [s, ph, ar, q, st]) await x.close(); await c2.close();
+}
 
 // layout at phone and small desktop widths, every state
 for (const [w, h] of [[390, 844], [840, 627], [1920, 1080]]) for (const q of ['?update=available', '?update=fail', '?update=none']) {

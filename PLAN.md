@@ -662,7 +662,7 @@ angles × 6 interval modes × 4 image shapes, including 1×N and N×1).
   scrim you can click to dismiss. It never squeezes the picture into a thumbnail.
 - **The dock tightens in two steps as its container narrows** (container queries), and scrolls
   sideways as a last resort. It must never overflow the viewport.
-- The centred readout (pass / % / intervals) hides below 1240 px so it can't collide with the links; the
+- The centred readout (pass / % / intervals) hides below 1440 px so it can't collide with the links (Studio's top bar also has a gear into Settings now); the
   caption hides its dimensions line and ellipsizes rather than overlapping the picture.
 - **Below ~700 px the Studio hands off to the phone layout.** Archive and the share viewer are fluid
   down to phone width (the viewer stacks image-over-slate below 1000 px).
@@ -701,6 +701,7 @@ direction, Own sort key + direction, and a full Own cutting recipe.
 - Presets (the eight Python built-ins as rolled specs, plus user presets), the `T` "what can move" overlay,
   and the export planner and dialog (8 B/px floor + 9 B/px scratch per band).
 - Naming: click or tap the caption in Studio / phone (or `F2`), or the title in the Archive viewer. Names are labels, not identities (duplicates allowed); clearing the field returns the automatic name; the export filename is built from the name and drops a recipe word the name already contains (`shared/naming.js`).
+- An "update is ready" dot on every way into Settings (Studio gear, phone gear, Archive link). It only reads what the watcher last wrote; it never starts a check.
 - Settings → Updates: check, update, progress that survives the server restarting, failure and rollback states (`shared/updater.js`).
 
 Nothing is left on the design list; the mockup phase is finished and the next step is Phase 0 (§9).

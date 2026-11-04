@@ -308,7 +308,7 @@
   #toast{position:fixed;left:50%;top:76px;transform:translate(-50%,-8px);font-family:var(--serif);font-style:italic;font-size:18px;opacity:0;transition:.3s;z-index:50;pointer-events:none}
   #toast.on{opacity:1;transform:translate(-50%,0)}
   @media (max-width:1700px){.hint{display:none}}
-  @media (max-width:1239px){.read{display:none}}
+  @media (max-width:1439px){.read{display:none}}
   @media (max-width:1100px){.knob{min-width:64px;padding:6px 9px}.knob b{font-size:21px}}
 </style>
 </head>
@@ -325,6 +325,7 @@
     <button id="bPro">Pro<kbd>Tab</kbd></button>
     <a href="gallery.html">Archive</a>
     <button id="bSave">Export<kbd>E</kbd></button>
+    <a class="qm" id="bSet" href="settings.html" title="Settings" aria-label="Settings"><svg style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
     <button class="qm" id="bHelp" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
   </div>
 </div>
@@ -458,6 +459,7 @@
 <script src="shared/presets.js"></script>
 <script src="shared/errors.js"></script>
 <script src="shared/naming.js"></script>
+<script src="shared/updater.js"></script>
 <script src="shared/help.js"></script>
 <script src="shared/virtual-list.js"></script>
 <script src="shared/runs-data.js"></script>
@@ -657,6 +659,8 @@
   $('#cells').innerHTML=RUNS.map(function(r,i){var u=PixelDemo.thumb(Object.assign({randomness:10},r[1]),176,110);return '<div class="cell'+(i===0?' cur':'')+'" data-i="'+i+'"><img src="'+u+'" alt=""><span>'+r[0]+' · '+ages[i]+'</span></div>'}).join('');
   if(AppState.fromQuery(location.search).empty)$('#cells').innerHTML='<div class="stempty"><b>Nothing here yet.</b>Runs you make appear on this strip by themselves.</div>';
   $('#cells').addEventListener('click',function(e){var c=e.target.closest('.cell');if(!c||BIGRUNS)return;$$('.cell').forEach(function(x){x.classList.remove('cur')});c.classList.add('cur');var r=RUNS[+c.dataset.i];curRun=+c.dataset.i;setName(r[0]);d.setParams(Object.assign({mode:'random',randomness:10,length:40,angle:0,reverse:false},r[1]));refresh();d.play();toast('Reopened · '+r[0])});
+  Updater.badge($('#bSet'));
+
   /* ---------- naming: click the caption (or F2) to rename; shared/naming.js ---------- */
   var pieceName='sunset-ridge',curRun=-1,capCtl=null;
   function origName(i){return BIGRUNS?(window.__runOrig||{})[i]:RUN0[i]}
