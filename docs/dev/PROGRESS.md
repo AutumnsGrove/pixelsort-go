@@ -6,7 +6,7 @@ Tick a box (`[ ]` to `[x]`) in the **same commit** as the work. Tasks marked **[
 
 File: [`phase-0.md`](phase-0.md)
 
-- [ ] P0-T01 Module, repo hygiene, engine stub
+- [x] P0-T01 Module, repo hygiene, engine stub
 - [ ] P0-T02 Version package and CLI root
 - [ ] P0-T03 Cross-origin isolation middleware and static handler
 - [ ] P0-T04 Lint config and Makefile

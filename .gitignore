@@ -1,21 +1,27 @@
 # macOS
 .DS_Store
 
-# Node / web (future SvelteKit app and the mockup tests)
-node_modules/
-.svelte-kit/
+# Build output (checked in nowhere: build/ holds the wasm and its loader)
 build/
+web/build/
+web/.svelte-kit/
 dist/
+*.wasm
+spike/wasm_exec.js
+coverage.out
 
-# Go (future)
+# Go
 *.test
 *.out
 /bin/
 
-# WASM build output (future) — built, not committed
-web/static/*.wasm
+# Node
+node_modules/
 
 # Local env and secrets — never commit these
 .env
 .env.*
 !.env.example
+
+# Gallery data lives on disk, not in the repo
+data/
