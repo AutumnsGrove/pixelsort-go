@@ -28,7 +28,7 @@ File: [`phase-1.md`](phase-1.md)
 - [x] P1-T05 Line partition
 - [x] P1-T06 Regions: types and region-aware lines
 - [x] P1-T07 Test helpers and generators
-- [ ] P1-T08 Edge map
+- [x] P1-T08 Edge map
 - [ ] P1-T09 Plan: keys, lines and intervals
 - [ ] P1-T10 The instant sorter
 - [ ] P1-T11 Feather
