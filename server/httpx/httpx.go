@@ -39,8 +39,9 @@ type Envelope struct {
 
 // Detail is the code and a human message.
 type Detail struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    string  `json:"code"`
+	Message string  `json:"message"`
+	IDs     []int64 `json:"ids,omitempty"` // for starred_needs_confirm: the starred runs that blocked the request
 }
 
 // Write sends v as JSON with the given status.

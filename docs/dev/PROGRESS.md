@@ -112,16 +112,16 @@ File: [`phase-6.md`](phase-6.md)
 - [x] P6-T01 Config
 - [x] P6-T02 Database and migrations
 - [x] P6-T03 Blob store
-- [ ] P6-T04 HTTP foundations
-- [ ] P6-T05 Create a run
-- [ ] P6-T06 Read, list, update
-- [ ] P6-T07 Trash, restore, empty
-- [ ] P6-T08 Usage
-- [ ] P6-T09 Presets, settings, shapes
-- [ ] P6-T10 Serving images
-- [ ] P6-T11 Health, version, SPA, security headers
-- [ ] P6-T12 Wire it together: app and `serve`
-- [ ] P6-T13 `docs/api.md`
+- [x] P6-T04 HTTP foundations
+- [x] P6-T05 Create a run
+- [x] P6-T06 Read, list, update
+- [x] P6-T07 Trash, restore, empty
+- [x] P6-T08 Usage
+- [x] P6-T09 Presets, settings, shapes
+- [x] P6-T10 Serving images
+- [x] P6-T11 Health, version, SPA, security headers
+- [x] P6-T12 Wire it together: app and `serve`
+- [x] P6-T13 `docs/api.md`
 - [ ] P6-T14 The web `ServerBackend` and auto-save
 - [ ] P6-T15 Phase wrap-up
 

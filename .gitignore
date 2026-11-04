@@ -27,3 +27,4 @@ node_modules/
 data/
 test-results/
 playwright-report/
+server/spa/build/

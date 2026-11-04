@@ -7,7 +7,7 @@ FUZZTIME ?= 20s
 VERSION ?= r$(shell git rev-list --count HEAD 2>/dev/null || echo 0).$(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/AutumnsGrove/pixelsort-go/internal/version.Version=$(VERSION)
 
-.PHONY: check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e clean
+.PHONY: web-embed embed-build check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e clean
 
 ## check: format check, vet, lint and the fast tests. Run before every commit.
 check: fmt-check vet lint short
@@ -64,6 +64,14 @@ hello: wasm
 spike: wasm
 	cp build/engine.wasm build/wasm_exec.js spike/
 	go run ./cmd/pixelsort-go serve --dir spike --addr 127.0.0.1:8895
+
+## web-embed: copy the built web app into server/spa/build so a binary built with -tags embedweb serves it.
+web-embed: web
+	rm -rf server/spa/build && cp -r web/build server/spa/build
+
+## embed-build: the single binary: web app embedded, version stamped.
+embed-build: wasm web-embed
+	go build -tags embedweb -ldflags "$(LDFLAGS)" -o build/pixelsort-go ./cmd/pixelsort-go
 
 web:
 	pnpm --dir web install --frozen-lockfile && pnpm --dir web build
