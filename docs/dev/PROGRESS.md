@@ -22,7 +22,7 @@ File: [`phase-0.md`](phase-0.md)
 File: [`phase-1.md`](phase-1.md)
 
 - [x] P1-T01 Image type
-- [ ] P1-T02 RNG and integer helpers
+- [x] P1-T02 RNG and integer helpers
 - [ ] P1-T03 Parameters
 - [ ] P1-T04 Sort keys
 - [ ] P1-T05 Line partition
