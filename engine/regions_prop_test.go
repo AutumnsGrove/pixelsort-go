@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/internal/testutil"
 	"pgregory.net/rapid"
 )
 
@@ -13,7 +14,7 @@ func TestProp_RegionPartition(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		w := rapid.IntRange(1, 40).Draw(t, "w")
 		h := rapid.IntRange(1, 40).Draw(t, "h")
-		regions := regionsGen(w, h).Draw(t, "regions")
+		regions := testutil.RegionsGen(w, h).Draw(t, "regions")
 		angle := rapid.IntRange(0, 359).Draw(t, "angle")
 		L := engine.PartitionRegions(w, h, angle, regions)
 		checkRegionPartition(t, w, h, regions, L)
@@ -33,9 +34,9 @@ func TestRegionPartitionAcrossConfigurations(t *testing.T) {
 		for _, cs := range cellSizes {
 			for _, pat := range patterns {
 				n++
-				cells := gridCells(w, h, cs)
-				classOf := classPattern(maxCellID(cells), pat, uint32(n))
-				defs := make([]engine.ClassDef, len(classOf))
+				cells := testutil.GridCells(w, h, cs)
+				classOf := testutil.ClassPattern(maxCells(cells), pat, uint32(n))
+				defs := make([]engine.ClassDef, maxClass(classOf)+1)
 				for c := 1; c < len(defs); c++ {
 					angle := (c*37 + n*11) % 360
 					defs[c] = engine.ClassDef{Angle: &angle}
@@ -94,39 +95,9 @@ func checkRegionPartition(t testHelper, w, h int, regions *engine.Regions, lines
 	}
 }
 
-// regionsGen draws a valid region map: a grid of square cells, 1..4 classes, each class with its own angle.
-// It moves to internal/testutil in P1-T07.
-func regionsGen(w, h int) *rapid.Generator[*engine.Regions] {
-	patterns := []string{"checker", "thirds", "all", "random"}
-	return rapid.Custom(func(t *rapid.T) *engine.Regions {
-		cells := gridCells(w, h, rapid.IntRange(1, 12).Draw(t, "cellSize"))
-		classOf := classPattern(maxCellID(cells), rapid.SampledFrom(patterns).Draw(t, "pattern"), rapid.Uint32().Draw(t, "seed"))
-		defs := make([]engine.ClassDef, len(classOf))
-		for c := 1; c < len(defs); c++ {
-			angle := rapid.IntRange(0, 359).Draw(t, "classAngle")
-			defs[c] = engine.ClassDef{Angle: &angle, Frozen: rapid.Bool().Draw(t, "frozen")}
-		}
-		return &engine.Regions{Labels: cells, ClassOf: classOf, Defs: defs}
-	})
-}
-
-// gridCells numbers the squares of a size x size grid from 1, row by row. Cell 0 is unused, which is what the
-// real tessellations reserve for the gaps between shapes.
-func gridCells(w, h, size int) []uint16 {
-	if size < 1 {
-		size = 1
-	}
-	cw := (w + size - 1) / size
-	out := make([]uint16, w*h)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			out[y*w+x] = uint16((y/size)*cw + x/size + 1)
-		}
-	}
-	return out
-}
-
-func maxCellID(cells []uint16) int {
+// maxCells and maxClass size the class table and the defs for a generated map; the helpers live in testutil for
+// RegionsGen, and the sweep below needs the same two numbers.
+func maxCells(cells []uint16) int {
 	m := 0
 	for _, c := range cells {
 		m = max(m, int(c))
@@ -134,21 +105,10 @@ func maxCellID(cells []uint16) int {
 	return m
 }
 
-// classPattern assigns a class (1..4) to every cell id; index 0 is class 0.
-func classPattern(cells int, pattern string, seed uint32) []uint8 {
-	out := make([]uint8, cells+1)
-	for id := 1; id <= cells; id++ {
-		switch pattern {
-		case "all":
-			out[id] = 1
-		case "checker":
-			out[id] = uint8(id%2 + 1)
-		case "thirds":
-			out[id] = uint8(min(3, (id-1)*3/max(1, cells)+1))
-		default: // "random": a tiny integer hash, so the test needs no RNG plumbing
-			h := uint32(id)*2654435761 + seed*40503
-			out[id] = uint8(h>>13)%4 + 1
-		}
+func maxClass(classOf []uint8) int {
+	m := 0
+	for _, c := range classOf {
+		m = max(m, int(c))
 	}
-	return out
+	return m
 }

@@ -39,6 +39,9 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, unparam]
+      # internal/testutil is test support, never shipped: reading and writing golden files by name is its job.
+      - path: ^internal/testutil/
+        linters: [gosec]
 
 formatters:
   enable:

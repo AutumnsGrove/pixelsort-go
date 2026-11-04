@@ -1,0 +1,23 @@
+# 2026/11/04 14:20:48.188525 [TestProp_RegionsGenValidates] [rapid] draw w: 1
+# 2026/11/04 14:20:48.188539 [TestProp_RegionsGenValidates] [rapid] draw h: 1
+# 2026/11/04 14:20:48.188555 [TestProp_RegionsGenValidates] [rapid] draw regions: &engine.Regions{Labels:[]uint16{0x1}, ClassOf:[]uint8{0x0, 0x2}, Defs:[]engine.ClassDef{engine.ClassDef{Frozen:false, Angle:(*int)(nil), Key:(*engine.SortKey)(nil), Reverse:(*bool)(nil), Mode:(*engine.IntervalMode)(nil), Length:(*int)(nil), Randomness:(*int)(nil), Lo:(*int)(nil), Hi:(*int)(nil), Edge:(*int)(nil), Rule:(*int)(nil), Cell:(*int)(nil), Algo:(*engine.Algo)(nil)}, engine.ClassDef{Frozen:false, Angle:(*int)(0xc0002f7918), Key:(*engine.SortKey)(nil), Reverse:(*bool)(nil), Mode:(*engine.IntervalMode)(nil), Length:(*int)(nil), Randomness:(*int)(nil), Lo:(*int)(nil), Hi:(*int)(nil), Edge:(*int)(nil), Rule:(*int)(nil), Cell:(*int)(nil), Algo:(*engine.Algo)(nil)}}}
+# 2026/11/04 14:20:48.188754 [TestProp_RegionsGenValidates] generated invalid regions: engine: cell 1 names class 2, outside the 2 class definitions: engine: invalid regions
+# 
+v0.4.8#9064238760071631895
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

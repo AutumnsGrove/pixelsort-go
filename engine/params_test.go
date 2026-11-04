@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/internal/testutil"
 	"pgregory.net/rapid"
 )
 
@@ -131,7 +132,7 @@ func TestWith(t *testing.T) {
 
 func TestProp_ParamsJSONRoundTrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		p := paramsGen().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		data, err := json.Marshal(p)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
@@ -142,40 +143,6 @@ func TestProp_ParamsJSONRoundTrip(t *testing.T) {
 		}
 		if got != p {
 			t.Fatalf("round trip changed the params:\n got %+v\nwant %+v", got, p)
-		}
-	})
-}
-
-// paramsGen draws a valid recipe. It moves to internal/testutil in P1-T07, when every property can share it.
-func paramsGen() *rapid.Generator[engine.Params] {
-	modes := []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges,
-		engine.ModeCA, engine.ModeCAEdges, engine.ModeNone}
-	keys := []engine.SortKey{engine.KeyLuma, engine.KeyValue, engine.KeyIntensity, engine.KeyMinimum, engine.KeyHue,
-		engine.KeySaturation, engine.KeyRed, engine.KeyGreen, engine.KeyBlue, engine.KeyAlpha}
-	algos := []engine.Algo{engine.AlgoOddEven, engine.AlgoInsertion, engine.AlgoMerge, engine.AlgoReveal}
-	spaces := []string{engine.CASpaceImage, engine.CASpaceLine}
-	boundaries := []string{engine.CABoundaryRandom, engine.CABoundaryWrap, engine.CABoundaryFixed}
-	return rapid.Custom(func(t *rapid.T) engine.Params {
-		lo := rapid.IntRange(0, 255).Draw(t, "lo")
-		return engine.Params{
-			Mode:         rapid.SampledFrom(modes).Draw(t, "mode"),
-			Key:          rapid.SampledFrom(keys).Draw(t, "key"),
-			Reverse:      rapid.Bool().Draw(t, "reverse"),
-			Angle:        rapid.IntRange(0, 359).Draw(t, "angle"),
-			Length:       rapid.IntRange(1, 1000).Draw(t, "length"),
-			Randomness:   rapid.IntRange(0, 100).Draw(t, "randomness"),
-			WaveAmp:      rapid.IntRange(0, 100).Draw(t, "waveAmp"),
-			WavePeriod:   rapid.IntRange(0, 1000).Draw(t, "wavePeriod"),
-			Lo:           lo,
-			Hi:           rapid.IntRange(lo, 255).Draw(t, "hi"),
-			ThresholdKey: rapid.SampledFrom(keys).Draw(t, "thresholdKey"),
-			Edge:         rapid.IntRange(0, 255).Draw(t, "edge"),
-			Rule:         rapid.IntRange(0, 255).Draw(t, "rule"),
-			Cell:         rapid.IntRange(1, 1000).Draw(t, "cell"),
-			CASpace:      rapid.SampledFrom(spaces).Draw(t, "caSpace"),
-			CABoundary:   rapid.SampledFrom(boundaries).Draw(t, "caBoundary"),
-			Algo:         rapid.SampledFrom(algos).Draw(t, "algo"),
-			Seed:         rapid.Uint32().Draw(t, "seed"),
 		}
 	})
 }

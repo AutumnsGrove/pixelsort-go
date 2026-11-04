@@ -9,7 +9,8 @@ import (
 )
 
 // updateSlopes rewrites testdata/slopes.golden instead of comparing against it. It is the package's one -update
-// flag; the golden helper in internal/testutil takes it over in P1-T07.
+// flag for the whole test binary: internal/testutil looks it up by name in Updating() so golden files can be
+// rewritten with the same -update. Test files inside package engine cannot import testutil (it imports engine).
 var updateSlopes = flag.Bool("update", false, "rewrite testdata/slopes.golden")
 
 func TestPartitionBijection(t *testing.T) {
