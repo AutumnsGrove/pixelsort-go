@@ -48,6 +48,9 @@ wasm:
 	@mkdir -p build
 	GOOS=js GOARCH=wasm go build -ldflags "$(LDFLAGS) -s -w" -o build/engine.wasm ./cmd/wasm
 	cp "$(GOROOT_DIR)/lib/wasm/wasm_exec.js" build/wasm_exec.js
+	@if [ -d web ]; then mkdir -p web/static web/src/lib/engine/vendor; \
+	  cp build/engine.wasm web/static/engine.wasm; \
+	  cp build/wasm_exec.js web/src/lib/engine/vendor/wasm_exec.js; fi
 
 ## wasm-test: run the engine's own tests inside Node (WebAssembly).
 wasm-test:
