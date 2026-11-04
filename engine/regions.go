@@ -1,9 +1,9 @@
 package engine
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 )
 
@@ -66,34 +66,51 @@ func PartitionRegions(w, h, defaultAngle int, r *Regions) Lines {
 	}
 	cls := r.classes(w, h)
 
-	// Group the classes that actually occur by the angle they are walked at.
-	used := map[uint8]bool{}
+	// Group the classes that actually occur by the angle they are walked at. A class id is a byte, so a fixed
+	// [256]bool replaces the maps this used to use: the loop below tests every pixel, and a map lookup per pixel made
+	// the region-aware partition an order of magnitude slower than the plain one.
+	var used [256]bool
 	for _, c := range cls {
 		used[c] = true
 	}
-	byAngle := map[int]map[uint8]bool{}
-	for c := range used {
+	type group struct {
+		angle int
+		set   [256]bool
+	}
+	var groups []*group
+	for c := range used { // ascending class id, so group creation order never depends on anything random
+		if !used[c] {
+			continue
+		}
 		angle := defaultAngle
-		if int(c) < len(r.Defs) && r.Defs[c].Angle != nil {
+		if c < len(r.Defs) && r.Defs[c].Angle != nil {
 			angle = *r.Defs[c].Angle
 		}
-		if byAngle[angle] == nil {
-			byAngle[angle] = map[uint8]bool{}
+		var g *group
+		for _, cand := range groups {
+			if cand.angle == angle {
+				g = cand
+				break
+			}
 		}
-		byAngle[angle][c] = true
+		if g == nil {
+			g = &group{angle: angle}
+			groups = append(groups, g)
+		}
+		g.set[c] = true
 	}
+	slices.SortFunc(groups, func(a, b *group) int { return cmp.Compare(a.angle, b.angle) })
 
 	P := make([]int32, 0, w*h)
 	var starts []int32
-	for _, angle := range slices.Sorted(maps.Keys(byAngle)) {
-		set := byAngle[angle]
-		part := Partition(w, h, angle)
+	for _, g := range groups {
+		part := Partition(w, h, g.angle)
 		for l := 0; l < len(part.Starts)-1; l++ {
 			open := false
 			var prev uint16
 			for i := part.Starts[l]; i < part.Starts[l+1]; i++ {
 				pos := part.P[i]
-				if !set[cls[pos]] {
+				if !g.set[cls[pos]] {
 					open = false
 					continue
 				}

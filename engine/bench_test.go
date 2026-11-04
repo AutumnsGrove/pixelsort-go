@@ -37,6 +37,37 @@ func BenchmarkNewPlan(b *testing.B) {
 	}
 }
 
+// BenchmarkPartitionRegions measures the region-aware partition against the plain one, because a region map must
+// not make every live preview several times slower. The map is a grid of 64-pixel cells in a checker pattern with
+// a second angle, so two angle groups are walked.
+func BenchmarkPartitionRegions(b *testing.B) {
+	for _, sz := range benchSizes[:3] { // 24 MP adds nothing the 8 MP row does not show
+		cells := testutil.GridCells(sz.w, sz.h, 64)
+		n := 0
+		for _, c := range cells {
+			n = max(n, int(c))
+		}
+		angle := 120
+		r := &engine.Regions{
+			Labels:  cells,
+			ClassOf: testutil.ClassPattern(n, "checker", 1),
+			Defs:    []engine.ClassDef{{}, {}, {Angle: &angle}},
+		}
+		b.Run(sz.name+"/plain", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_ = engine.Partition(sz.w, sz.h, 33)
+			}
+		})
+		b.Run(sz.name+"/regions", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_ = engine.PartitionRegions(sz.w, sz.h, 33, r)
+			}
+		})
+	}
+}
+
 // BenchmarkSort measures the instant sort alone; the plan is built outside the timed region.
 func BenchmarkSort(b *testing.B) {
 	for _, sz := range benchSizes {

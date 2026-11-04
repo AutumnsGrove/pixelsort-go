@@ -16,6 +16,34 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · Review of phases 0 and 1 (fixes on `fix/phase-1-review`)
+
+Reviewed by running every check independently and probing weak spots. Verdict: sound, merged. Three findings, fixed
+test-first, one commit each:
+
+1. **`ParseParams` accepted trailing garbage** (`{} x`, `{} ]`, `{"angle":1} }`): a decoder error was read as
+   "nothing follows". Now requires `io.EOF`. The old test only tried `{} {}`.
+2. **`NewPlan` panicked on an `Image` whose `Pix` length disagrees with `W*H`** and tried a ~1 TB allocation for an
+   over-sized one. Now returns `ErrBadSize` or `ErrBadData`. `Feather` keeps its no-error signature; its length
+   precondition is documented and the session API checks mask lengths.
+3. **`PartitionRegions` used maps in a per-pixel loop.** Replaced with `[256]bool` sets (same output: the
+   `regions-checker` golden is unchanged). Measured with the new `BenchmarkPartitionRegions` (two angle groups):
+
+   | Size | Before | After | Plain `Partition` |
+   |---|---|---|---|
+   | 1 MP | 61 ms | 11.7 ms | 2.6 ms |
+   | 2 MP | 105 ms | 23 ms | 5.0 ms |
+   | 8 MP | 369 ms | 121 ms | 19 ms |
+
+   What remains is two partitions plus random-access reads along staircase lines. Not worth more work yet.
+
+**For Autumn to decide when the UI is built:** wave intervals average about 21 px at `length` 30 (the width depends
+on position along the line, so short segments are sampled more often). Only `random` has mean = `length`. Label the
+wave slider "typical length", not "average".
+
+Nits left alone: `writePNG` in the render command leaks the file if encoding fails; the test helper's "checker"
+pattern is id parity rather than a true `(i+j)` checker.
+
 ## 2026-11-04 · P1-T14 · Phase 1 results
 
 - `make check`, `make test` (with `-race`), `go test ./engine -rapid.checks=2000`, `make wasm-test` and
