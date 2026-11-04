@@ -26,7 +26,7 @@ File: [`phase-1.md`](phase-1.md)
 - [x] P1-T03 Parameters
 - [x] P1-T04 Sort keys
 - [x] P1-T05 Line partition
-- [ ] P1-T06 Regions: types and region-aware lines
+- [x] P1-T06 Regions: types and region-aware lines
 - [ ] P1-T07 Test helpers and generators
 - [ ] P1-T08 Edge map
 - [ ] P1-T09 Plan: keys, lines and intervals
