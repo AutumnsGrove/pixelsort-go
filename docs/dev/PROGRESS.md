@@ -34,7 +34,7 @@ File: [`phase-1.md`](phase-1.md)
 - [x] P1-T11 Feather
 - [x] P1-T12 Goldens, benchmarks and the cross-platform check
 - [x] P1-T13 The render command
-- [ ] P1-T14 Phase wrap-up
+- [x] P1-T14 Phase wrap-up
 
 ## Phase 2: the engine in the browser, and the numbers
 

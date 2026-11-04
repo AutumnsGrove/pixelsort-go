@@ -16,6 +16,24 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-04 · P1-T14 · Phase 1 results
+
+- `make check`, `make test` (with `-race`), `go test ./engine -rapid.checks=2000`, `make wasm-test` and
+  `make fuzz FUZZTIME=30s` (six targets: `FuzzEngineVersionStable`, `FuzzFromRGBA`, `FuzzKeys`, `FuzzPartition`,
+  `FuzzParamsJSON`, `FuzzPlanAndSort`) all pass. Coverage of `engine` is 96.4%.
+- The goldens match on arm64, amd64 (Rosetta) and js/wasm under Node, against the same files.
+- First numbers (Apple M2, Go 1.27.3, `make bench`): `NewPlan` 24 MP in 278 ms and `Sort` in 226 ms; 8 MP is
+  88 ms and 50 ms. `Sort` allocates one output image per call — that copy is what makes the plan reusable.
+- `render` was checked by eye on a 480x300 synthetic landscape at angle 45 (diagonal streaks through sky and sun,
+  ridges intact) and in `edges` mode at 90 (columns, with the sun kept whole because its boundary is an edge).
+
+## 2026-11-04 · P1-T01 · How narrowing conversions satisfy gosec
+
+Chose: mask with the target width where the truncation is the point (`uint8(p & 0xff)` in `Unpack`), and one
+central `pos32` helper carrying `//nolint:gosec // G115: positions are below MaxPixels = 2^28`. Because: G115 fires
+on every `int` to `int32`/`uint8` conversion, and the engine has several that are provably in range. Alternative: an
+exclusion for all of `engine/`, which would also hide a real overflow.
+
 ## 2026-11-04 · P1-T09 · Wave intervals do not average to `length`
 
 Chose: the wave formula of decision E7 exactly, and a test that pins its *range* (about 8..56 px at `length` 30)
