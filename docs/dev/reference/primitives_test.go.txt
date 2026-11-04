@@ -1,0 +1,82 @@
+package engine
+
+import "testing"
+
+func TestRNGVectors(t *testing.T) {
+	r := NewRNG(0)
+	for i, want := range []uint64{0xe220a8397b1dcdaf, 0x6e789e6aa1b965f4, 0x06c45d188009454f} {
+		if got := r.Uint64(); got != want {
+			t.Fatalf("#%d got %#x want %#x", i, got, want)
+		}
+	}
+	s := NewStream(1, 0)
+	if a, b := s.Uint64(), s.Uint64(); a != 0xce30761cd7373f6d || b != 0xa82740738736e4c9 {
+		t.Fatalf("stream(1,0) %#x %#x", a, b)
+	}
+	s = NewStream(7, 3)
+	for i, want := range []uint32{74, 71, 14, 15, 14} {
+		if got := s.Uint32n(100); got != want {
+			t.Fatalf("Uint32n #%d got %d want %d", i, got, want)
+		}
+	}
+}
+func TestSin1000(t *testing.T) {
+	for p, want := range map[uint32]int32{0: 0, 8192: 750, 16384: 1000, 24576: 750, 32768: 0, 40960: -750, 49152: -1000, 57344: -750, 65536: 0} {
+		if got := Sin1000(p); got != want {
+			t.Errorf("Sin1000(%d)=%d want %d", p, got, want)
+		}
+	}
+}
+func TestKeys(t *testing.T) {
+	for _, c := range []struct{ r, g, b, hue, sat, luma int }{{255, 0, 0, 0, 255, 76}, {0, 255, 0, 85, 255, 149}, {0, 0, 255, 170, 255, 29}, {255, 255, 0, 42, 255, 225}, {0, 255, 255, 127, 255, 178}, {255, 0, 255, 212, 255, 105}, {128, 128, 128, 0, 0, 128}, {10, 200, 30, 89, 242, 123}, {0, 0, 0, 0, 0, 0}, {255, 255, 255, 0, 0, 255}, {200, 100, 50, 14, 191, 124}} {
+		if hue(c.r, c.g, c.b) != c.hue || saturation(c.r, c.g, c.b) != c.sat || luma(c.r, c.g, c.b) != c.luma {
+			t.Errorf("%v: hue %d sat %d luma %d", c, hue(c.r, c.g, c.b), saturation(c.r, c.g, c.b), luma(c.r, c.g, c.b))
+		}
+	}
+}
+func TestPartitionBijection(t *testing.T) {
+	for _, sz := range [][2]int{{1, 1}, {1, 40}, {40, 1}, {2, 2}, {3, 5}, {97, 61}, {53, 53}, {61, 97}, {7, 7}, {64, 64}} {
+		w, h := sz[0], sz[1]
+		for a := 0; a < 360; a++ {
+			L := Partition(w, h, a)
+			if len(L.P) != w*h || int(L.Starts[len(L.Starts)-1]) != w*h {
+				t.Fatalf("%dx%d a=%d: %d pixels", w, h, a, len(L.P))
+			}
+			seen := make([]bool, w*h)
+			for _, p := range L.P {
+				if seen[p] {
+					t.Fatalf("%dx%d a=%d: duplicate", w, h, a)
+				}
+				seen[p] = true
+			}
+		}
+	}
+}
+func TestCardinalDirections(t *testing.T) {
+	first := func(a int) [][2]int {
+		L := Partition(5, 3, a)
+		var o [][2]int
+		for _, p := range L.P[L.Starts[0]:L.Starts[1]] {
+			o = append(o, [2]int{int(p) % 5, int(p) / 5})
+		}
+		return o
+	}
+	for a, want := range map[int][][2]int{0: {{0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}}, 90: {{0, 2}, {0, 1}, {0, 0}}, 180: {{4, 0}, {3, 0}, {2, 0}, {1, 0}, {0, 0}}, 270: {{0, 0}, {0, 1}, {0, 2}}} {
+		got := first(a)
+		if len(got) != len(want) {
+			t.Fatalf("a=%d got %v want %v", a, got, want)
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Fatalf("a=%d got %v want %v", a, got, want)
+			}
+		}
+	}
+}
+func TestSlopeTable(t *testing.T) {
+	for a, want := range map[int]int64{0: 0, 1: -1144, 15: -17560, 30: -37837, 44: -63287, 45: -65536, 46: -63287, 60: -37837, 89: -1144, 90: 0, 91: 1144, 135: 65536, 180: 0, 225: -65536, 270: 0, 315: 65536, 359: 1144} {
+		if got := axisFor(a).m16; got != want {
+			t.Errorf("m16(%d)=%d want %d", a, got, want)
+		}
+	}
+}

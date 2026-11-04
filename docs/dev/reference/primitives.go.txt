@@ -1,0 +1,173 @@
+// Reference implementations of the engine's riskiest primitives. Verified on arm64 and amd64.
+// Copy into engine/ (split by file as noted), under test-first discipline.
+package engine
+
+import "math"
+
+// ============================ engine/rng.go ============================
+
+// RNG is SplitMix64. It is tiny, fast, passes the usual statistical suites for this use, and, unlike math/rand,
+// its output is defined by this file alone, so it never changes under us.
+type RNG struct{ s uint64 }
+
+func mix64(z uint64) uint64 {
+	z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
+	z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+	return z ^ (z >> 31)
+}
+
+// NewRNG returns a generator whose first output is mix64(seed + golden gamma). NewRNG(0) is the reference
+// SplitMix64 sequence 0xe220a8397b1dcdaf, 0x6e789e6aa1b965f4, 0x06c45d188009454f, ...
+func NewRNG(seed uint64) *RNG { return &RNG{s: seed} }
+
+// NewStream returns an independent generator for (seed, id), for example (recipe seed, line number).
+func NewStream(seed, id uint32) *RNG { return &RNG{s: mix64(uint64(seed)<<32 | uint64(id))} }
+
+// Uint64 returns the next 64 random bits.
+func (r *RNG) Uint64() uint64 { r.s += 0x9e3779b97f4a7c15; return mix64(r.s) }
+
+// Uint32n returns a number in [0, n) by multiply-shift. The bias is below n/2^32, which is irrelevant here and
+// keeps the function branch-free and identical on every platform. n == 0 returns 0.
+func (r *RNG) Uint32n(n uint32) uint32 {
+	return uint32((uint64(uint32(r.Uint64()>>32)) * uint64(n)) >> 32)
+}
+
+// ============================ engine/fixed.go ============================
+
+// Sin1000 is a parabolic sine in integers: phase is a full turn in 0..65535 (wrapping), the result is in
+// -1000..1000. It is not an exact sine (maximum error about 5.6%), which is fine for "organic" wave intervals,
+// and it is identical on every platform, which math.Sin is not guaranteed to be.
+func Sin1000(phase uint32) int32 {
+	p := phase & 0xFFFF
+	t := int64(p & 0x7FFF)
+	y := 4 * t * (32768 - t) / 32768 // 0..32768 over one half turn
+	v := int32(y * 1000 / 32768)
+	if p >= 0x8000 {
+		return -v
+	}
+	return v
+}
+
+// Lerp255 blends two 8-bit channel values with weight a/255 on q, rounding to nearest, integers only.
+func Lerp255(p, q, a uint32) uint32 { return (p*(255-a) + q*a + 127) / 255 }
+
+// ============================ engine/keys.go (the integer formulas) ============================
+
+func luma(r, g, b int) int { return (299*r + 587*g + 114*b) / 1000 }
+
+func hue(r, g, b int) int { // 0..254; (sextant, position inside it) mapped to a byte
+	mx, mn := max(r, g, b), min(r, g, b)
+	d := mx - mn
+	if d == 0 {
+		return 0
+	}
+	var v int // 0..1529 around the colour wheel
+	switch mx {
+	case r:
+		v = 255 * (g - b) / d // Go integer division truncates toward zero; fixed up just below
+		if v < 0 {
+			v += 1530
+		}
+	case g:
+		v = 255*(b-r)/d + 510
+	default:
+		v = 255*(r-g)/d + 1020
+	}
+	return v / 6
+}
+
+func saturation(r, g, b int) int {
+	mx, mn := max(r, g, b), min(r, g, b)
+	if mx == 0 {
+		return 0
+	}
+	return (mx - mn) * 255 / mx
+}
+
+// ============================ engine/lines.go ============================
+
+// axisFor decides how a sort angle (integer degrees) walks the image. The major axis and direction are chosen with
+// integer comparisons, never with floats, so 45 and 135 degrees cannot flip on a rounding error.
+//
+//	angles   0..45, 315..359  walk x, left to right
+//	angles 135..225           walk x, right to left
+//	angles  46..134           walk y, bottom to top   (90 is bottom to top)
+//	angles 226..314           walk y, top to bottom   (270 is top to bottom)
+type axis struct {
+	xMajor bool
+	sign   int   // +1 walk up the index, -1 walk down it
+	m16    int64 // slope as 16.16 fixed point: minor = k + ((major*m16 + 32768) >> 16)
+}
+
+func axisFor(angle int) axis {
+	a := ((angle % 360) + 360) % 360
+	xMajor := a <= 45 || a >= 315 || (a >= 135 && a <= 225)
+	sign := 1
+	if xMajor {
+		if !(a <= 45 || a >= 315) {
+			sign = -1
+		}
+	} else if a > 45 && a < 135 {
+		sign = -1
+	}
+	var m float64 // the only float in the geometry; computed once per angle; every product is wrapped in float64()
+	if a%90 != 0 {
+		s, c := math.Sincos(float64(a) * math.Pi / 180)
+		dx, dy := float64(c), -float64(s) // screen coordinates: y grows downward
+		if xMajor {
+			m = float64(dy / dx)
+		} else {
+			m = float64(dx / dy)
+		}
+	}
+	return axis{xMajor, sign, int64(math.Floor(float64(m*65536) + 0.5))}
+}
+
+func roundMul(major int, m16 int64) int { return int((int64(major)*m16 + 32768) >> 16) }
+
+// Lines holds every pixel exactly once, grouped into staircase lines in walking order:
+// line l is P[Starts[l]:Starts[l+1]]. PLAN.md 3.2.
+type Lines struct {
+	P      []int32
+	Starts []int32
+}
+
+// Partition splits a w x h image into lines for a sort angle in integer degrees.
+func Partition(w, h, angle int) Lines {
+	ax := axisFor(angle)
+	P := make([]int32, 0, w*h)
+	var starts []int32
+	major, minor := w, h // walk along x: the line index k is a y offset
+	if !ax.xMajor {
+		major, minor = h, w
+	}
+	kmin, kmax := math.MaxInt, math.MinInt
+	for _, a := range [2]int{0, major - 1} {
+		for _, b := range [2]int{0, minor - 1} {
+			k := b - roundMul(a, ax.m16)
+			kmin, kmax = min(kmin, k), max(kmax, k)
+		}
+	}
+	for k := kmin; k <= kmax; k++ {
+		s0 := len(P)
+		for i := 0; i < major; i++ {
+			a := i
+			if ax.sign < 0 {
+				a = major - 1 - i
+			}
+			b := k + roundMul(a, ax.m16)
+			if b < 0 || b >= minor {
+				continue
+			}
+			if ax.xMajor {
+				P = append(P, int32(b*w+a))
+			} else {
+				P = append(P, int32(a*w+b))
+			}
+		}
+		if len(P) > s0 {
+			starts = append(starts, int32(s0))
+		}
+	}
+	return Lines{P: P, Starts: append(starts, int32(len(P)))}
+}
