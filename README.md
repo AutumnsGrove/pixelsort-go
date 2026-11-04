@@ -15,6 +15,8 @@ archive of the original.
 | | |
 |---|---|
 | [`PLAN.md`](PLAN.md) | The whole plan: goals, architecture, the engine design, gallery and share links, deployment, tests, phases, decisions. **Start here.** |
+| [`docs/dev/`](docs/dev/README.md) | **How it gets built**: test-first development plans, one file per phase, written to be handed to a coding agent, plus the protocol, conventions and testing guide. |
+| [`docs/update.md`](docs/update.md) | The in-app update design (Settings, the host-side watcher, rollback). |
 | [`docs/handoffs/`](docs/handoffs/) | Handoff notes — where things stand and what happens next. The latest one is the best way back in. |
 | [`mockups/`](mockups/) | Working HTML mockups of every screen. Open [`mockups/index.html`](mockups/index.html) in a browser — no build step. |
 | [`mockups/tests/`](mockups/tests/) | Browser tests that check the mockups' engine properties, mask editor and layouts. |

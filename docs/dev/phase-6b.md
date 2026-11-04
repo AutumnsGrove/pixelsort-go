@@ -179,7 +179,8 @@ is `204`.
   zoom/inspect, download buttons, "copy image link", and "copy recipe" **only if** the manifest has recipes. Port the
   design of `mockups/share.html` (Theater look: ink background, serif display, mono; fonts **not** loaded from Google:
   use system serif and monospace stacks here, no third-party requests). All dynamic text goes through one
-  `escapeHtml` function; recipes are embedded as a `<script type="application/json">` block with every `<` written as the JSON escape `<` (so `</script>` cannot close the block).
+  `escapeHtml` function; recipes are embedded as a `<script type="application/json">` block with every less-than sign written as the six characters backslash, `u`, `0`, `0`, `3`, `c` (the JSON unicode
+  escape), so a recipe containing a closing script tag cannot close the block.
   Strict CSP: `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'nonce-<random>'`
   (a fresh nonce per response). The page shows an expiry note when `expires` is set.
 - The **gone page** (revoked, expired or never existed) is one page, status `404`, with no hint which of the three it was.

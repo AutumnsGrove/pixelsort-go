@@ -713,13 +713,14 @@ and does not need `SharedArrayBuffer`; decision B3).
 
 **Goal.** The repo explains itself; the checklist is current.
 
-**Files.** `README.md` (edit), `docs/dev/NOTES.md` (create), `docs/dev/PROGRESS.md` (tick boxes).
+**Files.** `README.md` (edit), `docs/dev/NOTES.md` (edit), `docs/dev/PROGRESS.md` (tick boxes).
 
 **Spec.**
 - `README.md`: change the status line to say development has started; add a "Develop" section with the
   `make` targets from `AGENT.md` and a link to `docs/dev/README.md`.
-- `docs/dev/NOTES.md`: create with the heading `# Build notes` and two sections, `## Needs Autumn` and
-  `## Decisions and questions`, each empty.
+- `docs/dev/NOTES.md`: already exists (with the two sections `## Needs Autumn` and `## Decisions and questions`).
+  Add the Phase 0 entries: the `tailscale serve` check under "Needs Autumn", and any choice you made under
+  "Decisions and questions".
 - Tick every Phase 0 box in `PROGRESS.md`.
 
 **Verify.** `make check` passes. `git status` is clean after the commit.

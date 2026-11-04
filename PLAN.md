@@ -4,7 +4,10 @@ A from-scratch pixel sorter: a Go engine compiled to **WebAssembly** so it runs 
 **SvelteKit** front end built around watching the sort happen live, and a tiny Go server on the homelab
 that serves the app and keeps a **gallery** of every run.
 
-**Status:** 🚧 Planning only. No code, no repo history yet. Most open questions are settled — see §11.
+**Status:** 🚧 Design finished (working mockups in `mockups/`); build not started. Most open questions are settled — see §11.
+**Build plans:** [`docs/dev/`](docs/dev/README.md) turns this plan into agent-ready, test-first tasks (135 of them, phases 0 to 9).
+Where [`docs/dev/decisions.md`](docs/dev/decisions.md) differs from this file (integer angles, `[]uint32` pixels, `uint8`
+keys, per-mille units, SplitMix64), **decisions.md wins**.
 **Predecessor:** [`Pixelsorting`](../Pixelsorting) (Python + Gradio). That repo stays untouched as a
 historical archive of Autumn's early work. This one is a green field.
 **Written:** 2026-11-02, after reading every Python source file in the predecessor (audit in Appendix A).

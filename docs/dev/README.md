@@ -8,6 +8,9 @@ check the work afterwards.
 The visual and behavioural spec is the working mockup in [`../../mockups/`](../../mockups/): open
 `mockups/index.html`, and treat `mockups/tests/` as the acceptance tests for the real app.
 
+**To start the build agent,** paste the prompt from [`PROMPT.md`](PROMPT.md). It also has a resume prompt and the
+review prompt for afterwards.
+
 ## Read in this order
 
 1. [`AGENT.md`](AGENT.md): the rules of the game. The loop for every task, commit style, what to do when
@@ -41,7 +44,7 @@ after phase 1. Everything else follows the table.
 ## Where things go
 
 ```
-docs/dev/                  these plans (PROGRESS.md and NOTES.md are the only files an agent edits here)
+docs/dev/                  these plans (PROGRESS.md and NOTES.md are the only files the build agent edits here)
 docs/dev/reference/        verified reference code for the riskiest primitives (.go.txt, not compiled)
 engine/  cmd/  server/  worker/  web/  deploy/    the code, as laid out in conventions.md
 mockups/                   the throwaway design mockups; never modify, only read
