@@ -12,6 +12,15 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
   Chromium run of `http://127.0.0.1:8895/` showed `crossOriginIsolated true`, `SharedArrayBuffer available`
   and `engine version 1`. What is unproven is only whether the HTTPS proxy passes the headers through.
 
+- **P6B-T09, P8-T11, P8-T12** · Cloudflare setup, first deploy and homelab docs, as in the plans. Phases 6b and 8 are not started.
+- **Run `make check` locally** — `golangci-lint` could not run in the cloud container (see the phase 2 note), so lint is unverified.
+
+## Where the cloud session stopped (branches are stacked: phase-2 -> 3 -> 4 -> 6 -> 5)
+
+Done and tested: phases 2, 3, 4, and 6 (server, T01-T13). Phase 5: all pure modules (P5-T02, T04-T11) are ported with
+tests. Not done: the Svelte screens (P5-T01 shell is only fonts + stylesheet, T03, T12-T24), P6-T14 (ServerBackend and
+auto-save, needs the phase 5 storage layer in use), P6-T15, and phases 6b, 7, 8, 9.
+
 ## Decisions and questions
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
