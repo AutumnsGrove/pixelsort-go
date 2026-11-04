@@ -191,7 +191,7 @@ func TestIntegrationRunLifecycle(t *testing.T) {
 	}
 	res, body = s.do("POST", "/api/runs/trash", map[string]any{"ids": []int64{run.ID}, "confirm_starred": true})
 	s.expect(res, body, 200)
-	res, body = s.do("GET", "/api/runs", nil)
+	_, body = s.do("GET", "/api/runs", nil)
 	if strings.Contains(string(body), fmt.Sprintf(`"id":%d`, run.ID)) {
 		t.Fatal("a trashed run is still listed")
 	}
@@ -212,7 +212,7 @@ func TestIntegrationRunLifecycle(t *testing.T) {
 
 	res, body = s.do("POST", "/api/trash/empty", nil)
 	s.expect(res, body, 200)
-	res, body = s.do("GET", "/api/usage", nil)
+	_, body = s.do("GET", "/api/usage", nil)
 	_ = json.Unmarshal(body, &raw)
 	if raw["used_bytes"] != 0 {
 		t.Fatalf("usage after empty: %s", body)
@@ -339,7 +339,7 @@ func TestSPAAndHeaders(t *testing.T) {
 			t.Errorf("%s: headers %v", p, h)
 		}
 	}
-	res, body = s.do("GET", "/api/version", nil)
+	_, body = s.do("GET", "/api/version", nil)
 	if !strings.Contains(string(body), `"deployment":"dev"`) || !strings.Contains(string(body), `"engine_version"`) {
 		t.Fatal(string(body))
 	}
@@ -362,7 +362,7 @@ func TestPresetsSettingsShapesOverHTTP(t *testing.T) {
 
 	res, body = s.do("PUT", "/api/settings", map[string]any{"exportFormat": "webp", "exportQuality": 80, "grain": false, "workRes": nil})
 	s.expect(res, body, 200)
-	res, body = s.do("GET", "/api/settings", nil)
+	_, body = s.do("GET", "/api/settings", nil)
 	if !strings.Contains(string(body), `"exportFormat":"webp"`) {
 		t.Fatal(string(body))
 	}

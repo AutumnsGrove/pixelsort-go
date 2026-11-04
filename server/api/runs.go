@@ -22,7 +22,8 @@ func (a *API) createRun(w http.ResponseWriter, r *http.Request) {
 	}
 	limited := &overflowReader{r: http.MaxBytesReader(w, r.Body, a.d.MaxUploadBytes)}
 	r.Body = limited
-	if err := r.ParseMultipartForm(8 << 20); err != nil {
+	// The body is already capped by MaxBytesReader above; the 8 MB is only how much stays in memory before files spill to disk.
+	if err := r.ParseMultipartForm(8 << 20); err != nil { //nolint:gosec // G120: bounded by the MaxBytesReader on r.Body
 		if limited.exceeded {
 			fail(w, httpx.ErrBodyTooLarge) // the multipart package hides the cause, so the reader remembers it
 			return

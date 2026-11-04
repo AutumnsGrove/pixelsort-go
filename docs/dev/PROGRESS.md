@@ -80,9 +80,9 @@ File: [`phase-4.md`](phase-4.md)
 
 File: [`phase-5.md`](phase-5.md)
 
-- [ ] P5-T01 Design tokens, fonts, icons, app shell
+- [x] P5-T01 Design tokens, fonts, icons, app shell
 - [x] P5-T02 Settings, storage and the pure settings module
-- [ ] P5-T03 The engine store and the preview pipeline
+- [x] P5-T03 The engine store and the preview pipeline
 - [x] P5-T04 Port presets
 - [x] P5-T05 Port export model
 - [x] P5-T06 Port states
@@ -91,16 +91,16 @@ File: [`phase-5.md`](phase-5.md)
 - [x] P5-T09 Port runs data and virtual list
 - [x] P5-T10 Port help data
 - [x] P5-T11 Port updater model
-- [ ] P5-T12 Stage, dock and popovers
-- [ ] P5-T13 The angle dial
+- [x] P5-T12 Stage, dock and popovers
+- [x] P5-T13 The angle dial
 - [ ] P5-T14 Intake, working copy, compare, "what can move"
 - [ ] P5-T15 Help: shortcuts and the first-run tour
 - [ ] P5-T16 Naming in Studio
 - [ ] P5-T17 Runs strip (filmstrip)
-- [ ] P5-T18 Export dialog and the error surfaces
-- [ ] P5-T19 Settings page and Updates block
+- [x] P5-T18 Export dialog and the error surfaces
+- [x] P5-T19 Settings page and Updates block
 - [ ] P5-T20 Phone Studio
-- [ ] P5-T21 Archive screen
+- [x] P5-T21 Archive screen
 - [ ] P5-T22 Pro panel shell, histogram, rule browser
 - [ ] P5-T23 Layout scan, accessibility pass, and the acceptance table
 - [ ] P5-T24 Phase wrap-up
@@ -122,7 +122,7 @@ File: [`phase-6.md`](phase-6.md)
 - [x] P6-T11 Health, version, SPA, security headers
 - [x] P6-T12 Wire it together: app and `serve`
 - [x] P6-T13 `docs/api.md`
-- [ ] P6-T14 The web `ServerBackend` and auto-save
+- [x] P6-T14 The web `ServerBackend` and auto-save
 - [ ] P6-T15 Phase wrap-up
 
 ## Phase 6b: the Cloudflare Worker (share links and URL loading)

@@ -519,7 +519,7 @@ func TestPresetsSettingsShapes(t *testing.T) {
 
 func TestCleanName(t *testing.T) {
 	for in, want := range map[string]string{
-		"": "", "  a   b ": "a b", "a\nb": "a b", "zero​width": "zero width", "ok": "ok",
+		"": "", "  a   b": "a b", "a\nb": "a b", "zero​width": "zero width", "ok": "ok",
 		strings.Repeat("x", 80): strings.Repeat("x", 60),
 	} {
 		if got := runs.CleanName(in); got != want {

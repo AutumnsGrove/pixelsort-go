@@ -51,7 +51,8 @@ func (s *Service) loadTags(ctx context.Context, runs []Run) error {
 		args = append(args, r.ID)
 		marks = append(marks, "?")
 	}
-	rows, err := s.DB.QueryContext(ctx, "SELECT run_id, tag FROM tags WHERE run_id IN ("+strings.Join(marks, ",")+") ORDER BY tag", args...)
+	query := "SELECT run_id, tag FROM tags WHERE run_id IN (" + strings.Join(marks, ",") + ") ORDER BY tag" //nolint:gosec // G202: only "?" placeholders are concatenated; values are bound
+	rows, err := s.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("runs: load tags: %w", err)
 	}
@@ -185,7 +186,7 @@ func (s *Service) List(ctx context.Context, q ListQuery) (Page, error) {
 		where = append(where, fmt.Sprintf("(%s %s ? OR (%s = ? AND r.id %s ?))", keyExpr, cmp, keyExpr, cmp))
 		args = append(args, c.V, c.V, c.ID)
 	}
-	query := "SELECT " + runColumns + ", " + keyExpr + " " + runJoins
+	query := "SELECT " + runColumns + ", " + keyExpr + " " + runJoins //nolint:gosec // G202: every part is a constant or a fixed column expression chosen above, never user input
 	if len(where) > 0 {
 		query += " WHERE " + strings.Join(where, " AND ")
 	}

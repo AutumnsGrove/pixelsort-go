@@ -31,10 +31,10 @@ func tinyPNG(t testing.TB, shade uint8) []byte {
 
 func sum(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
 
-func newStore(t testing.TB, max int64) (*blob.Store, string) {
+func newStore(t testing.TB, maxBytes int64) (*blob.Store, string) {
 	t.Helper()
 	root := t.TempDir()
-	s, err := blob.New(root, max)
+	s, err := blob.New(root, maxBytes)
 	if err != nil {
 		t.Fatal(err)
 	}

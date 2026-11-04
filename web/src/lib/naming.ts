@@ -27,7 +27,10 @@ const MODE: Record<string, string> = {
 	'ca-edges': 'cellular',
 	none: 'plain'
 };
+// Control characters and invisible/direction-override characters are the point of this pattern.
+/* eslint-disable no-control-regex, no-irregular-whitespace */
 const STRIP = /[\u0000-\u001f\u007f-\u009f ​-‏‪-‮⁦-⁩﻿]/g;
+/* eslint-enable no-control-regex, no-irregular-whitespace */
 
 /** What was typed, made safe to keep: control and invisible characters become spaces, ends trimmed, 60 code points. */
 export function clean(text: unknown): string {

@@ -62,7 +62,7 @@ export function rows(
 	const out: Row[] = [];
 	const jumps: { label: string; row: number }[] = [];
 	let cur: string | null = null;
-	let buf: RunItem[] = [];
+	const buf: RunItem[] = [];
 	const flush = () => {
 		while (buf.length) out.push({ type: 'cards', h: rowH, items: buf.splice(0, cols) });
 	};

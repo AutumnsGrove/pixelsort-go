@@ -40,7 +40,8 @@ func (s *Service) Trash(ctx context.Context, ids []int64, confirmStarred bool) (
 	}
 	defer func() { _ = tx.Rollback() }()
 	set, args := inClause(ids)
-	rows, err := tx.QueryContext(ctx, "SELECT id, starred FROM runs WHERE id IN "+set, args...)
+	query := "SELECT id, starred FROM runs WHERE id IN " + set //nolint:gosec // G202: set holds only "?" placeholders; values are bound
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return res, fmt.Errorf("runs: trash lookup: %w", err)
 	}

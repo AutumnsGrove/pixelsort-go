@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -51,7 +52,7 @@ func MigrateFS(ctx context.Context, d *sql.DB, fsys fs.FS, dir string) error {
 				return fmt.Errorf("db: migration %s was changed after it was applied", name)
 			}
 			continue
-		case err != sql.ErrNoRows:
+		case !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("db: check migration %s: %w", name, err)
 		}
 		if err := apply(ctx, d, name, string(body), checksum); err != nil {

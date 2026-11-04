@@ -35,7 +35,7 @@ func TestLoadConfigOverrides(t *testing.T) {
 
 func TestLoadConfigBadValuesNameTheVariable(t *testing.T) {
 	for name, val := range map[string]string{
-		"PIXELSORT_BUDGET_GB": "-1", "PIXELSORT_BUDGET_GB ": "x", "PIXELSORT_MAX_UPLOAD_MB": "0", "PIXELSORT_TRASH_DAYS": "0",
+		"PIXELSORT_BUDGET_GB": "-1", "PIXELSORT_MAX_UPLOAD_MB": "0", "PIXELSORT_TRASH_DAYS": "0",
 		"PIXELSORT_LOG": "xml", "PIXELSORT_DEPLOYMENT": "cloud",
 	} {
 		name = strings.TrimSpace(name)

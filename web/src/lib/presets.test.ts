@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 import { BUILTIN, OWNED, chips, diff, fromParams, mulberry32, roll, rolls, type Recipe, type Spec } from './presets';
 
 const base: Recipe = {
@@ -12,8 +12,7 @@ const base: Recipe = {
 	key: 'luma',
 	reverse: false
 };
-const inRange = (v: number, [lo = 0, hi = 0, step = 1]: number[]) =>
-	v >= Math.round(lo) - 1e-9 && v <= Math.round(hi) + 1e-9;
+const inRange = (v: number, [lo = 0, hi = 0]: number[]) => v >= Math.round(lo) - 1e-9 && v <= Math.round(hi) + 1e-9;
 
 test('the eight built-ins from the Python app, in order', () => {
 	expect(BUILTIN.map((p) => p.name).join()).toBe('Main,File,Random,Kims,Gentle,Intense,Waves,Edges');

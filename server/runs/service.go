@@ -195,7 +195,7 @@ func validateMeta(m *Meta) error {
 			return invalid("%s has an impossible size", name)
 		}
 	}
-	if m.SourceURL != nil && (len(*m.SourceURL) > 2048 || !(strings.HasPrefix(*m.SourceURL, "https://") || strings.HasPrefix(*m.SourceURL, "http://"))) {
+	if m.SourceURL != nil && (len(*m.SourceURL) > 2048 || (!strings.HasPrefix(*m.SourceURL, "https://") && !strings.HasPrefix(*m.SourceURL, "http://"))) {
 		return invalid("source_url must be an http(s) URL")
 	}
 	if m.Title != nil {
