@@ -242,7 +242,7 @@
 />
 
 <main class="workspace">
-	<section class="stage">
+	<section class="stage" class:sheet={proOpen}>
 		<div class="frame">
 			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
 			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
@@ -984,12 +984,22 @@
 		.stage {
 			padding: 64px 10px 150px;
 		}
+		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
+		.stage.sheet {
+			padding-bottom: calc(46dvh + 114px);
+		}
 		.frame {
 			max-width: 100%;
 			max-height: calc(100dvh - 230px);
 		}
+		.stage.sheet .frame {
+			max-height: calc(54dvh - 190px);
+		}
 		canvas {
 			max-height: calc(100dvh - 230px);
+		}
+		.stage.sheet canvas {
+			max-height: calc(54dvh - 190px);
 		}
 		.dock {
 			left: 8px;

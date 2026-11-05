@@ -237,9 +237,16 @@
 		background: var(--ink2);
 		border: 1px solid var(--faint);
 	}
+	.compact .mine {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+	}
 	.compact .x {
-		width: 24px;
-		height: 24px;
+		position: static;
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
 	}
 	.tog {
 		display: flex;

@@ -156,7 +156,7 @@ File: [`phase-7.md`](phase-7.md)
 - [x] P7-T10 Region cards
 - [x] P7-T11 Protect: brush, objects, feather
 - [x] P7-T12 Shape library
-- [ ] P7-T13 Phone: Protect and Shapes tabs
+- [x] P7-T13 Phone: Protect and Shapes tabs
 - [ ] P7-T14 Acceptance and wrap-up
 
 ## Phase 8: deploy, in-app updates, backups
