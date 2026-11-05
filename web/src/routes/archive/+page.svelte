@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { Star, Trash2, RotateCcw } from '@lucide/svelte';
+	import { Star, Trash2, RotateCcw, Share2 } from '@lucide/svelte';
 	import TopBar from '#components/TopBar';
+	import Albums from '#components/Albums';
+	import ShareDialog from '#components/ShareDialog';
+	import { ShareBackend, type Features } from '#lib/share';
 	import { ServerBackend, type ApiRun, type Usage } from '#lib/api';
 	import { agoText, ageInDays, filter, groupLabel, type RunItem } from '#lib/runs-data';
 	import { status, usage as usageLevel } from '#lib/states';
 	import { suggest } from '#lib/naming';
 
 	const api = new ServerBackend();
-	let tab = $state<'all' | 'starred' | 'trash'>('all');
+	let tab = $state<'all' | 'starred' | 'trash' | 'albums'>('all');
+	let features = $state<Features>({ share: false, fetch: false });
+	let sharing = $state<ApiRun | null>(null);
 	let q = $state('');
 	let runs = $state<ApiRun[]>([]);
 	let usage = $state<Usage | null>(null);
@@ -27,7 +32,10 @@
 		}
 		loaded = true;
 	}
-	onMount(load);
+	onMount(() => {
+		void new ShareBackend().features().then((f) => (features = f));
+		return void load();
+	});
 	$effect(() => {
 		void tab;
 		void load();
@@ -99,7 +107,7 @@
 	{/if}
 	<div class="bar">
 		<div class="chips" role="tablist">
-			{#each ['all', 'starred', 'trash'] as t (t)}<button
+			{#each features.share ? ['all', 'starred', 'trash', 'albums'] : ['all', 'starred', 'trash'] as t (t)}<button
 					type="button"
 					role="tab"
 					aria-selected={tab === t}
@@ -127,7 +135,11 @@
 		{/if}
 	</div>
 
-	{#if loaded && shown.length === 0}
+	{#if tab === 'albums'}
+		<Albums />
+	{/if}
+
+	{#if tab !== 'albums' && loaded && shown.length === 0}
 		<div class="empty" data-testid="empty">
 			<h3 class="display">
 				{tab === 'starred'
@@ -142,7 +154,7 @@
 		</div>
 	{/if}
 
-	{#each groups as g (g.label)}
+	{#each tab === 'albums' ? [] : groups as g (g.label)}
 		<h2 class="eyebrow gh">{g.label}</h2>
 		<div class="grid">
 			{#each g.items as it (it.id)}
@@ -160,6 +172,12 @@
 								onclick={() => star(it)}
 								aria-label="{it.starred ? 'Unstar' : 'Star'} {it.name}"><Star size={16} /></button
 							>
+							{#if features.share}<button
+									class="round"
+									type="button"
+									onclick={() => (sharing = runs.find((r) => r.id === it.id) ?? null)}
+									aria-label="Share {it.name}"><Share2 size={16} /></button
+								>{/if}
 							<button class="round" type="button" onclick={() => trash(it)} aria-label="Move {it.name} to the bin"
 								><Trash2 size={16} /></button
 							>
@@ -172,6 +190,10 @@
 		</div>
 	{/each}
 </main>
+
+{#if sharing}
+	<ShareDialog run={sharing} name={nameOf(sharing)} onclose={() => (sharing = null)} />
+{/if}
 
 <style>
 	.page {
