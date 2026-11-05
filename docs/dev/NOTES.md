@@ -4,24 +4,23 @@ The build agent writes here; the reviewer reads here first. Newest entries at th
 
 ## Needs Autumn
 
-Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the task id, what, and why it is waiting.
+Everything that needed a person's accounts or homelab is done except the update/rollback rehearsal.
 
-- **P0-T09** · Confirm COOP/COEP survive `tailscale serve` (steps in [`phase-0.md`](phase-0.md), P0-T09). Waiting
-  on Autumn because it touches the homelab and her tailnet. Everything up to the front door is verified: `make
-  spike` serves `Content-Type: application/wasm` plus all three `Cross-Origin-*` headers, and a headless
-  Chromium run of `http://127.0.0.1:8895/` showed `crossOriginIsolated true`, `SharedArrayBuffer available`
-  and `engine version 1`. What is unproven is only whether the HTTPS proxy passes the headers through.
+**Done (2026-11-05):** P0-T09 (the three `Cross-Origin-*` headers and `crossOriginIsolated` through `tailscale serve`),
+P6B-T09 (Worker, R2 bucket and secret; a share link was created, opened from outside the tailnet, and revoked),
+P8-T11's first deploy (image, checkout, pinned digest, healthy container, serve on 8895), Meridian (tile, target and
+observe entry; `meridian doctor` green and the tile shows `r126.28cd968 · 0 % disk`), the backup (one real snapshot
+on R2) and P8-T12 (the homelab docs are pushed).
 
-In the order to do them (docs/deploy.md has the commands):
+**Left:**
 
-1. **P8-T11** · Push; let CI publish the first image; make the GHCR package public. Clone to `~/Pixelsort`, run `deploy/install.sh`, set the
-   Worker URL/secret and backup remote in `.env`, pin a first digest, `docker compose up -d`, `tailscale serve`, check `crossOriginIsolated`.
-2. **P6B-T09** · Cloudflare: create the `production` environment and the three secrets (docs/deploy.md, "Cloudflare"); the
-   `deploy-worker` workflow does the rest on the next push to `main`. The Worker is complete and tested (album upload and revoke, the viewer, the expiry sweep, the URL relay).
-3. **P8-T11 (rest)** · Apply the Meridian snippets (`deploy/meridian/`, the field names are inferred from `docs/update.md`: check them against a
-   neighbouring entry), run the backup once, test an update from Settings, and deliberately publish a broken tag to watch the rollback.
-4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
-5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
+1. **P8-T11 (rest)** · Merge the open PR so `docker-publish` produces a second image, then run
+   `sudo systemctl start pixelsort-update.service` on lepotato and confirm the version changes. Then publish a
+   deliberately broken tag and watch the rollback (a GHCR push needs `write:packages`).
+2. **Optional** · `CLOUDFLARE_API_TOKEN` on the `production` environment so `deploy-worker.yml` can deploy from CI;
+   a dedicated `pixelsort-backups` bucket and R2 token instead of the interim `vaultwarden-backups` prefix;
+   `/lab/bench` on a phone and the table in `docs/perf.md`.
+3. Delete `DESKTOP-HANDOFF.md` when the update and rollback have both been exercised.
 
 ## 2026-11-05 · Deploy results (desktop session)
 
@@ -56,6 +55,13 @@ In the order to do them (docs/deploy.md has the commands):
   update answers `skipped / Already up to date.` A real swap waits for the next publish from `main`.
 - **GitHub secrets:** `CLOUDFLARE_ACCOUNT_ID` and `WORKER_SHARED_SECRET` are set on the `production`
   environment. `CLOUDFLARE_API_TOKEN` is still missing, so the `deploy-worker` workflow cannot run yet.
+- **Share link (end to end):** created a 30-day album for run 1, opened the viewer, image, thumb and
+  `manifest.json` from this Mac through the public Worker (all `200`, the image byte-for-byte the run's
+  result), then revoked it — viewer and image both `404`. That closes the P6B-T09 exit criterion.
+- **Homelab docs:** `docs/pixelsort.md` added, plus the port-map, serve-table, Services, Quick Access,
+  backup, update and Meridian rows. Pushed to `AutumnsGrove/homelab` as `3ac023e`.
+- **Ticked:** `P0-T09`, `P6B-T09` and `P8-T12`. `P8-T11` stays open until the update and rollback have
+  both been exercised.
 
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 

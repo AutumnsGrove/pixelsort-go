@@ -14,7 +14,7 @@ File: [`phase-0.md`](phase-0.md)
 - [x] P0-T06 The engine as WebAssembly, under Node
 - [x] P0-T07 The browser spike: worker, page, isolation report
 - [x] P0-T08 CI
-- [ ] P0-T09 [HUMAN] Check the headers survive `tailscale serve`
+- [x] P0-T09 [HUMAN] Check the headers survive `tailscale serve`
 - [x] P0-T10 Repo docs and bookkeeping
 
 ## Phase 1: the engine, native Go
@@ -137,7 +137,7 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T06 URL loading relay
 - [x] P6B-T07 The potato side: client, tables, API
 - [x] P6B-T08 Web: share dialog, Albums, URL loading
-- [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
+- [x] P6B-T09 [HUMAN] Cloudflare setup and deploy
 - [x] P6B-T10 Phase wrap-up
 
 ## Phase 7: regions, masks and custom shapes
@@ -174,7 +174,7 @@ File: [`phase-8.md`](phase-8.md)
 - [x] P8-T09 Backups
 - [x] P8-T10 Deployment docs
 - [ ] P8-T11 [HUMAN] First deploy
-- [ ] P8-T12 [HUMAN] Homelab documentation
+- [x] P8-T12 [HUMAN] Homelab documentation
 - [x] P8-T13 Phase wrap-up
 
 ## Phase 9: polish and stretch
