@@ -7,7 +7,7 @@ FUZZTIME ?= 20s
 VERSION ?= r$(shell git rev-list --count HEAD 2>/dev/null || echo 0).$(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/AutumnsGrove/pixelsort-go/internal/version.Version=$(VERSION)
 
-.PHONY: deploy-test image image-test compose-test web-embed embed-build check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e clean
+.PHONY: deploy-test image image-test compose-test web-embed embed-build check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e e2e-worker clean
 
 ## check: format check, vet, lint and the fast tests. Run before every commit.
 check: fmt-check vet lint short
@@ -78,6 +78,9 @@ web:
 
 web-test:
 	pnpm --dir web test
+
+e2e-worker: ## the real Worker (wrangler dev) driven by the real Go server
+	pnpm --dir web e2e:worker
 
 e2e:
 	pnpm --dir web exec playwright test
