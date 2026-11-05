@@ -63,6 +63,15 @@ on R2) and P8-T12 (the homelab docs are pushed).
 - **Ticked:** `P0-T09`, `P6B-T09` and `P8-T12`. `P8-T11` stays open until the update and rollback have
   both been exercised.
 
+## 2026-11-05 · Emptying the Bin failed on shared runs
+
+`POST /api/trash/empty` returned 500 on the live box after trashing the 24 junk runs. Root cause:
+`share_items.run_id REFERENCES runs(id)` has no `ON DELETE` action, and `deleteTrashed` never detached the
+victims from their shares — the two live share items (the revoked smoke-test share) blocked every run delete.
+Reproduced against a copy of the live database (`FOREIGN KEY constraint failed`) and with a new regression test
+that fails without the fix. Fix: delete the victims' `share_items` rows inside the same transaction before deleting
+the runs; the share itself stays (revoking is separate). `TestEmptyDetachesRunsFromShares` covers it.
+
 ## 2026-11-05 · Home screen and the first-run sample
 
 The root `/` was leftover scaffold ("pixelsort-go / Open the lab") and was invisible in practice: its content was

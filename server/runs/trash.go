@@ -137,6 +137,18 @@ func (s *Service) deleteTrashed(ctx context.Context, cutoff *int64) (int, error)
 	if err := rows.Close(); err != nil {
 		return 0, fmt.Errorf("runs: list trashed: %w", err)
 	}
+	if len(victims) > 0 {
+		// Share items point at runs with no ON DELETE action, so detach the victims from any
+		// share first; the share itself stays (revoking it is a separate, visible action).
+		ids := make([]int64, len(victims))
+		for i, v := range victims {
+			ids[i] = v.id
+		}
+		set, args := inClause(ids)
+		if _, err := tx.ExecContext(ctx, "DELETE FROM share_items WHERE run_id IN "+set, args...); err != nil { //nolint:gosec // G202: set holds only "?" placeholders; values are bound
+			return 0, fmt.Errorf("runs: detach shares: %w", err)
+		}
+	}
 	for _, v := range victims {
 		// Re-read the parent: an earlier deletion in this batch may already have moved it.
 		var parent sql.NullInt64
