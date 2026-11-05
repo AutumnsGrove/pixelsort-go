@@ -48,6 +48,14 @@ reads an optional `ca` build secret for this). The linux/arm64 build is **not ve
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
 
+## 2026-11-05 · Local build: `cookie` must be a direct web dependency
+
+The SSR output SvelteKit builds imports `cookie` as a bare specifier (Kit externalises it). pnpm's isolated
+layout does not link it into `web/node_modules`, so Node resolved it from a `node_modules` in Autumn's home
+directory (`cookie@1.0.2`, CJS, a transitive dependency of the `wrangler` install there) and the build failed
+with "Named export 'parseCookie' not found". `web/` now depends on `cookie@^2.0.1` directly, which puts the
+ESM copy in `web/node_modules` and wins over the home directory. Nothing else in the environment changed.
+
 ## 2026-11-04 · Phase 4 results
 
 - `ca` and `ca-edges` work in both spaces; all earlier properties (plan invariants, stepper equals sort, ...) now draw CA
