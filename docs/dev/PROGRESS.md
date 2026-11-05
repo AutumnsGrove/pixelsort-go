@@ -151,7 +151,7 @@ File: [`phase-7.md`](phase-7.md)
 - [x] P7-T05 Region properties and goldens
 - [x] P7-T06 Masks: objects, strokes, invert, brightest spot
 - [x] P7-T07 Session API and WASM for regions
-- [ ] P7-T08 TypeScript geometry modules
+- [x] P7-T08 TypeScript geometry modules
 - [x] P7-T09 Pro panel: Regions
 - [ ] P7-T10 Region cards
 - [x] P7-T11 Protect: brush, objects, feather
