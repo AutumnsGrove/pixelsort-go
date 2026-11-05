@@ -138,7 +138,7 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T07 The potato side: client, tables, API
 - [x] P6B-T08 Web: share dialog, Albums, URL loading
 - [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
-- [ ] P6B-T10 Phase wrap-up
+- [x] P6B-T10 Phase wrap-up
 
 ## Phase 7: regions, masks and custom shapes
 

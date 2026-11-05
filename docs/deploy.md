@@ -48,8 +48,7 @@ It also creates the `pixelsort-share` R2 bucket if it is missing, sets the Worke
    and `WORKER_SHARED_SECRET` (make one with `openssl rand -hex 32`).
 4. Put the **same** secret in the server's `.env` as `PIXELSORT_WORKER_SECRET`, and the Worker's URL (printed by the deploy run) as `PIXELSORT_WORKER_URL`.
 
-To rotate the secret: change `WORKER_SHARED_SECRET`, run the workflow by hand, then update `.env` and restart. The Worker itself is still being
-written (phase 6b): for now it is a skeleton that checks signatures, and the album routes come next.
+To rotate the secret: change `WORKER_SHARED_SECRET`, run the workflow by hand, then update `.env` and restart. 
 
 ## What updates, and what does not
 
