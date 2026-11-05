@@ -23,7 +23,9 @@ In the order to do them (docs/deploy.md has the commands):
 4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
 5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
 
-## Where the cloud session stopped (everything is on one branch, `build/all`, PR #1)
+## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
+
+The desktop steps are written out command by command in `DESKTOP-HANDOFF.md` at the repository root (it deletes itself when you are done).
 
 Done and tested: phases 2, 3, 4; phase 5's pure modules, the desktop and phone Studio, Archive and Settings; phase 6 (server T01-T14);
 phase 7's whole engine side (tilings, custom polygons, classes, masks, brightest spot, session + WASM calls, goldens matching on native and
