@@ -53,6 +53,12 @@ func polyBits(poly [][2]float64, more [][][2]float64, m int) ([]uint8, error) {
 	return bits, nil
 }
 
+// PolyBitmap rasterises an outline plus extra rings into an m x m even-odd bitmap over the unit square. The mask
+// package uses it for polygon objects.
+func PolyBitmap(poly [][2]float64, more [][][2]float64, m int) ([]uint8, error) {
+	return polyBits(poly, more, m)
+}
+
 // customCell tiles the bitmap on the grid: each tile is scaled about its centre to leave the gap, odd rows may be
 // shifted half a tile (stagger), and a pixel belongs to its tile's cell when the bitmap is set at its position.
 func customCell(num *numberer, bits []uint8, t Tiling, rx, ry, S, gap float64) uint16 {

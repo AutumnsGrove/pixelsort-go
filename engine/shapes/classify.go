@@ -1,5 +1,7 @@
 package shapes
 
+import "github.com/AutumnsGrove/pixelsort-go/engine"
+
 // hash matches hash() in mockups/shared/regions.js, whose JS integer operations wrap at 32 bits.
 func hash(n uint32) uint32 {
 	n = (n ^ 61) ^ (n >> 16)
@@ -17,6 +19,22 @@ const (
 	PatternThirds  = "thirds"
 	PatternRandom  = "random"
 )
+
+// BuildRegions packs a label map, its classes and the class definitions into the engine's Regions. Class 0 (the gaps
+// between shapes) is frozen unless the caller supplied a definition for it: unfrozen gaps would sort along whole rows
+// and leave glitch lines along the seams (decision E10). defs is extended so every class has a definition.
+func BuildRegions(c Cells, classOf []uint8, defs []engine.ClassDef) *engine.Regions {
+	top := 0
+	for _, k := range classOf {
+		top = max(top, int(k))
+	}
+	out := make([]engine.ClassDef, max(len(defs), top+1))
+	copy(out, defs)
+	if len(defs) == 0 {
+		out[0].Frozen = true
+	}
+	return &engine.Regions{Labels: c.Labels, ClassOf: classOf, Defs: out}
+}
 
 // Classify assigns a class to every cell by a pattern and returns classOf indexed by cell id. Cell 0 (between shapes)
 // is class 0; real cells are classes 1 and up. An unknown pattern behaves like "all".
