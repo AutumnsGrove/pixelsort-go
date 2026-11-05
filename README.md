@@ -10,7 +10,7 @@ archive of the original.
 > **Status: working build, not finished.** The engine (every interval mode, cellular automata, tilings, masks, an
 > animated stepper) runs natively and as WebAssembly with matching golden hashes. Studio, the Archive and Settings work
 > in the browser, the gallery server stores runs, and the image, update watcher and backups are written and tested, and so is the Cloudflare share Worker (share links and
-> URL loading; its deploy workflow needs your Cloudflare secrets). Still open: the first-run tour and a few editor niceties. See `docs/dev/NOTES.md` and
+> URL loading; its deploy workflow needs your Cloudflare secrets). Still open: SVG shapes, brush painting and a few editor niceties. See `docs/dev/NOTES.md` and
 > `docs/dev/PROGRESS.md`.
 
 ## Develop

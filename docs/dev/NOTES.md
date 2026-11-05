@@ -31,10 +31,9 @@ WASM) and the Pro panel; phase 8 except the two human steps and the web side of 
 the update endpoints, Dockerfile (built and run for real: 31 MB, read-only, restart keeps data), compose (hardening tested), publish
 workflow, the watcher (104 checks against fakes), install script, backups, Meridian snippets and `docs/deploy.md`.
 
-Not done: P8-T06 (the HTTP update client and stale-tab banner in the web app; the pure model and a fake client exist), the first-run tour,
-runs strip, naming polish and the layout scan (P5-T14..T17, T22-T24); SVG import and shape library, brush painting, snap-to-shape and the
-phone Shapes/Protect tabs (P7-T08, T10, T12, T13); P6-T15; phase 6b (the Worker) and phase 9. The Pro panel's protect section places ellipses
-and rectangles with sliders (no on-canvas dragging yet).
+Not done: SVG import and the shape library, brush painting, the snap-to-shape *UI* (the maths in `snap.ts` is done and tested), region cards, the
+phone Shapes/Protect tabs (P7-T08 remainder, T10, T12, T13, T14), and phase 9. Protected ellipses and rectangles can be placed in the Pro panel and
+dragged, resized, rotated and nudged on the canvas.
 
 ## Docker in the cloud container
 
