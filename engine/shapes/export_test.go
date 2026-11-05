@@ -1,5 +1,10 @@
 package shapes
 
+import "flag"
+
+// The -update flag is read by internal/testutil.Golden by name; the package that owns golden files registers it.
+var _ = flag.Bool("update", false, "rewrite golden files")
+
 // VoronoiSitesForTest returns the sites a Voronoi tiling uses, so a test can compare the bucketed search with brute force.
 func VoronoiSitesForTest(w, h int, t Tiling) [][2]float64 {
 	S := max(6, pixels(w, t.Size))
