@@ -1,5 +1,6 @@
 import { handleAlbums } from './albums';
 import { verify } from './auth';
+import { handlePublic } from './public';
 
 export interface Env {
 	ALBUMS: R2Bucket;
@@ -11,8 +12,10 @@ const json = (status: number, body: object) =>
 	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const path = new URL(request.url).pathname;
+		const pub = await handlePublic(request, env, ctx, path);
+		if (pub) return pub;
 		// Everything under /api and /fetch needs the potato's signature; nothing is served to anyone else.
 		if (path.startsWith('/api/') || path === '/fetch') {
 			const verdict = await verify(request, env.SHARED_SECRET, Math.floor(Date.now() / 1000));

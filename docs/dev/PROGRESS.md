@@ -132,7 +132,7 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T01 Worker scaffold
 - [x] P6B-T02 Request signing (both languages)
 - [x] P6B-T03 Album upload and revoke
-- [ ] P6B-T04 The public viewer and file routes
+- [x] P6B-T04 The public viewer and file routes
 - [ ] P6B-T05 Scheduled expiry sweep
 - [ ] P6B-T06 URL loading relay
 - [ ] P6B-T07 The potato side: client, tables, API
