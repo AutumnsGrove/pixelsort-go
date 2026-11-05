@@ -10,7 +10,15 @@ import { Autosaver } from './autosave';
 import { ServerBackend } from './api';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
-import { classCount, classDefsToEngine, defaultTiling, type ClassDefs, type MaskObject, type Tiling } from './regions';
+import { classCount, defaultTiling, type MaskObject, type Tiling } from './regions';
+import { cardsToClassDefs, defaultCards, kindCounts, newCard, type RegionCard } from './region-cards';
+
+/** One card per possible kind (the "random" pattern can make eight); the first three start with a little personality. */
+function startingCards(): Record<number, RegionCard> {
+	const cards = defaultCards();
+	for (let k = 4; k <= 8; k++) cards[k] = newCard(`Kind ${k}`);
+	return cards;
+}
 
 export type RunState = 'idle' | 'preparing' | 'animating' | 'paused' | 'done' | 'error';
 
@@ -62,7 +70,16 @@ class Studio {
 
 	// ---- regions (cut the picture into cells, give each kind of cell its own rules) and protect (freeze shapes) ----
 	tiling = $state<Tiling | null>(null);
-	classDefs = $state<ClassDefs>({ 1: {}, 2: {}, 3: {} });
+	/** What each kind of cell does; anything not overridden inherits the global recipe. See region-cards.ts. */
+	cards = $state<Record<number, RegionCard>>(startingCards());
+	/** Shapes per kind, for the card headers. */
+	kindCounts(): Record<number, number> {
+		return kindCounts(this.classOf);
+	}
+	/** The cards as the engine wants them, for the current pattern (class 0, the gaps, first). */
+	engineDefs(): object[] {
+		return this.tiling ? cardsToClassDefs(this.cards, classCount(this.tiling.pattern, this.tiling.kinds)) : [];
+	}
 	labels = $state<Uint16Array | null>(null);
 	classOf = $state<Uint8Array | null>(null);
 	showCells = $state(true);
@@ -167,10 +184,7 @@ class Studio {
 			await this.client!.setImage(img.rgba);
 			// A new picture resets the engine session, so the cells and the protected shapes (vector specs) are sent again.
 			if (this.tiling) {
-				const r = await this.client!.setTiling(
-					{ ...this.tiling },
-					classDefsToEngine(this.classDefs, classCount(this.tiling.pattern, this.tiling.kinds))
-				);
+				const r = await this.client!.setTiling({ ...this.tiling }, this.engineDefs());
 				this.labels = r?.labels ?? null;
 				this.classOf = r?.classOf ?? null;
 			}
@@ -291,8 +305,7 @@ class Studio {
 		if (!this.client || !this.size) return;
 		try {
 			const t = this.tiling;
-			const defs = t ? classDefsToEngine(this.classDefs, classCount(t.pattern, t.kinds)) : null;
-			const r = await this.client.setTiling(t ? { ...t } : null, defs);
+			const r = await this.client.setTiling(t ? { ...t } : null, t ? this.engineDefs() : null);
 			this.labels = r?.labels ?? null;
 			this.classOf = r?.classOf ?? null;
 			await this.instant();

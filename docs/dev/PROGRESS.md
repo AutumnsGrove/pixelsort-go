@@ -153,7 +153,7 @@ File: [`phase-7.md`](phase-7.md)
 - [x] P7-T07 Session API and WASM for regions
 - [x] P7-T08 TypeScript geometry modules
 - [x] P7-T09 Pro panel: Regions
-- [ ] P7-T10 Region cards
+- [x] P7-T10 Region cards
 - [x] P7-T11 Protect: brush, objects, feather
 - [ ] P7-T12 Shape library
 - [ ] P7-T13 Phone: Protect and Shapes tabs

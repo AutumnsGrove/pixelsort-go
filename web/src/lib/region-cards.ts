@@ -189,6 +189,14 @@ export function cardToClassDef(card: RegionCard): ClassDef {
 	return d;
 }
 
+/** How many shapes each kind has, from the engine's per-cell class map (cell 0 is the gaps and is not a shape). */
+export function kindCounts(classOf: Uint8Array | null): Record<number, number> {
+	const counts: Record<number, number> = {};
+	if (classOf)
+		for (let cell = 1; cell < classOf.length; cell++) counts[classOf[cell]!] = (counts[classOf[cell]!] ?? 0) + 1;
+	return counts;
+}
+
 /** What the engine's region map wants: one definition per class, index 0 being the gaps between shapes (always frozen). */
 export function cardsToClassDefs(cards: Record<number, RegionCard>, top: number): ClassDef[] {
 	const out: ClassDef[] = [{ frozen: true }];

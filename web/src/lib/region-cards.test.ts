@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cardSummary, cardsToClassDefs, cardToClassDef, defaultCards, newCard, type RegionCard } from './region-cards';
+import {
+	cardSummary,
+	cardsToClassDefs,
+	cardToClassDef,
+	defaultCards,
+	kindCounts,
+	newCard,
+	type RegionCard
+} from './region-cards';
 
 const cases = JSON.parse(readFileSync('../engine/testdata/region-card-cases.json', 'utf8')) as {
 	name: string;
@@ -42,6 +50,14 @@ describe('cardSummary', () => {
 		expect(cut('threshold')).toBe('threshold 51–209');
 		expect(cut('edges')).toBe('edges 26');
 		expect(cut('none')).toBe('none');
+	});
+});
+
+describe('kindCounts', () => {
+	it('counts shapes per kind and skips the gaps (cell 0)', () => {
+		expect(kindCounts(new Uint8Array([0, 1, 2, 1, 1, 2]))).toEqual({ 1: 3, 2: 2 });
+		expect(kindCounts(null)).toEqual({});
+		expect(kindCounts(new Uint8Array([0]))).toEqual({});
 	});
 });
 

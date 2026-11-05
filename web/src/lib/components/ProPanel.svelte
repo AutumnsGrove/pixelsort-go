@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { X, Trash2 } from '@lucide/svelte';
 	import { studio } from '#lib/studio.svelte';
-	import { PATTERNS, SHAPES, classCount, describeClass, type ClassRule } from '#lib/regions';
-	import { algos, keys } from '#lib/engine/params';
-	import { classColor } from '#lib/overlay';
+	import { PATTERNS, SHAPES, classCount } from '#lib/regions';
+	import RegionCard from '#components/RegionCard';
 
 	let { onclose }: { onclose: () => void } = $props();
 
@@ -29,12 +28,8 @@
 		Object.assign(studio.tiling, patch);
 		void studio.applyRegions();
 	}
-	function rule(c: number, patch: Record<string, unknown>): void {
-		const r: Record<string, unknown> = { ...(studio.classDefs[c] ?? {}), ...patch };
-		for (const k of Object.keys(r)) if (r[k] === undefined || r[k] === '') delete r[k];
-		studio.classDefs[c] = r as ClassRule;
-		void studio.applyRegions();
-	}
+	/** How many shapes each kind has, read off the engine's per-cell class map: one count per kind. */
+	const shapeCounts = $derived(studio.kindCounts());
 </script>
 
 <aside class="pro glass" aria-label="Pro panel" data-testid="pro">
@@ -188,58 +183,16 @@
 
 			<div class="cards">
 				{#each Array.from({ length: nClasses }, (_, i) => i + 1) as c (c)}
-					{@const r = studio.classDefs[c] ?? {}}
-					<div class="card" data-testid="class-{c}">
-						<div class="pr-head">
-							<i style:background="rgb({classColor(c).join(',')})"></i><b>Kind {c}</b><small>{describeClass(r)}</small>
-						</div>
-						<label class="row"
-							><input
-								type="checkbox"
-								checked={!!r.frozen}
-								onchange={(e) => rule(c, { frozen: e.currentTarget.checked || undefined })}
-								aria-label="Freeze kind {c}"
-							/> freeze</label
-						>
-						{#if !r.frozen}
-							<label class="row"
-								>own angle
-								<input
-									type="number"
-									class="field"
-									min="0"
-									max="359"
-									placeholder="same"
-									value={r.angle ?? ''}
-									oninput={(e) =>
-										rule(c, { angle: e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value) % 360 })}
-									aria-label="Angle for kind {c}"
-								/>
-							</label>
-							<label class="row"
-								>sort by
-								<select
-									class="field"
-									value={r.key ?? ''}
-									onchange={(e) => rule(c, { key: e.currentTarget.value })}
-									aria-label="Sort key for kind {c}"
-								>
-									<option value="">same</option>{#each keys as k (k)}<option>{k}</option>{/each}
-								</select>
-							</label>
-							<label class="row"
-								>watch as
-								<select
-									class="field"
-									value={r.algo ?? ''}
-									onchange={(e) => rule(c, { algo: e.currentTarget.value })}
-									aria-label="Algorithm for kind {c}"
-								>
-									<option value="">same</option>{#each algos as a (a)}<option>{a}</option>{/each}
-								</select>
-							</label>
-						{/if}
-					</div>
+					{#if studio.cards[c]}
+						<RegionCard
+							card={studio.cards[c]}
+							kind={c}
+							title={studio.cards[c].name}
+							count={shapeCounts[c] ?? 0}
+							width={studio.size?.w ?? 1000}
+							onchange={() => void studio.applyRegions()}
+						/>
+					{/if}
 				{/each}
 			</div>
 		{/if}
@@ -403,36 +356,6 @@
 	.cards {
 		display: grid;
 		gap: 8px;
-	}
-	.card {
-		border: 1px solid var(--faint);
-		border-radius: 14px;
-		padding: 10px 12px;
-		display: grid;
-		gap: 6px;
-	}
-	.pr-head {
-		display: flex;
-		gap: 8px;
-		align-items: center;
-	}
-	.pr-head i {
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-	}
-	.pr-head small {
-		color: var(--dim);
-		margin-left: auto;
-		font-size: 10px;
-	}
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-	.row .field {
-		width: 90px;
 	}
 	.obj {
 		display: grid;

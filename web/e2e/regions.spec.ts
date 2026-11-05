@@ -19,8 +19,10 @@ test('Pro panel: cutting the picture into hexagons shows cells and sorts inside 
 			})
 		)
 		.toBeGreaterThan(1000);
+	await expect(page.getByLabel('Freeze kind 1')).toHaveCount(0); // cards start folded
+	await page.getByTestId('class-1-head').click();
 	await page.getByLabel('Freeze kind 1').check();
-	await expect(page.getByTestId('class-1')).toContainText('frozen');
+	await expect(page.getByTestId('class-1-summary')).toHaveText('frozen — never moves');
 	await page.waitForTimeout(600);
 	await page.screenshot({ path: 'test-results/regions.png' });
 	await page.getByTestId('shape-none').click();
@@ -150,4 +152,44 @@ test('Protect on the canvas: drag a shape, resize it by a corner, rotate it, nud
 	await page.keyboard.press('Delete');
 	await expect(page.getByTestId('mask-shape')).toHaveCount(0);
 	await expect(page.getByTestId('mask-object')).toHaveCount(0);
+});
+
+test('region cards: fold open, give a kind its own recipe, and the summary and the picture follow', async ({
+	page
+}) => {
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('pro-toggle').click();
+	await page.getByTestId('shape-hexagon').click();
+	const head = page.getByTestId('class-2-head');
+	await expect(head).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.getByTestId('class-2-summary')).toHaveText('90°'); // Kind B starts at 90 degrees
+	await head.focus();
+	await page.keyboard.press('Enter');
+	await expect(head).toHaveAttribute('aria-expanded', 'true');
+	const stage = () =>
+		page.getByTestId('stage').evaluate((c: HTMLCanvasElement) => {
+			const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+			let h = 0;
+			for (let i = 0; i < d.length; i += 97) h = (h * 31 + d[i]!) | 0;
+			return h;
+		});
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	const before = await stage();
+	await page.getByRole('button', { name: 'insertion', exact: true }).click();
+	await expect(page.getByTestId('class-2-summary')).toHaveText('90° · insertion');
+	await page.getByRole('switch', { name: 'Own cutting for kind 2' }).check();
+	await page.getByRole('group', { name: 'Cutting mode for kind 2' }).getByRole('button', { name: 'cellular' }).click();
+	await page.getByRole('group', { name: 'Rule for kind 2' }).getByRole('button', { name: '154' }).click();
+	await expect(page.getByTestId('class-2-summary')).toHaveText('90° · insertion · cellular 154');
+	const rules = page.getByRole('group', { name: 'Rule for kind 2' });
+	await expect(rules.getByRole('button', { name: '154' })).toHaveAttribute('aria-pressed', 'true');
+	await expect(rules.getByRole('button', { name: '110' })).toHaveAttribute('aria-pressed', 'false');
+	await expect.poll(stage).not.toBe(before); // the picture really changed
+	await page.screenshot({ path: 'test-results/region-cards.png' });
+	// a kind that is frozen shows that, and its other controls still work when unfrozen
+	await page.getByLabel('Freeze kind 2').check();
+	await expect(page.getByTestId('class-2-summary')).toHaveText('frozen — never moves');
+	await page.getByLabel('Freeze kind 2').uncheck();
+	await expect(page.getByTestId('class-2-summary')).toHaveText('90° · insertion · cellular 154');
 });
