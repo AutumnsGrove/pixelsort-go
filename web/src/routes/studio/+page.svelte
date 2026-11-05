@@ -828,4 +828,56 @@
 	.gh {
 		margin-top: 8px;
 	}
+
+	/* Phone: the dock is a full-width bar that scrolls sideways, and popovers become sheets above it. The dock drops
+	   its transform and backdrop blur so position: fixed popovers are placed against the screen, not the dock. */
+	@media (max-width: 700px) {
+		.stage {
+			padding: 64px 10px 150px;
+		}
+		.frame {
+			max-width: 100%;
+			max-height: calc(100dvh - 230px);
+		}
+		canvas {
+			max-height: calc(100dvh - 230px);
+		}
+		.dock {
+			left: 8px;
+			right: 8px;
+			bottom: 10px;
+			transform: none;
+			max-width: none;
+			backdrop-filter: none;
+			background: rgba(24, 20, 18, 0.96);
+			border-radius: 28px;
+			overflow-x: auto;
+			scrollbar-width: none;
+			padding: 8px 10px;
+		}
+		.knob,
+		.dock .round {
+			min-height: 44px;
+			min-width: 44px;
+		}
+		.pop,
+		.pop.wide {
+			position: fixed;
+			left: 8px;
+			right: 8px;
+			bottom: 86px;
+			transform: none;
+			width: auto;
+			min-width: 0;
+			max-height: 56dvh;
+			overflow: auto;
+		}
+		.er-card {
+			padding: 20px 18px 16px;
+		}
+		.caption,
+		.cmp {
+			bottom: -38px;
+		}
+	}
 </style>

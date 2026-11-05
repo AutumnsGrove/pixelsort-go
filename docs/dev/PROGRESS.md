@@ -99,7 +99,7 @@ File: [`phase-5.md`](phase-5.md)
 - [ ] P5-T17 Runs strip (filmstrip)
 - [x] P5-T18 Export dialog and the error surfaces
 - [x] P5-T19 Settings page and Updates block
-- [ ] P5-T20 Phone Studio
+- [x] P5-T20 Phone Studio
 - [x] P5-T21 Archive screen
 - [ ] P5-T22 Pro panel shell, histogram, rule browser
 - [ ] P5-T23 Layout scan, accessibility pass, and the acceptance table

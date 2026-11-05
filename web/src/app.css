@@ -517,6 +517,13 @@ select.field option {
 	flex: none;
 }
 
+/* The centred readout would collide with the links on narrower screens (found in the mockup's layout scan). */
+@media (max-width: 1100px) {
+	.read {
+		display: none;
+	}
+}
+
 /* settings-driven (html[data-grain], html[data-motion]) */
 html[data-grain='off'] .grain {
 	display: none !important;
