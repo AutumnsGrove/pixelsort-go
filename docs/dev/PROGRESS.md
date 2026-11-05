@@ -167,7 +167,7 @@ File: [`phase-8.md`](phase-8.md)
 - [ ] P8-T02 Dockerfile
 - [ ] P8-T03 Compose and environment
 - [ ] P8-T04 CI: publish the image
-- [ ] P8-T05 Update endpoints in the server
+- [x] P8-T05 Update endpoints in the server
 - [ ] P8-T06 The real update client in the web app, and the stale-tab banner
 - [ ] P8-T07 The watcher
 - [ ] P8-T08 Meridian snippets

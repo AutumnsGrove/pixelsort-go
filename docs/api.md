@@ -28,7 +28,33 @@ A **run** looks like:
 `curl localhost:8895/healthz`
 
 ### `GET /api/version`
-`{"version":"…","deployment":"docker|dev","engine_version":"1"}`.
+`{"version":"…","deployment":"docker|dev","engine_version":"1","updater":"ready|not installed","heartbeat_age_s":240}`.
+`updater` is `ready` when the host watcher's `heartbeat` file in the signal folder is at most 30 minutes old;
+`heartbeat_age_s` is omitted when there is no heartbeat.
+
+## Updates
+
+These talk to the host-side watcher through small files in `PIXELSORT_UPDATE_DIR` (docs/update.md). The app never names an
+image and never contacts the registry. Without that folder configured, the four `/api/update/*` endpoints answer `404`.
+
+### `POST /api/update/check`
+Writes the `check` signal; the watcher then writes `available.json`. Returns `202 {"ok":true}`.
+
+### `GET /api/update/available`
+`{"available": <available.json or null>, "check_pending": true|false}`. Reads a file; no network.
+
+### `POST /api/update/start`
+Body must be exactly `{"target":"latest"}`; anything else (an image name, a digest, extra fields) is `400` and writes nothing.
+Deletes any previous `result`, writes `requested` containing the word `latest`, returns `202`. Answers `409 conflict`
+while an upload is in progress.
+
+### `GET /api/update/status`
+`{"pending": true|false, "result": <result or null>}`. An unreadable or invalid result is reported as
+`{"status":"failed","detail":"The result file could not be read.","rollback":"unknown"}` rather than an error.
+
+### `GET /api/busy`
+`{"busy": true|false}`, true while a `POST /api/runs` is running. Answers loopback callers only (the watcher on the host);
+anyone else gets `404`.
 
 ## Runs
 

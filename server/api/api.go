@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/AutumnsGrove/pixelsort-go/internal/version"
 	"github.com/AutumnsGrove/pixelsort-go/server/blob"
 	"github.com/AutumnsGrove/pixelsort-go/server/httpx"
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
+	"github.com/AutumnsGrove/pixelsort-go/server/update"
 )
 
 // Deps is what the handlers need.
@@ -23,13 +25,15 @@ type Deps struct {
 	MaxUploadBytes int64
 	Deployment     string
 	EngineVersion  string
+	Update         *update.Signals // nil when no update folder is configured
 }
 
 // API holds the handlers and remembers which routes it registered.
 type API struct {
-	d      Deps
-	mux    *http.ServeMux
-	routes []string
+	d        Deps
+	mux      *http.ServeMux
+	routes   []string
+	inflight atomic.Int64 // uploads in progress, for GET /api/busy and for refusing an update mid-upload
 }
 
 // New builds the API. Every route carries the shared middleware: request id, recovery, access log and a timeout for
@@ -38,7 +42,12 @@ func New(d Deps) *API {
 	a := &API{d: d, mux: http.NewServeMux()}
 	a.handle("GET /healthz", a.healthz)
 	a.handle("GET /api/version", a.version)
-	a.handle("POST /api/runs", a.createRun)
+	a.handle("POST /api/runs", a.trackBusy(a.createRun))
+	a.handle("POST /api/update/check", a.updateCheck)
+	a.handle("GET /api/update/available", a.updateAvailable)
+	a.handle("POST /api/update/start", a.updateStart)
+	a.handle("GET /api/update/status", a.updateStatus)
+	a.handle("GET /api/busy", a.busy)
 	a.handle("POST /api/images/check", a.checkImage)
 	a.handle("GET /api/images/{sha256}", a.getImage)
 	a.handle("GET /api/runs", a.listRuns)
@@ -124,5 +133,14 @@ func (a *API) healthz(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (a *API) version(w http.ResponseWriter, _ *http.Request) {
-	httpx.Write(w, http.StatusOK, map[string]string{"version": version.Version, "deployment": a.d.Deployment, "engine_version": a.d.EngineVersion})
+	out := map[string]any{"version": version.Version, "deployment": a.d.Deployment, "engine_version": a.d.EngineVersion, "updater": "not installed"}
+	if a.d.Update.Ready() {
+		out["updater"] = "ready"
+	}
+	if a.d.Update != nil {
+		if age, ok := a.d.Update.HeartbeatAge(); ok {
+			out["heartbeat_age_s"] = int64(age.Seconds())
+		}
+	}
+	httpx.Write(w, http.StatusOK, out)
 }

@@ -14,6 +14,7 @@ type Config struct {
 	TrashDays   int     // PIXELSORT_TRASH_DAYS
 	LogFormat   string  // PIXELSORT_LOG: "text" or "json"
 	Deployment  string  // PIXELSORT_DEPLOYMENT: "docker" or "dev"
+	UpdateDir   string  // PIXELSORT_UPDATE_DIR: the signal folder shared with the host watcher; empty = updates off
 }
 
 // BudgetBytes is the storage budget in bytes.
@@ -32,6 +33,7 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	if v := getenv("PIXELSORT_DATA"); v != "" {
 		c.DataDir = v
 	}
+	c.UpdateDir = getenv("PIXELSORT_UPDATE_DIR")
 	if v := getenv("PIXELSORT_BUDGET_GB"); v != "" {
 		f, err := strconv.ParseFloat(v, 64)
 		if err != nil || f <= 0 || f != f || f > 1e6 {

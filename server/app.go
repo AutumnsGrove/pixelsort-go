@@ -17,6 +17,7 @@ import (
 	"github.com/AutumnsGrove/pixelsort-go/server/db"
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
 	"github.com/AutumnsGrove/pixelsort-go/server/spa"
+	"github.com/AutumnsGrove/pixelsort-go/server/update"
 )
 
 // engineVersion is reported by /api/version. The server never imports the engine (it never touches pixels), so
@@ -56,8 +57,15 @@ func New(ctx context.Context, cfg Config, opts Options) (*App, error) {
 		return nil, err //nolint:wrapcheck // blob.New already names the directory
 	}
 	svc := runs.New(d, store, cfg.TrashDays)
+	var signals *update.Signals
+	if cfg.UpdateDir != "" {
+		if signals, err = update.New(cfg.UpdateDir); err != nil {
+			_ = d.Close()
+			return nil, err //nolint:wrapcheck // update.New already names the folder
+		}
+	}
 	a := api.New(api.Deps{Runs: svc, Blobs: store, BudgetBytes: cfg.BudgetBytes(), MaxUploadBytes: cfg.MaxUploadBytes(),
-		Deployment: cfg.Deployment, EngineVersion: engineVersion})
+		Deployment: cfg.Deployment, EngineVersion: engineVersion, Update: signals})
 	web := opts.WebFS
 	if web == nil {
 		web = spa.FS()
