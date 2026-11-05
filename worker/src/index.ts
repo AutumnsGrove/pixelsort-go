@@ -1,6 +1,8 @@
 import { handleAlbums } from './albums';
 import { verify } from './auth';
+import { handleFetch } from './fetch';
 import { handlePublic } from './public';
+import { sweep } from './scheduled';
 
 export interface Env {
 	ALBUMS: R2Bucket;
@@ -20,13 +22,14 @@ export default {
 		if (path.startsWith('/api/') || path === '/fetch') {
 			const verdict = await verify(request, env.SHARED_SECRET, Math.floor(Date.now() / 1000));
 			if (verdict !== 'ok') return json(401, { error: verdict });
+			if (path === '/fetch') return handleFetch(request, env);
 			const res = await handleAlbums(request, env, path);
 			if (res) return res;
-			return json(404, { error: 'not_found' }); // /fetch arrives later
+			return json(404, { error: 'not_found' });
 		}
 		return new Response('not found', { status: 404 });
 	},
-	async scheduled(_event: ScheduledController, _env: Env): Promise<void> {
-		// the daily expiry sweep arrives with the album routes
+	async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+		ctx.waitUntil(sweep(env));
 	}
 } satisfies ExportedHandler<Env>;

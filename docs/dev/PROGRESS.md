@@ -133,8 +133,8 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T02 Request signing (both languages)
 - [x] P6B-T03 Album upload and revoke
 - [x] P6B-T04 The public viewer and file routes
-- [ ] P6B-T05 Scheduled expiry sweep
-- [ ] P6B-T06 URL loading relay
+- [x] P6B-T05 Scheduled expiry sweep
+- [x] P6B-T06 URL loading relay
 - [ ] P6B-T07 The potato side: client, tables, API
 - [ ] P6B-T08 Web: share dialog, Albums, URL loading
 - [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
