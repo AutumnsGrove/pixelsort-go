@@ -40,7 +40,7 @@ A single Docker container (about 31 MB, distroless, read-only, no capabilities, 
 
 `.github/workflows/deploy-worker.yml` tests and deploys `worker/` whenever it changes on `main`, or when you run it by hand from the Actions tab.
 It also creates the `pixelsort-share` R2 bucket if it is missing, sets the Worker's `SHARED_SECRET`, and smoke-tests the live URL
-(`GET /a/<id>` must be `404`, an unsigned `PUT` must be `401`). Once, in the GitHub repository settings:
+(`GET /a/<id>` must be `404`, an unsigned `PUT /api/albums/<id>/images/0` must be `401`). Once, in the GitHub repository settings:
 
 1. **Settings, Environments:** create one named `production`. Add yourself as a required reviewer if you want a click before each deploy.
 2. **Cloudflare, My Profile, API Tokens:** create a token with *Workers Scripts: Edit* and *Workers R2 Storage: Edit* for your account.

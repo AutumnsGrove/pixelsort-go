@@ -1,17 +1,27 @@
-# A tile for Pixelsort: health from /healthz (with the version as a vital) and disk use from /api/usage.
-tiles:
+# One entry for Meridian's `services:` list (its tile config). Verified against the live config on
+# lepotato, 2026-11-05. Meridian does not expand `~`, so `targets.json` uses the absolute checkout path.
+services:
   - id: pixelsort
-    title: Pixelsort
-    probe:
-      url: http://localhost:8895/healthz
-      expect_status: 200
-    vitals:
-      - name: version
-        from: json
-        path: version
-      - name: disk_used
-        url: http://localhost:8895/api/usage
-        from: json
-        value: used_bytes
-        of: budget_bytes
-        unit: ratio
+    name: Pixelsort
+    section: everyday
+    icon: sparkles
+    description: pixel sorter and gallery
+    url: https://lepotato.taild95077.ts.net:8895
+    probes:
+      health:
+        kind: http_json
+        url: http://localhost:8895/healthz
+        path: status
+        equals: ok
+      vitals:
+        - {kind: json_field, label: build, url: "http://localhost:8895/healthz", path: version}
+        - kind: json_ratio_pct
+          label: disk
+          url: http://localhost:8895/api/usage
+          numerator: used_bytes
+          denominator: budget_bytes
+          decimals: 0
+          suffix: "% disk"
+    control:
+      target: pixelsort
+      actions: [restart, stop, start, update]

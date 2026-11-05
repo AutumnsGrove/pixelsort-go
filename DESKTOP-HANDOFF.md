@@ -80,7 +80,7 @@ pnpm exec wrangler deploy                          # prints the Worker's URL
 ```bash
 URL=https://<the printed url>
 curl -s -o /dev/null -w '%{http_code}\n' "$URL/a/AAAAAAAAAAAAAAAAAAAAAAAAAA"   # 26 characters: expect 404
-curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$URL/a/AAAAAAAAAAAAAAAAAAAAAAAAAA"   # unsigned PUT: expect 401
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$URL/api/albums/AAAAAAAAAAAAAAAAAAAAAAAAAA/images/0"   # unsigned PUT: expect 401
 ```
 
 **Record:** the URL (and the account and expiry decisions) in `NOTES.md`; tick `P6B-T09` in `PROGRESS.md`.
@@ -107,10 +107,12 @@ Follow `docs/deploy.md`, "First deploy". In short:
    ```
 5. Front it with Tailscale and check the isolation headers (this is **P0-T09**):
    ```bash
-   tailscale serve --bg --https=443 http://127.0.0.1:8895
-   curl -sI https://<machine>.<tailnet>.ts.net/engine.wasm | grep -i 'content-type\|cross-origin'
+   tailscale serve --bg --https=8895 http://127.0.0.1:8895
+   curl -sI https://<machine>.<tailnet>.ts.net:8895/engine.wasm | grep -i 'content-type\|cross-origin'
    ```
-   Open the HTTPS address and run `crossOriginIsolated` in the browser console: it must be `true`. All three `Cross-Origin-*` headers must be present.
+   The homelab already uses 443 for Vaultwarden and 8891, 8892 and 8899 for Meridian, Warbler and Polaris, so
+   Pixelsort takes **8895**. Open the HTTPS address and run `crossOriginIsolated` in the browser console: it must be `true`.
+   All three `Cross-Origin-*` headers must be present.
    If one is missing, the proxy is stripping it: note which in `NOTES.md` (the app still works; version 1 does not need `SharedArrayBuffer`, decision B3).
 6. Smoke test as a person: open Studio, load a photo, sort it, animate it, drag the new scrub slider, cut it into hexagons, paint a protected area, save to the
    Archive, make a share link and open it in another browser.

@@ -7,11 +7,12 @@ SvelteKit front end drives it, and a small Go server keeps a gallery of every ru
 an earlier Python/Gradio project, [Pixelsorting](https://github.com/AutumnsGrove/Pixelsorting), which stays as an
 archive of the original.
 
-> **Status: working build, not finished.** The engine (every interval mode, cellular automata, tilings, masks, an
+> **Status: working build, deployed.** The engine (every interval mode, cellular automata, tilings, masks, an
 > animated stepper) runs natively and as WebAssembly with matching golden hashes. Studio, the Archive and Settings work
-> in the browser, the gallery server stores runs, and the image, update watcher and backups are written and tested, and so is the Cloudflare share Worker (share links and
-> URL loading; its deploy workflow needs your Cloudflare secrets). Still open: SVG shapes, brush painting and a few editor niceties. See `docs/dev/NOTES.md` and
-> `docs/dev/PROGRESS.md`.
+> in the browser, the gallery server stores runs, and the image, update watcher, backups and the Cloudflare share
+> Worker (share links and URL loading) are live on the homelab. Still open: the optional phase 9 items (worker pool,
+> video recording, more segmentations, mask morphology, batch, project export/import, TinyGo, detail control, a polish
+> pass) and a few small acceptance gaps. See `docs/dev/NOTES.md` and `docs/dev/PROGRESS.md`.
 
 ## Develop
 
@@ -85,7 +86,9 @@ share links are not private. The container runs read-only, as a non-root user, w
 The technique descends from [satyarth/pixelsort](https://github.com/satyarth/pixelsort) (MIT) and, before it,
 Kim Asendorf's *ASDF Pixel Sort* Processing script. Icons will use [Lucide](https://lucide.dev). Mockup type is
 [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif) and
-[DM Mono](https://fonts.google.com/specimen/DM+Mono).
+[DM Mono](https://fonts.google.com/specimen/DM+Mono). Studio's first-run sample is an aerial forest
+photograph from [Unsplash](https://unsplash.com) (<https://images.unsplash.com/photo-1793556119647-46da040a5a4c>),
+used under the Unsplash License.
 
 ## License
 

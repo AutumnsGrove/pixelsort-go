@@ -4,24 +4,73 @@ The build agent writes here; the reviewer reads here first. Newest entries at th
 
 ## Needs Autumn
 
-Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the task id, what, and why it is waiting.
+Everything that needed a person's accounts or homelab is done except the update/rollback rehearsal.
 
-- **P0-T09** · Confirm COOP/COEP survive `tailscale serve` (steps in [`phase-0.md`](phase-0.md), P0-T09). Waiting
-  on Autumn because it touches the homelab and her tailnet. Everything up to the front door is verified: `make
-  spike` serves `Content-Type: application/wasm` plus all three `Cross-Origin-*` headers, and a headless
-  Chromium run of `http://127.0.0.1:8895/` showed `crossOriginIsolated true`, `SharedArrayBuffer available`
-  and `engine version 1`. What is unproven is only whether the HTTPS proxy passes the headers through.
+**Done (2026-11-05):** P0-T09 (the three `Cross-Origin-*` headers and `crossOriginIsolated` through `tailscale serve`),
+P6B-T09 (Worker, R2 bucket and secret; a share link was created, opened from outside the tailnet, and revoked),
+P8-T11's first deploy (image, checkout, pinned digest, healthy container, serve on 8895), Meridian (tile, target and
+observe entry; `meridian doctor` green and the tile shows `r126.28cd968 · 0 % disk`), the backup (one real snapshot
+on R2) and P8-T12 (the homelab docs are pushed).
 
-In the order to do them (docs/deploy.md has the commands):
+**Left:**
 
-1. **P8-T11** · Push; let CI publish the first image; make the GHCR package public. Clone to `~/Pixelsort`, run `deploy/install.sh`, set the
-   Worker URL/secret and backup remote in `.env`, pin a first digest, `docker compose up -d`, `tailscale serve`, check `crossOriginIsolated`.
-2. **P6B-T09** · Cloudflare: create the `production` environment and the three secrets (docs/deploy.md, "Cloudflare"); the
-   `deploy-worker` workflow does the rest on the next push to `main`. The Worker is complete and tested (album upload and revoke, the viewer, the expiry sweep, the URL relay).
-3. **P8-T11 (rest)** · Apply the Meridian snippets (`deploy/meridian/`, the field names are inferred from `docs/update.md`: check them against a
-   neighbouring entry), run the backup once, test an update from Settings, and deliberately publish a broken tag to watch the rollback.
-4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
-5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
+1. **P8-T11 (rest)** · Merge the open PR so `docker-publish` produces a second image, then run
+   `sudo systemctl start pixelsort-update.service` on lepotato and confirm the version changes. Then publish a
+   deliberately broken tag and watch the rollback (a GHCR push needs `write:packages`).
+2. **Optional** · `CLOUDFLARE_API_TOKEN` on the `production` environment so `deploy-worker.yml` can deploy from CI;
+   a dedicated `pixelsort-backups` bucket and R2 token instead of the interim `vaultwarden-backups` prefix;
+   `/lab/bench` on a phone and the table in `docs/perf.md`.
+3. Delete `DESKTOP-HANDOFF.md` when the update and rollback have both been exercised.
+
+## 2026-11-05 · Deploy results (desktop session)
+
+- **GHCR:** the first publish succeeded from `main`. `ghcr.io/autumnsgrove/pixelsort:latest` is public and
+  multi-arch; index digest `sha256:7f8d5fcf0e84d8dd0e3fe246c1d7a1d06113ca06991f2195650863c247b02daf`.
+- **Share Worker (P6B-T09):** deployed by hand with `wrangler deploy` (the GitHub secrets are still to be added).
+  URL `https://pixelsort-share.m7jv4v7npb.workers.dev`; R2 bucket `pixelsort-share` created; `SHARED_SECRET` set
+  from a 32-byte random value generated on Autumn's Mac and kept outside the repo. Smoke checks: `GET /a/<id>`
+  `404`, unsigned `PUT /api/albums/<id>/images/0` `401`.
+- **Doc fix:** the smoke-test command in `DESKTOP-HANDOFF.md` and the wording in `docs/deploy.md` used
+  `PUT /a/<id>`, which is the public GET-only viewer and answers `405`. The signed upload route is
+  `PUT /api/albums/<id>/images/0`. The deploy workflow already used the right route.
+- **Local checks:** `make check`, `make test`, `make wasm-test`, `make image-test` (amd64 and arm64), the web
+  typecheck/lint/261 tests, the worker typecheck/62 tests, `make e2e` (78) and `make e2e-worker` (3) all pass.
+  `make deploy-test` (7) and `make compose-test` fail on macOS only because the shell tests use GNU `stat -c`
+  and `sed -i` without a backup suffix; they pass on the Linux paths they target.
+- `make e2e` does not rebuild the WASM; a stale `web/static/engine.wasm` made 16 region/brush/shape tests fail
+  until `make wasm` was run. CI builds the WASM first, so this is a local-ergonomics gap only.
+- **Homelab (lepotato):** checkout `/home/autumn/Pixelsort`, digest pinned, container healthy as
+  `r126.28cd968`. `tailscale serve` fronts it on **8895** (443, 8891, 8892 and 8899 were already taken by
+  Vaultwarden, Meridian, Warbler and Polaris). All three `Cross-Origin-*` headers survive the proxy and a
+  headless Chromium reports `crossOriginIsolated: true` with `SharedArrayBuffer` available. A live Studio smoke
+  test sorted, animated (ended on the instant result), tiled into hexagons (499k overlay labels) and auto-saved a run.
+- **Meridian:** added the `services:` entry, the `/etc/meridian/targets.json` target and
+  `pixelsort-update.path` in `observe.json`. `meridian doctor` reports url, health, build, disk and all four
+  control actions ok. The repo's `config-snippet.yaml` had guessed `tiles:`/`probe:`; it now matches the real
+  `services:`/`probes:` schema, and the target uses an absolute path because Meridian does not expand `~`.
+- **Backup:** the only rclone credential on the box is scoped to `vaultwarden-backups`, so the interim remote is
+  `r2:vaultwarden-backups/pixelsort` (a separate prefix; the first snapshot was written and verified). A
+  dedicated bucket needs a new R2 API token; changing the `.env` line is then all that is required.
+- **Updates:** `check` writes `available.json` (`update_available: false` at the current digest) and a requested
+  update answers `skipped / Already up to date.` A real swap waits for the next publish from `main`.
+- **GitHub secrets:** `CLOUDFLARE_ACCOUNT_ID` and `WORKER_SHARED_SECRET` are set on the `production`
+  environment. `CLOUDFLARE_API_TOKEN` is still missing, so the `deploy-worker` workflow cannot run yet.
+- **Share link (end to end):** created a 30-day album for run 1, opened the viewer, image, thumb and
+  `manifest.json` from this Mac through the public Worker (all `200`, the image byte-for-byte the run's
+  result), then revoked it — viewer and image both `404`. That closes the P6B-T09 exit criterion.
+- **Homelab docs:** `docs/pixelsort.md` added, plus the port-map, serve-table, Services, Quick Access,
+  backup, update and Meridian rows. Pushed to `AutumnsGrove/homelab` as `3ac023e`.
+- **Ticked:** `P0-T09`, `P6B-T09` and `P8-T12`. `P8-T11` stays open until the update and rollback have
+  both been exercised.
+
+## 2026-11-05 · Home screen and the first-run sample
+
+The root `/` was leftover scaffold ("pixelsort-go / Open the lab") and was invisible in practice: its content was
+unpositioned while `.glow` is a fixed `z-index: 0` layer painted above it. `/` is now a real home screen (hero,
+**Open Studio**, Archive and Settings cards, responsive) using the same top bar and tokens. The Studio sample is now
+a real photograph (`web/static/samples/forest.jpg`, Unsplash) fetched and decoded at the working size; the old
+procedural image stays as the fallback when the fetch fails. The `Load from a link` button already existed in the
+dock and works now that the Worker is configured (no issue needed).
 
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 
@@ -47,6 +96,14 @@ reads an optional `ca` build secret for this). The linux/arm64 build is **not ve
 ## Decisions and questions
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
+
+## 2026-11-05 · Local build: `cookie` must be a direct web dependency
+
+The SSR output SvelteKit builds imports `cookie` as a bare specifier (Kit externalises it). pnpm's isolated
+layout does not link it into `web/node_modules`, so Node resolved it from a `node_modules` in Autumn's home
+directory (`cookie@1.0.2`, CJS, a transitive dependency of the `wrangler` install there) and the build failed
+with "Named export 'parseCookie' not found". `web/` now depends on `cookie@^2.0.1` directly, which puts the
+ESM copy in `web/node_modules` and wins over the home directory. Nothing else in the environment changed.
 
 ## 2026-11-04 · Phase 4 results
 
