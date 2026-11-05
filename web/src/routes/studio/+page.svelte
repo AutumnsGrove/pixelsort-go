@@ -4,6 +4,7 @@
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
+	import MaskHandles from '#components/MaskHandles';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
 	import { holdPixels, overlayPixels } from '#lib/overlay';
@@ -233,6 +234,7 @@
 		<div class="frame">
 			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
 			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
+			<MaskHandles active={proOpen} />
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
 			<div class="caption">
 				{#if renaming}

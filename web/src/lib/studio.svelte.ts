@@ -100,6 +100,8 @@ class Studio {
 		}
 	}
 	maskObjects = $state<MaskObject[]>([]);
+	/** Index of the mask object being edited on the canvas, or null. */
+	selectedMask = $state<number | null>(null);
 	maskInvert = $state(false);
 	maskFeather = $state(0);
 	saveFailed = $state(false);

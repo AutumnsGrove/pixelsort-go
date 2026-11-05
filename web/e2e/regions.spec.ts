@@ -101,3 +101,53 @@ test('Pro panel: Tab toggles it without squeezing the picture; the histogram and
 	await expect(page.getByTestId('rule-110')).toContainText('Turing complete');
 	await page.screenshot({ path: 'test-results/pro-rules.png' });
 });
+
+test('Protect on the canvas: drag a shape, resize it by a corner, rotate it, nudge it, delete it', async ({ page }) => {
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('pro-toggle').click();
+	await page.getByTestId('add-ellipse').click();
+	const shape = page.getByTestId('mask-shape');
+	await expect(shape).toHaveCount(1);
+	const centre = async () => {
+		const b = (await shape.boundingBox())!;
+		return { x: b.x + b.width / 2, y: b.y + b.height / 2, w: b.width, h: b.height };
+	};
+	const a = await centre();
+
+	// drag it: the shape follows the pointer
+	await page.mouse.move(a.x, a.y);
+	await page.mouse.down();
+	await page.mouse.move(a.x + 80, a.y + 40, { steps: 5 });
+	await page.mouse.up();
+	const b = await centre();
+	expect(b.x - a.x).toBeGreaterThan(60);
+	expect(b.y - a.y).toBeGreaterThan(25);
+	await expect(page.getByTestId('mask-handle')).toHaveCount(8); // selected: eight handles and a rotate knob
+	await page.screenshot({ path: 'test-results/mask-handles.png' });
+
+	// resize by a corner: bigger
+	const corner = (await page.getByTestId('mask-handle').nth(4).boundingBox())!; // bottom-right
+	await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(corner.x + 80, corner.y + 60, { steps: 5 });
+	await page.mouse.up();
+	const c = await centre();
+	expect(c.w).toBeGreaterThan(b.w + 40);
+
+	// rotate with the knob: the shape's own transform carries a rotation afterwards
+	const knob = (await page.getByTestId('mask-rotate').boundingBox())!;
+	await page.mouse.move(knob.x + knob.width / 2, knob.y + knob.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(knob.x + 300, knob.y + knob.height / 2 + 120, { steps: 5 });
+	await page.mouse.up();
+	await expect
+		.poll(() => shape.evaluate((e) => e.parentElement!.getAttribute('transform')!.match(/rotate\(([-\d.]+)\)/)![1]))
+		.not.toBe('0');
+
+	// arrow keys nudge, Delete removes
+	await page.keyboard.press('ArrowRight');
+	await page.keyboard.press('Delete');
+	await expect(page.getByTestId('mask-shape')).toHaveCount(0);
+	await expect(page.getByTestId('mask-object')).toHaveCount(0);
+});
