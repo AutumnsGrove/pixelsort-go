@@ -40,6 +40,22 @@ In the order to do them (docs/deploy.md has the commands):
   and `sed -i` without a backup suffix; they pass on the Linux paths they target.
 - `make e2e` does not rebuild the WASM; a stale `web/static/engine.wasm` made 16 region/brush/shape tests fail
   until `make wasm` was run. CI builds the WASM first, so this is a local-ergonomics gap only.
+- **Homelab (lepotato):** checkout `/home/autumn/Pixelsort`, digest pinned, container healthy as
+  `r126.28cd968`. `tailscale serve` fronts it on **8895** (443, 8891, 8892 and 8899 were already taken by
+  Vaultwarden, Meridian, Warbler and Polaris). All three `Cross-Origin-*` headers survive the proxy and a
+  headless Chromium reports `crossOriginIsolated: true` with `SharedArrayBuffer` available. A live Studio smoke
+  test sorted, animated (ended on the instant result), tiled into hexagons (499k overlay labels) and auto-saved a run.
+- **Meridian:** added the `services:` entry, the `/etc/meridian/targets.json` target and
+  `pixelsort-update.path` in `observe.json`. `meridian doctor` reports url, health, build, disk and all four
+  control actions ok. The repo's `config-snippet.yaml` had guessed `tiles:`/`probe:`; it now matches the real
+  `services:`/`probes:` schema, and the target uses an absolute path because Meridian does not expand `~`.
+- **Backup:** the only rclone credential on the box is scoped to `vaultwarden-backups`, so the interim remote is
+  `r2:vaultwarden-backups/pixelsort` (a separate prefix; the first snapshot was written and verified). A
+  dedicated bucket needs a new R2 API token; changing the `.env` line is then all that is required.
+- **Updates:** `check` writes `available.json` (`update_available: false` at the current digest) and a requested
+  update answers `skipped / Already up to date.` A real swap waits for the next publish from `main`.
+- **GitHub secrets:** `CLOUDFLARE_ACCOUNT_ID` and `WORKER_SHARED_SECRET` are set on the `production`
+  environment. `CLOUDFLARE_API_TOKEN` is still missing, so the `deploy-worker` workflow cannot run yet.
 
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 
