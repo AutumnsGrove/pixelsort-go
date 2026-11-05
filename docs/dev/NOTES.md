@@ -15,11 +15,17 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
 - **P6B-T09, P8-T11, P8-T12** · Cloudflare setup, first deploy and homelab docs, as in the plans. Phases 6b and 8 are not started.
 - **Run `make check` locally** — `golangci-lint` could not run in the cloud container (see the phase 2 note), so lint is unverified.
 
-## Where the cloud session stopped (branches are stacked: phase-2 -> 3 -> 4 -> 6 -> 5)
+## Where the cloud session stopped (everything is on one branch, `build/all`, PR #1)
 
-Done and tested: phases 2, 3, 4, and 6 (server, T01-T13). Phase 5: all pure modules (P5-T02, T04-T11) are ported with
-tests. Not done: the Svelte screens (P5-T01 shell is only fonts + stylesheet, T03, T12-T24), P6-T14 (ServerBackend and
-auto-save, needs the phase 5 storage layer in use), P6-T15, and phases 6b, 7, 8, 9.
+Done and tested: phases 2, 3, 4; phase 6 (server T01-T14); phase 5's pure modules plus first versions of the Studio,
+Archive and Settings screens (desktop only); phase 7's whole engine side (tilings, custom polygons, classes, masks,
+brightest spot, session + WASM calls, goldens matching on native and WASM) and the Pro panel (regions, class rules,
+protect shapes, cell overlay).
+
+Not done: the phone layout (P5-T20), the first-run tour, runs strip, naming polish and the layout scan (P5-T14..T17, T22-T24);
+SVG import and shape library, brush painting, snap-to-shape and the phone Shapes/Protect tabs (P7-T08, T10, T12, T13);
+P6-T15; phases 6b (Cloudflare), 8 (deploy) and 9 (polish). The Pro panel's protect section places ellipses and rectangles
+with sliders (no on-canvas dragging yet).
 
 ## Decisions and questions
 
