@@ -139,6 +139,16 @@ func main() {
 			}
 			return result(map[string]any{"done": done, "progress": s.Progress(), "pass": s.Pass()}), nil
 		},
+		"seek": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("seek needs a pass number")
+			}
+			done, err := s.Seek(a[0].Int())
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"done": done, "progress": s.Progress(), "pass": s.Pass()}), nil
+		},
 		"instant": func([]js.Value) (any, error) { return okOr(s.FinishInstant()) },
 		"pixelsPtr": func([]js.Value) (any, error) {
 			px := s.Pixels()

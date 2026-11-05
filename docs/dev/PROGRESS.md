@@ -183,7 +183,7 @@ File: [`phase-9.md`](phase-9.md)
 
 - [ ] P9-T01 Worker pool (parallel sort)
 - [ ] P9-T02 Video recording of the animation
-- [ ] P9-T03 Scrubbing and rewind
+- [x] P9-T03 Scrubbing and rewind
 - [ ] P9-T04 More segmentations
 - [ ] P9-T05 Mask morphology and multiple mask layers
 - [ ] P9-T06 Batch processing

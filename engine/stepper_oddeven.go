@@ -39,6 +39,12 @@ func (f *oddEven) step(s *Stepper) {
 
 func (f *oddEven) done() bool  { return f.quiet >= 2 }
 func (f *oddEven) weight() int { return len(f.idx) }
+
+// clone shares the read-only interval list and copies the counters.
+func (f *oddEven) clone() family {
+	c := *f
+	return &c
+}
 func (f *oddEven) progress() float64 {
 	return min(0.99, float64(f.passes)/float64(f.maxLen))
 }

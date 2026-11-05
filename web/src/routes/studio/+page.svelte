@@ -250,6 +250,20 @@
 			<BrushLayer active={proOpen} />
 			<MaskHandles active={proOpen} />
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
+			{#if studio.scrubbable}
+				<input
+					class="scrub"
+					type="range"
+					min="0"
+					max={studio.maxPass}
+					step="1"
+					value={studio.pass}
+					oninput={(e) => void studio.scrub(Number(e.currentTarget.value))}
+					aria-label="Scrub through the sort"
+					aria-valuetext="pass {studio.pass} of {studio.maxPass}"
+					data-testid="scrub"
+				/>
+			{/if}
 			<div class="caption">
 				{#if renaming}
 					<div
@@ -745,6 +759,22 @@
 	}
 	.round.on {
 		color: var(--ver);
+	}
+	/* The scrub slider sits inside the picture's bottom edge; 44 px tall on a phone so a thumb can hold it. */
+	.scrub {
+		position: absolute;
+		left: 12px;
+		right: 12px;
+		bottom: 8px;
+		width: calc(100% - 24px);
+		z-index: 7;
+		opacity: 0.85;
+	}
+	@media (max-width: 600px) {
+		.scrub {
+			min-height: 44px;
+			bottom: 0;
+		}
 	}
 	.progress {
 		position: absolute;

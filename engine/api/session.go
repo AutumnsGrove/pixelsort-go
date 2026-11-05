@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 
 	"github.com/AutumnsGrove/pixelsort-go/engine"
 	"github.com/AutumnsGrove/pixelsort-go/engine/masks"
@@ -32,7 +33,56 @@ type Session struct {
 	plan    *engine.Plan
 	result  *engine.Image
 	stepper *engine.Stepper
+
+	// Checkpoints for scrubbing: clones of the stepper at some earlier passes, oldest first, so a seek replays only the passes
+	// since the nearest one. They belong to the current plan and are dropped whenever it changes.
+	ckpt       []*engine.Stepper
+	ckptStride int
 }
+
+const (
+	// ckptFirstStride is how often (in passes) a checkpoint is taken at first; it doubles whenever the cache fills. It starts
+	// at every pass because a sort may have only a dozen passes (merge) that each cost a lot; a long one (odd-even) soon
+	// settles on a stride of tens or hundreds.
+	ckptFirstStride = 1
+	// ckptBudget bounds the memory the checkpoints may use. A checkpoint costs about 5 bytes a pixel (the pixels and their keys).
+	ckptBudget = 96 << 20
+)
+
+// maxCheckpoints is how many checkpoints fit in the budget at this size (at least 2, at most 16).
+func (s *Session) maxCheckpoints() int {
+	return min(16, max(2, ckptBudget/max(1, s.w*s.h*5)))
+}
+
+// noteCheckpoint keeps a clone of the stepper when it has just reached a multiple of the stride. When the cache is full it
+// drops every checkpoint that is not on a multiple of twice the stride, and doubles the stride, so the kept ones stay evenly
+// spread however long the sort turns out to be.
+func (s *Session) noteCheckpoint() {
+	if s.ckptStride == 0 {
+		s.ckptStride = ckptFirstStride
+	}
+	p := s.stepper.Pass()
+	if p == 0 || p%s.ckptStride != 0 || (len(s.ckpt) > 0 && s.ckpt[len(s.ckpt)-1].Pass() >= p) {
+		return
+	}
+	s.ckpt = append(s.ckpt, s.stepper.Clone())
+	if len(s.ckpt) > s.maxCheckpoints() {
+		s.ckptStride *= 2
+		s.ckpt = slices.DeleteFunc(s.ckpt, func(c *engine.Stepper) bool { return c.Pass()%s.ckptStride != 0 })
+	}
+}
+
+// nearestCheckpoint is the latest checkpoint at or before pass, or nil.
+func (s *Session) nearestCheckpoint(pass int) *engine.Stepper {
+	for i := len(s.ckpt) - 1; i >= 0; i-- {
+		if s.ckpt[i].Pass() <= pass {
+			return s.ckpt[i]
+		}
+	}
+	return nil
+}
+
+func (s *Session) dropCheckpoints() { s.ckpt, s.ckptStride = nil, 0 }
 
 // NewSession returns an empty session; call Init first.
 func NewSession() *Session { return &Session{} }
@@ -258,6 +308,7 @@ func (s *Session) Prepare() (engine.Stats, error) {
 		return engine.Stats{}, fmt.Errorf("api: prepare: %w", err)
 	}
 	s.plan, s.result, s.stepper = pl, nil, nil
+	s.dropCheckpoints()
 	return pl.Stats, nil
 }
 
@@ -295,6 +346,43 @@ func (s *Session) Step(n int) (done bool, err error) {
 		if s.stepper.Step() {
 			return true, nil
 		}
+		s.noteCheckpoint()
+	}
+	return s.stepper.Done(), nil
+}
+
+// MaxSeekPass bounds Seek's target so a typo cannot ask for an endless replay (a sort ends on its own long before this).
+const MaxSeekPass = 1_000_000
+
+// Seek moves the stepped sort to the state after `pass` passes: the same pixels, and the same Pass(), as a fresh Reset
+// followed by that many single steps. It never stores a frame: going forward it steps on from where it is; going
+// backward it resets to the original and replays (the sort is deterministic, PLAN.md 3.7). A target past the end stops at the
+// end and reports done. Seek works straight after Prepare (it starts the stepper if there is none).
+func (s *Session) Seek(pass int) (done bool, err error) {
+	if s.plan == nil {
+		return false, fmt.Errorf("api: seek before prepare: %w", ErrState)
+	}
+	if pass < 0 || pass > MaxSeekPass {
+		return false, fmt.Errorf("api: seek pass %d outside 0..%d", pass, MaxSeekPass)
+	}
+	// Start from the nearest earlier state: a checkpoint if one is closer than where we are (or we are past the target),
+	// otherwise the original.
+	near := s.nearestCheckpoint(pass)
+	switch {
+	case s.stepper != nil && pass >= s.stepper.Pass() && (near == nil || near.Pass() <= s.stepper.Pass()):
+		// keep going from here
+	case near != nil:
+		s.stepper, s.result = near.Clone(), nil // clone: stepping on must not change the checkpoint
+	default:
+		if err := s.Reset(); err != nil {
+			return false, err
+		}
+	}
+	for s.stepper.Pass() < pass {
+		if s.stepper.Step() {
+			return true, nil
+		}
+		s.noteCheckpoint()
 	}
 	return s.stepper.Done(), nil
 }
@@ -334,7 +422,10 @@ func (s *Session) Pixels() []uint32 {
 }
 
 // invalidate drops the plan and result after any input changed.
-func (s *Session) invalidate() { s.plan, s.result, s.stepper = nil, nil, nil }
+func (s *Session) invalidate() {
+	s.plan, s.result, s.stepper = nil, nil, nil
+	s.dropCheckpoints()
+}
 
 var knownKeys = map[engine.SortKey]bool{
 	engine.KeyLuma: true, engine.KeyValue: true, engine.KeyIntensity: true, engine.KeyMinimum: true, engine.KeyHue: true,

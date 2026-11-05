@@ -25,6 +25,7 @@ export type Request =
 	| { id: number; type: 'resume' }
 	| { id: number; type: 'setSpeed'; speed: Speed }
 	| { id: number; type: 'restart' } // back to the original pixels, keep animating
+	| { id: number; type: 'seek'; pass: number } // pause, jump to the state after `pass` passes, answer with those pixels
 	| { id: number; type: 'ack' }; // the page drew the last frame; no reply
 
 export type Response =
@@ -40,6 +41,7 @@ export type Response =
 			counts?: number[];
 			rules?: { rule: number; note: string }[];
 			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable)
+			seek?: { pass: number; progress: number; done: boolean }; // with rgba, for a seek
 	  }
 	| { id: number; ok: false; error: string };
 

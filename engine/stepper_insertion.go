@@ -1,5 +1,7 @@
 package engine
 
+import "slices"
+
 // insertion is insertion sort, one element per pass: the next pixel slides left past every strictly greater key,
 // which is the classic streaking look.
 type insertion struct {
@@ -49,6 +51,13 @@ func (f *insertion) done() bool {
 	return true
 }
 func (f *insertion) weight() int { return len(f.idx) }
+
+// clone copies the per-interval cursors (the interval list is read-only and shared).
+func (f *insertion) clone() family {
+	c := *f
+	c.cur = slices.Clone(f.cur)
+	return &c
+}
 func (f *insertion) progress() float64 {
 	return min(0.99, float64(f.passes)/float64(max(1, f.maxLen-1)))
 }

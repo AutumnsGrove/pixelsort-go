@@ -201,6 +201,21 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const started = startAnimation();
 			return { res: started.ok ? { id: req.id, ok: true } : fail(req.id, started.error), transfer: [] };
 		}
+		case 'seek': {
+			// Scrubbing holds the animation where the person put it; Resume carries on from there (even if the sort had
+			// finished before they dragged back).
+			anim.paused = true;
+			const r = api.seek(req.pass);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			const px = takePixels('copy');
+			if ('error' in px) return { res: fail(req.id, px.error), transfer: [] };
+			anim.running = !r.done;
+			clearTimeout(anim.timer);
+			return {
+				res: { id: req.id, ok: true, rgba: px.rgba, seek: { pass: r.pass, progress: r.progress, done: r.done } },
+				transfer: [px.rgba]
+			};
+		}
 		case 'ack':
 			anim.awaitingAck = false;
 			if (anim.running && !anim.paused) scheduleTick();

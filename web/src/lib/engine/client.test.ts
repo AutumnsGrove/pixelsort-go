@@ -169,3 +169,38 @@ describe('animation', () => {
 		await expect(p).rejects.toThrow('configure first');
 	});
 });
+
+describe('seek: latest wins', () => {
+	const seekReply = (id: number, pass: number, done = false): Response => ({
+		id,
+		ok: true,
+		rgba: new Uint8Array([pass, 0, 0, 255]).buffer,
+		seek: { pass, progress: pass / 100, done }
+	});
+
+	test('five seeks while the first is in flight: first, four superseded but the newest, which runs last', async () => {
+		const results = [10, 20, 30, 40, 50].map((p) => client.seek(p));
+		const w = workers[0]!;
+		expect(w.sent.map((m) => (m.type === 'seek' ? m.pass : -1))).toEqual([10]); // only the first is sent
+		w.reply(seekReply(1, 10));
+		await tick();
+		expect(w.sent.map((m) => (m.type === 'seek' ? m.pass : -1))).toEqual([10, 50]); // then only the newest
+		w.reply(seekReply(2, 50, true));
+		const [first, ...rest] = await Promise.all(results);
+		expect(first === 'superseded' || first === undefined ? null : first.pass).toBe(10);
+		expect(rest.slice(0, 3)).toEqual(['superseded', 'superseded', 'superseded']);
+		const last = rest[3]!;
+		expect(last === 'superseded' ? null : [last.pass, last.done, last.rgba[0]]).toEqual([50, true, 50]);
+	});
+
+	test('a failed seek rejects and the next one still goes out', async () => {
+		const a = client.seek(5);
+		const b = client.seek(6);
+		workers[0]!.reply({ id: 1, ok: false, error: 'not prepared' });
+		await expect(a).rejects.toThrow('not prepared');
+		await tick();
+		expect(workers[0]!.sent).toHaveLength(2);
+		workers[0]!.reply(seekReply(2, 6));
+		await expect(b).resolves.toMatchObject({ pass: 6 });
+	});
+});

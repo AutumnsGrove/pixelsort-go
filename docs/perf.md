@@ -36,3 +36,23 @@ at 2 MP**, so 60 fps is plausible at 2 MP for odd-even (the target was under abo
 odd-even per pass (it gathers and rewrites every span), so it is not watchable at 60 fps above about 1 MP in this
 sandbox; the working copy is capped at 1920 px (about 2-3 MP), so the UI should lower the steps-per-frame or draw
 fewer frames for merge at large sizes (the lab's auto speed already adapts the steps per frame, never the cost of one).
+
+## Scrubbing (P9-T03)
+
+`Session.Seek(pass)` jumps to the state after `pass` passes. Going forward it steps on; going back it restores the nearest
+**checkpoint** (a clone of the stepper, about 5 bytes a pixel) and replays from there, so it never stores a frame per step.
+Checkpoints are taken every pass at first, and the stride doubles (dropping the odd ones) whenever the cache is full; the cache is
+limited to 96 MB (9 checkpoints at 2 MP, never more than 16). Without them a seek replays from pass 0.
+
+Slowest single seek over 15 random jumps (forwards and back) after one run to the end, **2 MP of uniform noise** (the worst case
+for the sorters), `go test ./engine/api -bench SeekMiddle2MP -benchtime=15x`, same sandbox machine, ms:
+
+| | odd-even | insertion | merge | reveal |
+|---|---|---|---|---|
+| native amd64, slowest seek | 172 | 75 | 118 | 43 |
+| WebAssembly (Node), slowest seek | 183 | 68 | 29 | 5 |
+| WebAssembly, no checkpoints (stride 32, before this change) | 189 | 71 | **315** | 8 |
+
+The target is a seek to any pass in under 300 ms at 2 MP: it holds for every algorithm. Merge has only about a dozen passes, so a
+first stride of 32 never took a checkpoint for it; starting at every pass fixed that. The native column is noisier (the garbage
+collector shows up in single seeks). Real photos are smoother than noise, so these are upper bounds.

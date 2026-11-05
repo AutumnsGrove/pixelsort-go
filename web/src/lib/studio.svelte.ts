@@ -159,10 +159,11 @@ class Studio {
 		if (this.client) return;
 		this.client = new EngineClient();
 		this.off = this.client.onFrame((f) => {
-			if (!this.size) return;
+			if (!this.size || this.scrubbed) return;
 			this.sorted = f.rgba;
 			this.progress = f.progress;
 			this.pass = f.pass;
+			this.maxPass = Math.max(this.maxPass, f.pass);
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
@@ -249,6 +250,7 @@ class Studio {
 
 	async instant(): Promise<void> {
 		if (!this.client || !this.size) return;
+		this.stepped = false;
 		this.run = 'preparing';
 		try {
 			await this.client.configure(this.params);
@@ -271,6 +273,9 @@ class Studio {
 			await this.client.configure(this.params);
 			this.progress = 0;
 			this.pass = 0;
+			this.maxPass = 0;
+			this.stepped = true;
+			this.scrubbed = false;
 			this.run = 'animating';
 			await this.client.animate(this.speed);
 		} catch (e) {
@@ -284,13 +289,46 @@ class Studio {
 			await this.client?.pause();
 		} else if (this.run === 'paused') {
 			this.run = 'animating';
+			this.scrubbed = false; // frames flow again from wherever the slider left the sort
 			await this.client?.resume();
 		} else await this.play();
+	}
+
+	// ---- scrubbing: drag through the sort. The engine replays deterministically (it never stores a frame per step). ----
+	/** A stepped sort exists (an animation was started and the picture has not been replaced by an instant sort since). */
+	stepped = $state(false);
+	/** The furthest pass seen so far, or the total once the sort finished: the slider's end. */
+	maxPass = $state(0);
+	private scrubbed = false;
+	get scrubbable(): boolean {
+		return (
+			this.stepped && (this.run === 'animating' || this.run === 'paused' || this.run === 'done') && this.maxPass > 0
+		);
+	}
+	/** Jump to the state after `pass` passes. Pauses the animation; newer calls replace older ones still waiting. */
+	async scrub(pass: number): Promise<void> {
+		if (!this.client || !this.size || !this.stepped) return;
+		this.scrubbed = true; // a frame still in flight from before must not overwrite what the slider shows
+		if (this.run === 'animating') this.run = 'paused';
+		try {
+			const r = await this.client.seek(Math.max(0, Math.round(pass)));
+			if (r === 'superseded') return;
+			this.sorted = r.rgba;
+			this.progress = r.progress;
+			this.pass = r.pass;
+			this.maxPass = Math.max(this.maxPass, r.pass);
+			this.run = r.done ? 'done' : 'paused';
+			this.onFrame?.(r.rgba, this.size.w, this.size.h);
+		} catch (e) {
+			this.fail(e);
+		}
 	}
 
 	async restart(): Promise<void> {
 		this.progress = 0;
 		this.pass = 0;
+		this.maxPass = 0;
+		this.scrubbed = false;
 		this.run = 'animating';
 		await this.client?.restart();
 	}
