@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TopBar from '#components/TopBar';
+	import UpdatesBlock from '#components/UpdatesBlock';
 	import { settings, updateSettings, resetSettings } from '#lib/settings.svelte';
 	import { WORK_RES, DEVICE_RES } from '#lib/settings';
 </script>
@@ -83,6 +84,7 @@
 			/></label
 		>
 	</section>
+	<UpdatesBlock />
 	<button class="btn" type="button" onclick={resetSettings}>Reset to defaults</button>
 </main>
 

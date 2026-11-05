@@ -168,7 +168,7 @@ File: [`phase-8.md`](phase-8.md)
 - [x] P8-T03 Compose and environment
 - [x] P8-T04 CI: publish the image
 - [x] P8-T05 Update endpoints in the server
-- [ ] P8-T06 The real update client in the web app, and the stale-tab banner
+- [x] P8-T06 The real update client in the web app, and the stale-tab banner
 - [x] P8-T07 The watcher
 - [x] P8-T08 Meridian snippets
 - [x] P8-T09 Backups

@@ -4,6 +4,7 @@
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
 	import { overlayPixels } from '#lib/overlay';
+	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
 	import { studio, sampleImage } from '#lib/studio.svelte';
 	import { BUILTIN, chips, rolls } from '#lib/presets';
@@ -147,19 +148,24 @@
 
 	async function doExport(): Promise<void> {
 		if (!studio.sorted || !studio.size) return;
-		const c = new OffscreenCanvas(exportW, exportH);
-		const src = new OffscreenCanvas(studio.size.w, studio.size.h);
-		src
-			.getContext('2d')!
-			.putImageData(new ImageData(new Uint8ClampedArray(studio.sorted), studio.size.w, studio.size.h), 0, 0);
-		c.getContext('2d')!.drawImage(src, 0, 0, exportW, exportH);
-		const blob = await c.convertToBlob({ type: `image/${exportFormat}`, quality: exportQuality / 100 });
-		const a = document.createElement('a');
-		a.href = URL.createObjectURL(blob);
-		a.download = exportName;
-		a.click();
-		setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-		exportOpen = false;
+		appBusy.exporting = true; // an update must wait for this: Settings shows "Finish your export first."
+		try {
+			const c = new OffscreenCanvas(exportW, exportH);
+			const src = new OffscreenCanvas(studio.size.w, studio.size.h);
+			src
+				.getContext('2d')!
+				.putImageData(new ImageData(new Uint8ClampedArray(studio.sorted), studio.size.w, studio.size.h), 0, 0);
+			c.getContext('2d')!.drawImage(src, 0, 0, exportW, exportH);
+			const blob = await c.convertToBlob({ type: `image/${exportFormat}`, quality: exportQuality / 100 });
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(blob);
+			a.download = exportName;
+			a.click();
+			setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+			exportOpen = false;
+		} finally {
+			appBusy.exporting = false;
+		}
 	}
 	void originalCopy;
 </script>
