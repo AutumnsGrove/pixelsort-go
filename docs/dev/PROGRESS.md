@@ -163,7 +163,7 @@ File: [`phase-7.md`](phase-7.md)
 
 File: [`phase-8.md`](phase-8.md)
 
-- [ ] P8-T01 `snapshot`, `healthcheck` and `starred-list` subcommands
+- [x] P8-T01 `snapshot`, `healthcheck` and `starred-list` subcommands
 - [ ] P8-T02 Dockerfile
 - [ ] P8-T03 Compose and environment
 - [ ] P8-T04 CI: publish the image

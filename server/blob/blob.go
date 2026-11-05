@@ -180,6 +180,23 @@ func (s *Store) Open(sha string) (*os.File, Blob, error) {
 	return f, Blob{SHA: sha, Size: st.Size(), Mime: mime, Ext: allowed[mime]}, nil
 }
 
+// RelPath is the path of a stored file relative to the data directory (images/ab/abcdef....png), for tools such as the
+// backup script that copy files by name. It reports false if the file is not stored.
+func (s *Store) RelPath(sha string) (string, bool) {
+	if !ValidSHA(sha) {
+		return "", false
+	}
+	p, _, ok := s.find(sha)
+	if !ok {
+		return "", false
+	}
+	rel, err := filepath.Rel(s.root, p)
+	if err != nil {
+		return "", false
+	}
+	return rel, true
+}
+
 // Exists reports whether sha is stored.
 func (s *Store) Exists(sha string) bool {
 	if !ValidSHA(sha) {
