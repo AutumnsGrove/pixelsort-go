@@ -201,6 +201,21 @@ So one run is about **27 MB** of result plus its original (stored once however m
 picture and 27 MB for each further one. The 50 GB budget holds on the order of **1,500–1,800 runs**, which matches PLAN.md's "20–30 MB". The
 render took about 3 s natively. Noise inflates PNGs; a clean, smooth photo will come in lower, a grainy one higher.
 
+**A real photo (5 Nov 2026):** Autumn's film-scan photo of a ceiling of red maple leaves and lights, **2177×2576 (5.6 MP, not 12 MP)**, JPEG 1.1 MB,
+measured with `pixelsort-go render`:
+
+| File | Size |
+|---|---|
+| original JPEG | 1.1 MB |
+| original as PNG | 5.5 MB |
+| result PNG, `random` 45°, length 120 (4,752 lines, 22,106 intervals) | **13.0 MB** (render 1.7 s) |
+| result PNG, `wave` 90°, length 300 | 7.6 MB |
+| thumbnail (JPEG, 320 px) | 22 KB |
+
+Scaled by pixel count to 12 MP (×2.14, an estimate, not a measurement): about **28 MB** and **16 MB** per result, so the synthetic figure of 27 MB
+for the `random` recipe holds up for a grainy film scan. Smoother photos and longer or wave-shaped intervals come in lower. A true 12 MP
+camera photo is still unmeasured.
+
 ## Mockup tests and their real counterparts (P5-T23)
 
 The tests live in different files than the plan guessed; this is where each mockup test went. "Partial" says what is missing.
