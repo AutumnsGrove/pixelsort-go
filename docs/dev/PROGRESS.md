@@ -95,7 +95,7 @@ File: [`phase-5.md`](phase-5.md)
 - [x] P5-T13 The angle dial
 - [x] P5-T14 Intake, working copy, compare, "what can move"
 - [x] P5-T15 Help: shortcuts and the first-run tour
-- [ ] P5-T16 Naming in Studio
+- [x] P5-T16 Naming in Studio
 - [x] P5-T17 Runs strip (filmstrip)
 - [x] P5-T18 Export dialog and the error surfaces
 - [x] P5-T19 Settings page and Updates block

@@ -36,6 +36,7 @@
 	let exportOpen = $state(false);
 	let renaming = $state(false);
 	let nameDraft = $state('');
+	let cancelled = false;
 	let exportFormat = $state<FormatId>(settings.exportFormat);
 	let exportQuality = $state(settings.exportQuality);
 	let exportScale = $state(1);
@@ -122,6 +123,7 @@
 		if (e.key.toLowerCase() === 't') void studio.peek(false);
 	}
 	function startRename(): void {
+		cancelled = false;
 		nameDraft = studio.name;
 		renaming = true;
 	}
@@ -173,6 +175,10 @@
 	const exportW = $derived(Math.max(1, Math.round((studio.size?.w ?? 1) * exportScale)));
 	const exportH = $derived(Math.max(1, Math.round((studio.size?.h ?? 1) * exportScale)));
 	const exportPlan = $derived(plan(exportW, exportH, device));
+	/** The file name the picture will export as, for the name being typed. */
+	const draftFile = $derived(
+		fileName(clean(nameDraft) || studio.name, studio.params.mode, exportFormat, String(studio.params.seed))
+	);
 	const exportName = $derived(fileName(studio.name, studio.params.mode, exportFormat, String(studio.params.seed)));
 
 	async function doExport(): Promise<void> {
@@ -230,18 +236,45 @@
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
 			<div class="caption">
 				{#if renaming}
-					<input
-						class="field nm"
-						bind:value={nameDraft}
-						onkeydown={(e) => {
-							e.stopPropagation();
-							if (e.key === 'Enter') commitRename();
-							if (e.key === 'Escape') renaming = false;
+					<div
+						class="nm-edit"
+						role="group"
+						aria-label="Rename"
+						onfocusout={(e) => {
+							// leaving the whole group saves; moving between its field and buttons does not
+							if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+								if (cancelled) cancelled = false;
+								else commitRename();
+							}
 						}}
-						onblur={commitRename}
-						aria-label="Name"
-						data-testid="name-input"
-					/>
+					>
+						<input
+							class="field nm"
+							bind:value={nameDraft}
+							onkeydown={(e) => {
+								e.stopPropagation();
+								if (e.key === 'Enter') commitRename();
+								if (e.key === 'Escape') {
+									cancelled = true; // Esc undoes: the old name stays
+									renaming = false;
+								}
+							}}
+							aria-label="Name"
+							data-testid="name-input"
+							maxlength="200"
+						/>
+						<button class="btn sm pri" type="button" onclick={commitRename} data-testid="name-save">Save</button>
+						<button
+							class="btn sm"
+							type="button"
+							onclick={() => {
+								nameDraft = '';
+								commitRename();
+							}}
+							data-testid="name-auto">Auto</button
+						>
+						<small data-testid="name-file">{draftFile}</small>
+					</div>
 				{:else}
 					<button class="nm-btn" type="button" onclick={startRename} data-testid="name" title="Click to rename (F2)"
 						>{studio.name}</button
@@ -732,6 +765,16 @@
 		font: inherit;
 		color: var(--paper);
 		min-height: 32px;
+	}
+	.nm-edit {
+		display: flex;
+		gap: 6px;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+	.nm-edit small {
+		color: var(--dim);
+		font-size: 10px;
 	}
 	.nm {
 		width: 30ch;

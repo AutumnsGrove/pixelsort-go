@@ -147,3 +147,41 @@ test('load from a link: a CORS-blocked site goes through the relay; a page that 
 	await page.getByRole('button', { name: 'Try another link' }).click();
 	await expect(page.getByTestId('link-input')).toBeVisible();
 });
+
+test('naming: Esc undoes, Save and Auto work, the export file name is shown, and the box clears the dock at four sizes', async ({
+	page
+}) => {
+	await page.goto('/studio');
+	await waitDone(page);
+	const original = (await page.getByTestId('name').innerText()).trim();
+
+	await page.getByTestId('name').click();
+	await page.getByTestId('name-input').fill('Throwaway');
+	await page.getByTestId('name-input').press('Escape');
+	await expect(page.getByTestId('name')).toHaveText(original); // undone
+
+	await page.getByTestId('name').click();
+	await page.getByTestId('name-input').fill('<b>Bold</b> ridge');
+	await expect(page.getByTestId('name-file')).toContainText('ridge'); // the file name it will export as
+	await page.getByTestId('name-save').click();
+	await expect(page.getByTestId('name')).toHaveText('<b>Bold</b> ridge'); // markup is text, not markup
+	await expect(page.locator('b', { hasText: 'Bold' })).toHaveCount(0);
+
+	await page.getByTestId('name').click();
+	await page.getByTestId('name-auto').click();
+	await expect(page.getByTestId('name')).toHaveText(original); // empty goes back to the automatic name
+
+	for (const [w, h] of [
+		[1440, 900],
+		[1280, 720],
+		[768, 1024],
+		[390, 844]
+	] as const) {
+		await page.setViewportSize({ width: w, height: h });
+		await page.getByTestId('name').click();
+		const box = await page.getByTestId('name-input').boundingBox();
+		const dock = await page.getByRole('toolbar', { name: 'Controls' }).boundingBox();
+		expect(box!.y + box!.height, `${w}x${h}`).toBeLessThanOrEqual(dock!.y + 1);
+		await page.getByTestId('name-input').press('Escape');
+	}
+});
