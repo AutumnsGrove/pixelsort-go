@@ -59,6 +59,13 @@ Phase 7 remainder (`docs/dev/phase-7.md`):
 - **P7-T13** phone Protect and Shapes tabs.
 - **P7-T14** acceptance and phase wrap-up (fill the remaining "Partial" rows in the NOTES.md acceptance table).
 
+Known flaky test (fix this first): `web/e2e/animate.spec.ts` "pause holds the picture, restart begins again" failed once on
+CI (commit `5fff7ce`) and passes locally. After clicking Pause, `data-testid="anim-state"` still read "animating" for the
+full 5 s timeout. It is on the `/lab` page (`web/src/routes/lab/+page.svelte`, `animate()` / `togglePause()`), unrelated to
+the mask-editing work in that commit. A rerun passed or is expected to; if it recurs, suspect a race between `animate()`
+(which sets `paused = false` and `animating = true` before `await client.animate(...)` resolves) and a Pause click, and make
+`togglePause` and the worker's pause/resume robust to that ordering rather than loosening the test.
+
 Small known gaps:
 - No end-to-end check of an exported file's bytes; not every state in `states.test.ts` is driven in a browser; engine failure
   dialogs are unit-tested only.
