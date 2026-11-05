@@ -7,7 +7,7 @@ FUZZTIME ?= 20s
 VERSION ?= r$(shell git rev-list --count HEAD 2>/dev/null || echo 0).$(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/AutumnsGrove/pixelsort-go/internal/version.Version=$(VERSION)
 
-.PHONY: web-embed embed-build check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e clean
+.PHONY: image image-test compose-test web-embed embed-build check fmt fmt-check vet lint short test fuzz bench wasm wasm-test hello spike web web-test e2e clean
 
 ## check: format check, vet, lint and the fast tests. Run before every commit.
 check: fmt-check vet lint short
@@ -81,6 +81,18 @@ web-test:
 
 e2e:
 	pnpm --dir web exec playwright test
+
+## image: build the container image (needs a Docker daemon).
+image:
+	docker build --build-arg VERSION=$(VERSION) -t pixelsort:dev .
+
+## image-test: build it and check headers, read-only run, restart, size and arm64 (needs a Docker daemon).
+image-test:
+	VERSION=$(VERSION) deploy/image-test.sh pixelsort:test
+
+## compose-test: render docker-compose.yml and check its hardening (no daemon needed).
+compose-test:
+	deploy/compose-test.sh
 
 clean:
 	rm -rf build coverage.out

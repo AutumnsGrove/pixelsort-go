@@ -164,9 +164,9 @@ File: [`phase-7.md`](phase-7.md)
 File: [`phase-8.md`](phase-8.md)
 
 - [x] P8-T01 `snapshot`, `healthcheck` and `starred-list` subcommands
-- [ ] P8-T02 Dockerfile
-- [ ] P8-T03 Compose and environment
-- [ ] P8-T04 CI: publish the image
+- [x] P8-T02 Dockerfile
+- [x] P8-T03 Compose and environment
+- [x] P8-T04 CI: publish the image
 - [x] P8-T05 Update endpoints in the server
 - [ ] P8-T06 The real update client in the web app, and the stale-tab banner
 - [ ] P8-T07 The watcher

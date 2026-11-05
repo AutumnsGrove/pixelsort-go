@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+web/node_modules
+web/build
+web/.svelte-kit
+web/test-results
+data
+build
+mockups
+docs
+spike
+server/spa/build
+*.md
+!LICENSE
