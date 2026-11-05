@@ -3,6 +3,7 @@
 	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
+	import Strip from '#components/Strip';
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
@@ -106,6 +107,7 @@
 		else if (id === 'restart') void studio.restart();
 		else if (id === 'compare') studio.comparing = true;
 		else if (id === 'peek') void studio.peek(true);
+		else if (id === 'runs') stripOpen = !stripOpen;
 		else if (id === 'new') fileInput?.click();
 		else if (id === 'export') exportOpen = true;
 		else if (id === 'help') helpOpen = !helpOpen;
@@ -127,6 +129,7 @@
 	}
 	let features = $state<Features>({ share: false, fetch: false });
 	let linkOpen = $state(false);
+	let stripOpen = $state(false);
 	let linkDraft = $state('');
 	onMount(() => void new ShareBackend().features().then((f) => (features = f)));
 	function submitLink(): void {
@@ -540,6 +543,10 @@
 		if (f) void studio.loadFile(f);
 	}}
 />
+
+{#if stripOpen}
+	<Strip onopen={(r) => void studio.openRun(r)} />
+{/if}
 
 {#if linkOpen}
 	<div class="er" role="dialog" aria-modal="true" aria-label="Load from a link">

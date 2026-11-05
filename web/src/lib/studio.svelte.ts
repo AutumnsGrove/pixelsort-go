@@ -358,6 +358,26 @@ class Studio {
 		this.saveFailed = false;
 	}
 
+	/** Opens a saved run: its original picture, then its recipe and name. */
+	async openRun(run: {
+		original: { sha256: string };
+		settings: Record<string, unknown>;
+		title: string | null;
+	}): Promise<void> {
+		try {
+			const res = await fetch(new ServerBackend().imageUrl(run.original.sha256));
+			if (!res.ok) throw new Error('missing');
+			await this.loadFile(Object.assign(await res.blob(), { name: run.title ?? 'run' }));
+		} catch {
+			this.errorCode = 'image-unreadable';
+			return;
+		}
+		Object.assign(this.params, run.settings);
+		this.customName = run.title;
+		this.presetId = null;
+		this.changed();
+	}
+
 	applyPreset(p: Preset, seed = Date.now()): void {
 		const r = roll(p, mulberry32(seed), this.recipe());
 		Object.assign(this.params, r);
