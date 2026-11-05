@@ -199,3 +199,23 @@ Measured with `pixelsort-go render` on a **synthetic** 4000×3000 "photo" (smoot
 So one run is about **27 MB** of result plus its original (stored once however many runs use it): roughly 28–33 MB for the first run of a
 picture and 27 MB for each further one. The 50 GB budget holds on the order of **1,500–1,800 runs**, which matches PLAN.md's "20–30 MB". The
 render took about 3 s natively. Noise inflates PNGs; a clean, smooth photo will come in lower, a grainy one higher.
+
+## Mockup tests and their real counterparts (P5-T23)
+
+The tests live in different files than the plan guessed; this is where each mockup test went. "Partial" says what is missing.
+
+| Mockup test | Real test | Status |
+|---|---|---|
+| `engine-properties.mjs`, `region-properties.mjs` | Go property and fuzz tests in `engine/...` (run natively and under WASM) | Done |
+| `presets.mjs` | `presets.test.ts`, the preset step in `e2e/studio.spec.ts` | Done |
+| `export.mjs` | `export-model.test.ts`, the export dialog in `e2e/layout.spec.ts` and `e2e/studio.spec.ts` | Partial: no end-to-end check of an exported file's bytes yet |
+| `peek.mjs` | `overlay.test.ts` + hold-T test in `e2e/regions.spec.ts`; Go `Sortable` test | Done |
+| `states.mjs` | `states.test.ts`, the Archive banner in `e2e/phone.spec.ts` | Partial: not every state is driven in a browser |
+| `help-settings.mjs` | `help.test.ts`, `settings.test.ts`, `tour.test.ts`, `e2e/tour.spec.ts`, shortcut checks in `e2e/studio.spec.ts` | Done |
+| `errors.mjs` | `errors.test.ts`; link errors in `e2e/studio.spec.ts`, share errors in `e2e/share.spec.ts` | Partial: engine-failure dialogs are unit-tested only |
+| `scale.mjs` | `runs-data.test.ts`, `e2e/strip.spec.ts` (2000 runs) | Done |
+| `naming.mjs` | `naming.test.ts`, the naming test in `e2e/studio.spec.ts` | Done |
+| `updater.mjs` | `updater.test.ts`, `updater/updater-flow.test.ts`, `e2e/updater.spec.ts`, `deploy/watcher/test.sh` | Done |
+| `layout-scan.mjs` | `e2e/layout.spec.ts` (7 sizes, popovers, axe on each route) | Done |
+| `region-algo.mjs` | Go phase 3 tests + `e2e/animate.spec.ts` | Done |
+| `region-cards.mjs`, `shape-*.mjs`, `custom-shapes.mjs`, `mask-editor.mjs`, `phone-mask.mjs` | `regions.test.ts`, `e2e/regions.spec.ts` | Partial: cells and protect shapes only; the shape library, on-canvas mask dragging and phone tabs are not built |

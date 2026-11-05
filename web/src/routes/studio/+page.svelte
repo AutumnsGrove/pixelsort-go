@@ -578,6 +578,7 @@
 	accept="image/*"
 	class="sr-only"
 	data-testid="file"
+	aria-label="Choose a picture"
 	onchange={(e) => {
 		const f = e.currentTarget.files?.[0];
 		if (f) void studio.loadFile(f);
