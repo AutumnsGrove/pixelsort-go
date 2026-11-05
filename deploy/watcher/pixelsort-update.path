@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch for a Pixelsort update or check request
+
+[Path]
+# Written by the app (Settings -> Updates). Either file triggers the same oneshot service.
+PathExists=@CHECKOUT@/update-signal/check
+PathExists=@CHECKOUT@/update-signal/requested
+Unit=pixelsort-update.service
+
+[Install]
+WantedBy=multi-user.target
