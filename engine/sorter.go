@@ -73,22 +73,28 @@ func (pl *Plan) blend(dst []uint32) {
 	if pl.soft == nil {
 		return
 	}
+	blendSoft(dst, dst, pl.Orig, pl.soft)
+}
+
+// blendSoft writes lerp(src, orig, soft) into dst. dst may be src itself (the instant sorter blends in place; the
+// stepper blends its live buffer into a scratch buffer so it can keep stepping).
+func blendSoft(dst, src, orig []uint32, soft []uint8) {
 	for i := range dst {
-		a := uint32(pl.soft[i])
-		if a == 0 {
-			continue
+		a := uint32(soft[i])
+		switch {
+		case a == 0:
+			dst[i] = src[i]
+		case a >= 255:
+			dst[i] = orig[i]
+		default:
+			pr, pg, pb, pa := Unpack(src[i])
+			qr, qg, qb, qa := Unpack(orig[i])
+			dst[i] = Pack(
+				uint8(Lerp255(uint32(pr), uint32(qr), a)&0xff),
+				uint8(Lerp255(uint32(pg), uint32(qg), a)&0xff),
+				uint8(Lerp255(uint32(pb), uint32(qb), a)&0xff),
+				uint8(Lerp255(uint32(pa), uint32(qa), a)&0xff),
+			)
 		}
-		if a >= 255 {
-			dst[i] = pl.Orig[i]
-			continue
-		}
-		pr, pg, pb, pa := Unpack(dst[i])
-		qr, qg, qb, qa := Unpack(pl.Orig[i])
-		dst[i] = Pack(
-			uint8(Lerp255(uint32(pr), uint32(qr), a)&0xff),
-			uint8(Lerp255(uint32(pg), uint32(qg), a)&0xff),
-			uint8(Lerp255(uint32(pb), uint32(qb), a)&0xff),
-			uint8(Lerp255(uint32(pa), uint32(qa), a)&0xff),
-		)
 	}
 }

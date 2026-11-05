@@ -1,0 +1,29 @@
+[
+	{
+		"name": "put image",
+		"method": "PUT",
+		"path": "/api/albums/abcdefghijklmnopqrstuvwxyz/images/0",
+		"timestamp": "1700000000",
+		"body": "hello",
+		"bodySha": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		"signature": "a63ede7b9b11e73aa1ce4377da44e772b55a8f976c5a2aa573fff932934efe7e"
+	},
+	{
+		"name": "delete album",
+		"method": "DELETE",
+		"path": "/api/albums/abcdefghijklmnopqrstuvwxyz",
+		"timestamp": "1700000000",
+		"body": "",
+		"bodySha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"signature": "bb276c0026c0e2c5587f445c70120cc9a2ad139565a72d5c2dfda7c4a590fd39"
+	},
+	{
+		"name": "fetch with query",
+		"method": "GET",
+		"path": "/fetch?url=https%3A%2F%2Fexample.com%2Fa.png",
+		"timestamp": "1700000000",
+		"body": "",
+		"bodySha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"signature": "d53bd50cffecaf093e1129297c941b6cd6e51efc7c06ef7fd2868af3734751b8"
+	}
+]

@@ -13,7 +13,7 @@ import (
 func TestProp_Permutation(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(30, 30).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		pl, err := engine.NewPlan(im, p, nil)
 		if err != nil {
 			t.Fatalf("NewPlan: %v", err)
@@ -27,7 +27,7 @@ func TestProp_Permutation(t *testing.T) {
 func TestProp_IntervalsSorted(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(30, 30).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		o := &engine.Options{}
 		if rapid.Bool().Draw(t, "withRegions") {
 			o.Regions = testutil.RegionsGen(im.W, im.H).Draw(t, "regions")
@@ -54,7 +54,7 @@ func TestProp_IntervalsSorted(t *testing.T) {
 func TestProp_FrozenNeverMove(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(30, 30).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		o := &engine.Options{}
 		switch rapid.IntRange(0, 2).Draw(t, "freeze") {
 		case 1:
@@ -79,7 +79,7 @@ func TestProp_FrozenNeverMove(t *testing.T) {
 func TestProp_Deterministic(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(24, 24).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		a, err := engine.NewPlan(im, p, nil)
 		if err != nil {
 			t.Fatalf("NewPlan: %v", err)
@@ -113,7 +113,7 @@ func TestProp_OracleSliceStable(t *testing.T) {
 
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(40, 40).Draw(t, "image")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		pl, err := engine.NewPlan(im, p, nil)
 		if err != nil {
 			t.Fatalf("NewPlan: %v", err)
@@ -127,7 +127,7 @@ func TestProp_RegionBoundaries(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		im := testutil.ImageGen(30, 30).Draw(t, "image")
 		regions := testutil.RegionsGen(im.W, im.H).Draw(t, "regions")
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
+		p := testutil.ParamsGen().Draw(t, "params")
 		pl, err := engine.NewPlan(im, p, &engine.Options{Regions: regions})
 		if err != nil {
 			t.Fatalf("NewPlan: %v", err)

@@ -15,7 +15,7 @@ while (!globalThis.pixelsortReady) {
   if (Date.now() > deadline) { console.error('FAIL: engine.wasm did not become ready within 5 s'); process.exit(1); }
   await new Promise((r) => setTimeout(r, 10));
 }
-const got = globalThis.pixelsort.ping();
-if (typeof got !== 'string' || got === '') { console.error('FAIL: ping() returned', got); process.exit(1); }
-console.log('ok: ping() ->', got);
+const got = globalThis.pixelsort.version();
+if (!got.ok || typeof got.version !== 'string' || got.version === '') { console.error('FAIL: version() returned', got); process.exit(1); }
+console.log('ok: version() ->', got.version);
 process.exit(0);

@@ -12,9 +12,82 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
   Chromium run of `http://127.0.0.1:8895/` showed `crossOriginIsolated true`, `SharedArrayBuffer available`
   and `engine version 1`. What is unproven is only whether the HTTPS proxy passes the headers through.
 
+In the order to do them (docs/deploy.md has the commands):
+
+1. **P8-T11** · Push; let CI publish the first image; make the GHCR package public. Clone to `~/Pixelsort`, run `deploy/install.sh`, set the
+   Worker URL/secret and backup remote in `.env`, pin a first digest, `docker compose up -d`, `tailscale serve`, check `crossOriginIsolated`.
+2. **P6B-T09** · Cloudflare: create the `production` environment and the three secrets (docs/deploy.md, "Cloudflare"); the
+   `deploy-worker` workflow does the rest on the next push to `main`. The Worker is complete and tested (album upload and revoke, the viewer, the expiry sweep, the URL relay).
+3. **P8-T11 (rest)** · Apply the Meridian snippets (`deploy/meridian/`, the field names are inferred from `docs/update.md`: check them against a
+   neighbouring entry), run the backup once, test an update from Settings, and deliberately publish a broken tag to watch the rollback.
+4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
+5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
+
+## Where the cloud session stopped (everything is on one branch, `build/all`, PR #1)
+
+Done and tested: phases 2, 3, 4; phase 5's pure modules, the desktop and phone Studio, Archive and Settings; phase 6 (server T01-T14);
+phase 7's whole engine side (tilings, custom polygons, classes, masks, brightest spot, session + WASM calls, goldens matching on native and
+WASM) and the Pro panel; phase 8 except the two human steps and the web side of the updater (P8-T06): `snapshot`/`healthcheck`/`starred-list`,
+the update endpoints, Dockerfile (built and run for real: 31 MB, read-only, restart keeps data), compose (hardening tested), publish
+workflow, the watcher (104 checks against fakes), install script, backups, Meridian snippets and `docs/deploy.md`.
+
+Not done: SVG import and the shape library, brush painting, the snap-to-shape *UI* (the maths in `snap.ts` is done and tested), region cards, the
+phone Shapes/Protect tabs (P7-T08 remainder, T10, T12, T13, T14), and phase 9. Protected ellipses and rectangles can be placed in the Pro panel and
+dragged, resized, rotated and nudged on the canvas.
+
+## Docker in the cloud container
+
+The preinstalled Docker has no running daemon: `nohup dockerd &` starts one. Docker Hub rate-limits this sandbox (429), so pull base images from
+`mirror.gcr.io/library/<image>` and `docker tag` them locally, then build with `PIXELSORT_BUILD_FLAGS=--pull=false`. The sandbox proxy re-signs TLS,
+so the build needs its CA as a secret: `PIXELSORT_BUILD_CA=/root/.ccr/ca-bundle.crt PIXELSORT_SKIP_ARM64=1 deploy/image-test.sh` (the Dockerfile
+reads an optional `ca` build secret for this). The linux/arm64 build is **not verified** here; CI builds it on the first publish.
+
 ## Decisions and questions
 
 One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
+
+## 2026-11-04 · Phase 4 results
+
+- `ca` and `ca-edges` work in both spaces; all earlier properties (plan invariants, stepper equals sort, ...) now draw CA
+  recipes too (`ParamsGenNoCA` and `ErrNotImplemented` are gone). Four CA goldens added; WASM matches all 14 recipes,
+  instant and stepped. Fuzz (`FuzzCARule`) clean. 8 MP plan with CA: about 170 ms (image) / 165 ms (line).
+- **The plan's rule-90 test vectors were wrong** (rows 2 and 3). Re-derived by hand: `0100010` and `1010101`; the test
+  carries the working. Rules 30 and 110 matched the plan.
+- `Options.CAMask` is an exported hook (instead of the plan's unexported test variable) so external tests can supply a
+  known mask without a package-level variable.
+- **UI default recommendation: `line` space.** Rendered a synthetic landscape at angles 0 and 30 with rule 110
+  (`/tmp` scratch, not committed). Image space shears the cells into thin slanted slivers at 30 degrees, which reads as
+  noise; line space keeps chunky blocks aligned with the streaks, which reads as intentional. They are identical at 0,
+  so nothing is lost by defaulting to `line`. Worth a look on a real photo.
+
+## 2026-11-04 · Phase 3 results
+
+- Stepper: odd-even, insertion, merge and reveal, mixed per region, with monotone progress and soft blending. Stepping to
+  completion equals `Sort()` (property, fuzz 20 s clean, and in WASM for all ten goldens, stepped in batches of 50).
+- Per-pass costs are in `docs/perf.md`. Odd-even in WASM: 4.2 ms at 1 MP, 8.7 ms at 2 MP. **Merge is the slow one**
+  (21 ms/pass native at 2 MP); insertion and reveal are cheap per pass but insertion needs `n-1` passes, so on a long
+  interval it takes far more passes. The UI should decide what to expose (e.g. keep merge for smaller sizes).
+- Reveal's pass bound is not `maxLen+2` (it needs `intervals/6` passes); the bound tests exempt it.
+- The lab's animation was checked in Chromium: every algorithm ends on the instant canvas hash.
+
+## 2026-11-04 · Phase 2 results and environment notes (cloud session)
+
+- **Numbers** (docs/perf.md, a 4-thread 2.1 GHz Xeon sandbox, Chromium 153, so slower than an M2): 2 MP `prepare` 69 ms +
+  `sort` 32 ms; 8 MP 286 + 158 ms; 24 MP 823 + 535 ms. That is above PLAN.md's hoped-for ~15 ms pass at 2 MP for
+  an instant sort, though the stepper (phase 3) is what the live preview runs, not this. Re-measure on your Mac.
+  **Transfer strategy: copy** (view was not 20% faster at 8 MP; both give identical pixels). `/lab?transfer=view` re-tests.
+- **The preinstalled `golangci-lint` in this container is built with Go 1.25** (`go.mod` says 1.27), so it refuses to run.
+  Update: building it with the project's toolchain works:
+  `GOTOOLCHAIN=go1.27.0 GOBIN=/tmp/gobin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`
+  (the version CI uses). With that, the whole tree lints clean; CI caught what it caught before I found this.
+- **`make wasm-test` fails in this container** with "total length of command line and environment variables exceeds
+  limit" (the container's environment is huge); with a clean environment (`env -i ...`) it passes.
+- **SvelteKit is 3.x here** (not what the plan was written against): config lives in the `sveltekit()` plugin in
+  `vite.config.ts` (no `svelte.config.js`), `$lib` is gone (use `#lib/x`, mapped to `src/lib/x.ts` in package.json
+  `imports`; for `.svelte` or `.js` use a relative import), and TypeScript is pinned to 5.x because Kit 3.1 needs
+  its JS API. `server.headers`/`preview.headers` did not reach Kit's handlers, so a tiny plugin sets COOP/COEP.
+- **Playwright**: this machine has a pre-installed Chromium; set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+  CI uses `playwright install`.
 
 ## 2026-11-04 · Review of phases 0 and 1 (fixes on `fix/phase-1-review`)
 
@@ -104,3 +177,44 @@ Chose: the mockups' Playwright Chromium (`mockups/tests/node_modules`) driving t
 for a person to look at the page, and a headless load answers the same question (isolated, `ping()` returns
 `1`) without adding a dependency before phase 5 needs one. Alternative: leave the page unverified until
 P0-T09.
+
+## Deviations (phase 6b)
+
+- The `shares` table has no `revoke_token` column (PLAN.md's sketch had one): only this server holds the Worker's secret, so only it can revoke.
+- With `include_original`, each original is added to the album as an extra image right after its result (named "... (original)"), using the run's thumbnail as its thumbnail. The Worker has no separate original route.
+
+## Size of a 12 MP run (P6-T15)
+
+Measured with `pixelsort-go render` on a **synthetic** 4000×3000 "photo" (smooth colour fields, soft shapes, sensor-like noise of about
+4.5 levels, slight blur), recipe `random`, 45°, length 120. I had no real photo in the cloud container, so repeat this with one of yours.
+
+| File | Size |
+|---|---|
+| original, JPEG quality 90 | 1.1 MB (a real 12 MP camera JPEG is usually 3–6 MB) |
+| original as PNG | 13.4 MB |
+| result PNG | **26.7 MB** |
+| thumbnail | tens of KB |
+
+So one run is about **27 MB** of result plus its original (stored once however many runs use it): roughly 28–33 MB for the first run of a
+picture and 27 MB for each further one. The 50 GB budget holds on the order of **1,500–1,800 runs**, which matches PLAN.md's "20–30 MB". The
+render took about 3 s natively. Noise inflates PNGs; a clean, smooth photo will come in lower, a grainy one higher.
+
+## Mockup tests and their real counterparts (P5-T23)
+
+The tests live in different files than the plan guessed; this is where each mockup test went. "Partial" says what is missing.
+
+| Mockup test | Real test | Status |
+|---|---|---|
+| `engine-properties.mjs`, `region-properties.mjs` | Go property and fuzz tests in `engine/...` (run natively and under WASM) | Done |
+| `presets.mjs` | `presets.test.ts`, the preset step in `e2e/studio.spec.ts` | Done |
+| `export.mjs` | `export-model.test.ts`, the export dialog in `e2e/layout.spec.ts` and `e2e/studio.spec.ts` | Partial: no end-to-end check of an exported file's bytes yet |
+| `peek.mjs` | `overlay.test.ts` + hold-T test in `e2e/regions.spec.ts`; Go `Sortable` test | Done |
+| `states.mjs` | `states.test.ts`, the Archive banner in `e2e/phone.spec.ts` | Partial: not every state is driven in a browser |
+| `help-settings.mjs` | `help.test.ts`, `settings.test.ts`, `tour.test.ts`, `e2e/tour.spec.ts`, shortcut checks in `e2e/studio.spec.ts` | Done |
+| `errors.mjs` | `errors.test.ts`; link errors in `e2e/studio.spec.ts`, share errors in `e2e/share.spec.ts` | Partial: engine-failure dialogs are unit-tested only |
+| `scale.mjs` | `runs-data.test.ts`, `e2e/strip.spec.ts` (2000 runs) | Done |
+| `naming.mjs` | `naming.test.ts`, the naming test in `e2e/studio.spec.ts` | Done |
+| `updater.mjs` | `updater.test.ts`, `updater/updater-flow.test.ts`, `e2e/updater.spec.ts`, `deploy/watcher/test.sh` | Done |
+| `layout-scan.mjs` | `e2e/layout.spec.ts` (7 sizes, popovers, axe on each route) | Done |
+| `region-algo.mjs` | Go phase 3 tests + `e2e/animate.spec.ts` | Done |
+| `region-cards.mjs`, `shape-*.mjs`, `custom-shapes.mjs`, `mask-editor.mjs`, `phone-mask.mjs` | `regions.test.ts`, `e2e/regions.spec.ts` | Partial: cells and protect shapes only; the shape library, on-canvas mask dragging and phone tabs are not built |

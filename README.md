@@ -7,9 +7,11 @@ SvelteKit front end drives it, and a small Go server keeps a gallery of every ru
 an earlier Python/Gradio project, [Pixelsorting](https://github.com/AutumnsGrove/Pixelsorting), which stays as an
 archive of the original.
 
-> **Status: early build.** Phase 0 is in: the repo builds, lints and tests itself with `make check`, and the
-> engine's WebAssembly runs inside a web worker. The engine itself lands in phase 1. The plan and the throwaway
-> mockups are still the reference for what it will look like.
+> **Status: working build, not finished.** The engine (every interval mode, cellular automata, tilings, masks, an
+> animated stepper) runs natively and as WebAssembly with matching golden hashes. Studio, the Archive and Settings work
+> in the browser, the gallery server stores runs, and the image, update watcher and backups are written and tested, and so is the Cloudflare share Worker (share links and
+> URL loading; its deploy workflow needs your Cloudflare secrets). Still open: SVG shapes, brush painting and a few editor niceties. See `docs/dev/NOTES.md` and
+> `docs/dev/PROGRESS.md`.
 
 ## Develop
 
@@ -25,7 +27,12 @@ Requires Go 1.27, Node, `pnpm` and `golangci-lint` v2. The commands live in the 
 | `make hello` | load the built WASM in Node and call it |
 | `make spike` | serve the phase 0 spike page on `127.0.0.1:8895` |
 | `make bench` | benchmarks |
-| `make web` `make web-test` `make e2e` | the SvelteKit app (phases 5+) |
+| `make web` `make web-test` `make e2e` | the SvelteKit app |
+| `make embed-build` | one binary with the web app embedded (`build/pixelsort-go`) |
+| `make image` `make image-test` | the container image, and a check of it (needs a Docker daemon) |
+| `make compose-test` | render `docker-compose.yml` and check its hardening |
+
+Deploying it: [`docs/deploy.md`](docs/deploy.md).
 
 How the project is built — conventions, the test-first loop, one commit per task — is in
 [`docs/dev/README.md`](docs/dev/README.md). Start there.
@@ -65,6 +72,13 @@ pnpm test                         # all 19 suites: engine, regions, masks, prese
 - **Regions, not reassembly.** Masks and geometric segmentation are one idea: a map of cells and classes, each
   class free to freeze, turn, re-key or re-cut. One pass, one buffer, no seams.
 - **Everything runs on your device.** The server serves files and stores results; it never touches pixels.
+
+## Security
+
+Sorting happens in your browser; the server never touches pixels. The service makes outside calls, but only to its own
+Cloudflare Worker, carrying only what you explicitly share or fetch. It never contacts the image registry (a small
+watcher on the host does, and the app cannot name an image). There are no accounts: access is your tailnet. "Unlisted"
+share links are not private. The container runs read-only, as a non-root user, with every capability dropped.
 
 ## Credits
 

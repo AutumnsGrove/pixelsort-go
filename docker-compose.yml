@@ -1,0 +1,21 @@
+# The production service. Lives at the repo root so Meridian's compose actions find it.
+# The image is pinned by digest: the host-side watcher (deploy/watcher) rewrites PIXELSORT_IMAGE_DIGEST in .env on an
+# update, and puts the old one back if the new one does not become healthy.
+services:
+  pixelsort:
+    image: ghcr.io/autumnsgrove/pixelsort@${PIXELSORT_IMAGE_DIGEST:?set by the updater}
+    # restart: always, and never signal-reload with `docker kill` (PLAN.md section 7).
+    restart: always
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    # Run as the deploy user's uid and gid, not the image's 65532: the host-side watcher and the backup script must be
+    # able to read and write ./data (restoring a snapshot, copying it for backup). install.sh writes these into .env.
+    user: "${PIXELSORT_UID:-1000}:${PIXELSORT_GID:-1000}"
+    ports:
+      - "127.0.0.1:${PIXELSORT_PORT:-8895}:8895"
+    volumes:
+      - ./data:/data
+      - ./update-signal:/data/update-signal
+    env_file: .env

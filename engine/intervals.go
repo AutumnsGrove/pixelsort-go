@@ -11,6 +11,10 @@ func (pl *Plan) cutSegments(dst [][2]int, line, lineStart, r0, r1 int, cp Params
 		return cutWave(dst, lineStart, r0, r1, line, cp, mean, pl.W, rng)
 	case ModeEdges:
 		return cutEdges(dst, pl.Lines.P, r0, r1, edges, cp.Edge)
+	case ModeCA:
+		return cutRising(dst, pl.Lines.P, r0, r1, pl.ca.mask(cp))
+	case ModeCAEdges:
+		return cutEdges(dst, pl.Lines.P, r0, r1, pl.ca.edgeMap(cp), cp.Edge)
 	default: // ModeNone, ModeThreshold: the run between two frozen pixels is the interval (decision E7)
 		return append(dst, [2]int{r0, r1})
 	}
@@ -60,6 +64,19 @@ func cutEdges(dst [][2]int, line []int32, r0, r1 int, edges []uint8, limit int) 
 	c := r0
 	for u := r0 + 1; u < r1; u++ {
 		if int(edges[line[u]]) > limit && int(edges[line[u-1]]) <= limit {
+			dst = append(dst, [2]int{c, u})
+			c = u
+		}
+	}
+	return append(dst, [2]int{c, r1})
+}
+
+// cutRising cuts before each pixel where the CA mask turns on, so the pixel that turns it on starts the new
+// interval and takes part in it: a cut, not a freeze (PLAN.md 3.3).
+func cutRising(dst [][2]int, line []int32, r0, r1 int, mask []uint8) [][2]int {
+	c := r0
+	for u := r0 + 1; u < r1; u++ {
+		if mask[line[u]] != 0 && mask[line[u-1]] == 0 {
 			dst = append(dst, [2]int{c, u})
 			c = u
 		}

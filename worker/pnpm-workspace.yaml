@@ -1,0 +1,8 @@
+# Which dependencies may run install scripts: workerd and esbuild download their native binaries.
+# (allowBuilds is pnpm 11+; onlyBuiltDependencies is the same thing for pnpm 10.)
+allowBuilds:
+  esbuild: true
+  workerd: true
+onlyBuiltDependencies:
+  - esbuild
+  - workerd

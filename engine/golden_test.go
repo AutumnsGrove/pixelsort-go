@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"encoding/json"
 	"image"
 	"image/png"
 	"os"
@@ -28,6 +29,7 @@ func goldenRecipes() []goldenCase {
 	}
 	hue := engine.KeyHue
 	steep := 100
+	caMode, rule54, angle60 := engine.ModeCA, 54, 60
 	checker := testutil.GridCells(97, 61, 16)
 	classOf := testutil.ClassPattern(maxCells(checker), "checker", 1)
 	return []goldenCase{
@@ -45,6 +47,20 @@ func goldenRecipes() []goldenCase {
 				Defs: []engine.ClassDef{{}, {Frozen: true}, {Angle: &steep, Key: &hue}},
 			}},
 		},
+		{name: "ca-110-image", w: 97, h: 61, params: with(func(p *engine.Params) { p.Mode, p.Rule, p.Seed = engine.ModeCA, 110, 11 })},
+		{name: "ca-30-line", w: 97, h: 61, params: with(func(p *engine.Params) {
+			p.Mode, p.Rule, p.CASpace, p.Angle, p.Seed = engine.ModeCA, 30, engine.CASpaceLine, 37, 12
+		})},
+		{name: "ca-edges-90-wrap", w: 61, h: 97, params: with(func(p *engine.Params) {
+			p.Mode, p.Rule, p.CABoundary, p.Angle, p.Edge, p.Seed = engine.ModeCAEdges, 90, engine.CABoundaryWrap, 90, 0, 13
+		})},
+		{
+			name: "ca-54-regions", w: 97, h: 61, params: with(func(p *engine.Params) { p.Seed = 14 }),
+			options: &engine.Options{Regions: &engine.Regions{
+				Labels: checker, ClassOf: classOf,
+				Defs: []engine.ClassDef{{}, {Frozen: true}, {Mode: &caMode, Rule: &rule54, Angle: &angle60}},
+			}},
+		},
 		{name: "tiny-1x40", w: 1, h: 40, params: with(func(p *engine.Params) { p.Seed = 9 })},
 		{name: "tiny-40x1", w: 40, h: 1, params: with(func(p *engine.Params) { p.Seed = 10 })},
 	}
@@ -53,6 +69,9 @@ func goldenRecipes() []goldenCase {
 // TestGolden pins the engine's exact output. A changed hash is a behaviour change: bump EngineVersion in the same
 // commit and say why, or find the bug. The same files are checked on arm64, amd64 and (from phase 2) WASM.
 func TestGolden(t *testing.T) {
+	if testutil.Updating() {
+		writeRecipes(t)
+	}
 	for _, tc := range goldenRecipes() {
 		t.Run(tc.name, func(t *testing.T) {
 			im := testutil.Gradient(tc.w, tc.h, 3)
@@ -79,7 +98,7 @@ func TestGoldenCoversEveryMode(t *testing.T) {
 			regions = true
 		}
 	}
-	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeNone} {
+	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeCA, engine.ModeCAEdges, engine.ModeNone} {
 		if !seen[mode] {
 			t.Errorf("no golden uses mode %q", mode)
 		}
@@ -111,5 +130,50 @@ func writePNG(t *testing.T, name string, im *engine.Image) {
 	}()
 	if err := png.Encode(f, nrgba); err != nil {
 		t.Fatalf("preview: %v", err)
+	}
+}
+
+// recipeFile is one entry of recipes.json: enough for another program (the WASM check in Node) to rebuild the
+// input and the recipe and compare its output hash with the golden.
+type recipeFile struct {
+	Name         string         `json:"name"`
+	W            int            `json:"w"`
+	H            int            `json:"h"`
+	GradientSeed uint32         `json:"gradientSeed"`
+	Params       engine.Params  `json:"params"`
+	Regions      *recipeRegions `json:"regions,omitempty"`
+	SHA256       string         `json:"sha256"`
+}
+
+// recipeRegions describes the checker grid used by the region golden; the JS side rebuilds it with the same
+// integer formulas as testutil.GridCells and testutil.ClassPattern("checker").
+type recipeRegions struct {
+	CellSize int               `json:"cellSize"`
+	Pattern  string            `json:"pattern"`
+	Defs     []engine.ClassDef `json:"defs"`
+}
+
+// writeRecipes regenerates testdata/golden/recipes.json from the table above. It runs only with -update.
+func writeRecipes(t *testing.T) {
+	t.Helper()
+	var out []recipeFile
+	for _, tc := range goldenRecipes() {
+		raw, err := os.ReadFile(filepath.Join("testdata", "golden", tc.name+".sha256"))
+		sum := ""
+		if err == nil {
+			sum = string(raw[:len(raw)-1])
+		}
+		rf := recipeFile{Name: tc.name, W: tc.w, H: tc.h, GradientSeed: 3, Params: tc.params, SHA256: sum}
+		if tc.options != nil && tc.options.Regions != nil {
+			rf.Regions = &recipeRegions{CellSize: 16, Pattern: "checker", Defs: tc.options.Regions.Defs}
+		}
+		out = append(out, rf)
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		t.Fatalf("recipes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join("testdata", "golden", "recipes.json"), append(data, '\n'), 0o600); err != nil {
+		t.Fatalf("recipes: %v", err)
 	}
 }

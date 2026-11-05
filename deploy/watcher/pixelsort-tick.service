@@ -1,0 +1,10 @@
+[Unit]
+Description=Pixelsort watcher heartbeat
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@CHECKOUT@
+Environment=PIXELSORT_DIR=@CHECKOUT@
+# Refreshes the heartbeat and acts only if a signal file exists; it never updates on its own.
+ExecStart=@CHECKOUT@/deploy/watcher/update.sh --tick

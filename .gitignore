@@ -25,3 +25,6 @@ node_modules/
 
 # Gallery data lives on disk, not in the repo
 data/
+test-results/
+playwright-report/
+server/spa/build/

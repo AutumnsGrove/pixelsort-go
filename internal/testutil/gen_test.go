@@ -75,15 +75,6 @@ func TestProp_ParamsGenValidates(t *testing.T) {
 	})
 }
 
-func TestParamsGenNoCANeverDrawsCA(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		p := testutil.ParamsGenNoCA().Draw(t, "params")
-		if p.Mode == engine.ModeCA || p.Mode == engine.ModeCAEdges {
-			t.Fatalf("ParamsGenNoCA drew %q", p.Mode)
-		}
-	})
-}
-
 func TestProp_RegionsGenValidates(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		w := rapid.IntRange(1, 30).Draw(t, "w")

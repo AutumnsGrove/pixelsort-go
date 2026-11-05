@@ -1,0 +1,12 @@
+[Unit]
+Description=Pixelsort update watcher (one run)
+# Meridian's "update" action starts this unit by name, with no signal file: that means "update to the newest".
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@CHECKOUT@
+Environment=PIXELSORT_DIR=@CHECKOUT@
+ExecStart=@CHECKOUT@/deploy/watcher/update.sh
+# The script holds its own lock; a second start while one runs exits quietly.
+TimeoutStartSec=15min

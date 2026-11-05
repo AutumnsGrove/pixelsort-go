@@ -40,121 +40,121 @@ File: [`phase-1.md`](phase-1.md)
 
 File: [`phase-2.md`](phase-2.md)
 
-- [ ] P2-T01 The session API (pure Go)
-- [ ] P2-T02 The WASM binding
-- [ ] P2-T03 The web app scaffold
-- [ ] P2-T04 Worker, protocol and client
-- [ ] P2-T05 The lab page
-- [ ] P2-T06 Measure: zero-copy or copy, and what a pass costs
-- [ ] P2-T07 WASM equals native
-- [ ] P2-T08 Browser smoke test and CI
-- [ ] P2-T09 Phase wrap-up
+- [x] P2-T01 The session API (pure Go)
+- [x] P2-T02 The WASM binding
+- [x] P2-T03 The web app scaffold
+- [x] P2-T04 Worker, protocol and client
+- [x] P2-T05 The lab page
+- [x] P2-T06 Measure: zero-copy or copy, and what a pass costs
+- [x] P2-T07 WASM equals native
+- [x] P2-T08 Browser smoke test and CI
+- [x] P2-T09 Phase wrap-up
 
 ## Phase 3: watch the sort happen
 
 File: [`phase-3.md`](phase-3.md)
 
-- [ ] P3-T01 Stepper skeleton and odd-even transposition
-- [ ] P3-T02 Insertion
-- [ ] P3-T03 Bottom-up merge
-- [ ] P3-T04 Reveal
-- [ ] P3-T05 Mixed algorithms and progress
-- [ ] P3-T06 Soft blend while stepping
-- [ ] P3-T07 Session API: step, progress, reset
-- [ ] P3-T08 Animate in the worker and the lab
-- [ ] P3-T09 Measure the pass cost
-- [ ] P3-T10 Phase wrap-up
+- [x] P3-T01 Stepper skeleton and odd-even transposition
+- [x] P3-T02 Insertion
+- [x] P3-T03 Bottom-up merge
+- [x] P3-T04 Reveal
+- [x] P3-T05 Mixed algorithms and progress
+- [x] P3-T06 Soft blend while stepping
+- [x] P3-T07 Session API: step, progress, reset
+- [x] P3-T08 Animate in the worker and the lab
+- [x] P3-T09 Measure the pass cost
+- [x] P3-T10 Phase wrap-up
 
 ## Phase 4: cellular-automaton intervals
 
 File: [`phase-4.md`](phase-4.md)
 
-- [ ] P4-T01 The automaton
-- [ ] P4-T02 The two interval modes
-- [ ] P4-T03 Line space
-- [ ] P4-T04 Rule catalogue
-- [ ] P4-T05 Goldens, benchmarks, WASM
-- [ ] P4-T06 Phase wrap-up
+- [x] P4-T01 The automaton
+- [x] P4-T02 The two interval modes
+- [x] P4-T03 Line space
+- [x] P4-T04 Rule catalogue
+- [x] P4-T05 Goldens, benchmarks, WASM
+- [x] P4-T06 Phase wrap-up
 
 ## Phase 5: the real UI
 
 File: [`phase-5.md`](phase-5.md)
 
-- [ ] P5-T01 Design tokens, fonts, icons, app shell
-- [ ] P5-T02 Settings, storage and the pure settings module
-- [ ] P5-T03 The engine store and the preview pipeline
-- [ ] P5-T04 Port presets
-- [ ] P5-T05 Port export model
-- [ ] P5-T06 Port states
-- [ ] P5-T07 Port errors
-- [ ] P5-T08 Port naming
-- [ ] P5-T09 Port runs data and virtual list
-- [ ] P5-T10 Port help data
-- [ ] P5-T11 Port updater model
-- [ ] P5-T12 Stage, dock and popovers
-- [ ] P5-T13 The angle dial
-- [ ] P5-T14 Intake, working copy, compare, "what can move"
-- [ ] P5-T15 Help: shortcuts and the first-run tour
-- [ ] P5-T16 Naming in Studio
-- [ ] P5-T17 Runs strip (filmstrip)
-- [ ] P5-T18 Export dialog and the error surfaces
-- [ ] P5-T19 Settings page and Updates block
-- [ ] P5-T20 Phone Studio
-- [ ] P5-T21 Archive screen
-- [ ] P5-T22 Pro panel shell, histogram, rule browser
-- [ ] P5-T23 Layout scan, accessibility pass, and the acceptance table
-- [ ] P5-T24 Phase wrap-up
+- [x] P5-T01 Design tokens, fonts, icons, app shell
+- [x] P5-T02 Settings, storage and the pure settings module
+- [x] P5-T03 The engine store and the preview pipeline
+- [x] P5-T04 Port presets
+- [x] P5-T05 Port export model
+- [x] P5-T06 Port states
+- [x] P5-T07 Port errors
+- [x] P5-T08 Port naming
+- [x] P5-T09 Port runs data and virtual list
+- [x] P5-T10 Port help data
+- [x] P5-T11 Port updater model
+- [x] P5-T12 Stage, dock and popovers
+- [x] P5-T13 The angle dial
+- [x] P5-T14 Intake, working copy, compare, "what can move"
+- [x] P5-T15 Help: shortcuts and the first-run tour
+- [x] P5-T16 Naming in Studio
+- [x] P5-T17 Runs strip (filmstrip)
+- [x] P5-T18 Export dialog and the error surfaces
+- [x] P5-T19 Settings page and Updates block
+- [x] P5-T20 Phone Studio
+- [x] P5-T21 Archive screen
+- [x] P5-T22 Pro panel shell, histogram, rule browser
+- [x] P5-T23 Layout scan, accessibility pass, and the acceptance table
+- [x] P5-T24 Phase wrap-up
 
 ## Phase 6: the gallery server
 
 File: [`phase-6.md`](phase-6.md)
 
-- [ ] P6-T01 Config
-- [ ] P6-T02 Database and migrations
-- [ ] P6-T03 Blob store
-- [ ] P6-T04 HTTP foundations
-- [ ] P6-T05 Create a run
-- [ ] P6-T06 Read, list, update
-- [ ] P6-T07 Trash, restore, empty
-- [ ] P6-T08 Usage
-- [ ] P6-T09 Presets, settings, shapes
-- [ ] P6-T10 Serving images
-- [ ] P6-T11 Health, version, SPA, security headers
-- [ ] P6-T12 Wire it together: app and `serve`
-- [ ] P6-T13 `docs/api.md`
-- [ ] P6-T14 The web `ServerBackend` and auto-save
-- [ ] P6-T15 Phase wrap-up
+- [x] P6-T01 Config
+- [x] P6-T02 Database and migrations
+- [x] P6-T03 Blob store
+- [x] P6-T04 HTTP foundations
+- [x] P6-T05 Create a run
+- [x] P6-T06 Read, list, update
+- [x] P6-T07 Trash, restore, empty
+- [x] P6-T08 Usage
+- [x] P6-T09 Presets, settings, shapes
+- [x] P6-T10 Serving images
+- [x] P6-T11 Health, version, SPA, security headers
+- [x] P6-T12 Wire it together: app and `serve`
+- [x] P6-T13 `docs/api.md`
+- [x] P6-T14 The web `ServerBackend` and auto-save
+- [x] P6-T15 Phase wrap-up
 
 ## Phase 6b: the Cloudflare Worker (share links and URL loading)
 
 File: [`phase-6b.md`](phase-6b.md)
 
-- [ ] P6B-T01 Worker scaffold
-- [ ] P6B-T02 Request signing (both languages)
-- [ ] P6B-T03 Album upload and revoke
-- [ ] P6B-T04 The public viewer and file routes
-- [ ] P6B-T05 Scheduled expiry sweep
-- [ ] P6B-T06 URL loading relay
-- [ ] P6B-T07 The potato side: client, tables, API
-- [ ] P6B-T08 Web: share dialog, Albums, URL loading
+- [x] P6B-T01 Worker scaffold
+- [x] P6B-T02 Request signing (both languages)
+- [x] P6B-T03 Album upload and revoke
+- [x] P6B-T04 The public viewer and file routes
+- [x] P6B-T05 Scheduled expiry sweep
+- [x] P6B-T06 URL loading relay
+- [x] P6B-T07 The potato side: client, tables, API
+- [x] P6B-T08 Web: share dialog, Albums, URL loading
 - [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
-- [ ] P6B-T10 Phase wrap-up
+- [x] P6B-T10 Phase wrap-up
 
 ## Phase 7: regions, masks and custom shapes
 
 File: [`phase-7.md`](phase-7.md)
 
-- [ ] P7-T01 Tessellation core: square, diamond, circle, octagon
-- [ ] P7-T02 Hexagon, triangle, Voronoi
-- [ ] P7-T03 Custom polygons with holes
-- [ ] P7-T04 Classes and patterns
-- [ ] P7-T05 Region properties and goldens
-- [ ] P7-T06 Masks: objects, strokes, invert, brightest spot
-- [ ] P7-T07 Session API and WASM for regions
+- [x] P7-T01 Tessellation core: square, diamond, circle, octagon
+- [x] P7-T02 Hexagon, triangle, Voronoi
+- [x] P7-T03 Custom polygons with holes
+- [x] P7-T04 Classes and patterns
+- [x] P7-T05 Region properties and goldens
+- [x] P7-T06 Masks: objects, strokes, invert, brightest spot
+- [x] P7-T07 Session API and WASM for regions
 - [ ] P7-T08 TypeScript geometry modules
-- [ ] P7-T09 Pro panel: Regions
+- [x] P7-T09 Pro panel: Regions
 - [ ] P7-T10 Region cards
-- [ ] P7-T11 Protect: brush, objects, feather
+- [x] P7-T11 Protect: brush, objects, feather
 - [ ] P7-T12 Shape library
 - [ ] P7-T13 Phone: Protect and Shapes tabs
 - [ ] P7-T14 Acceptance and wrap-up
@@ -163,19 +163,19 @@ File: [`phase-7.md`](phase-7.md)
 
 File: [`phase-8.md`](phase-8.md)
 
-- [ ] P8-T01 `snapshot`, `healthcheck` and `starred-list` subcommands
-- [ ] P8-T02 Dockerfile
-- [ ] P8-T03 Compose and environment
-- [ ] P8-T04 CI: publish the image
-- [ ] P8-T05 Update endpoints in the server
-- [ ] P8-T06 The real update client in the web app, and the stale-tab banner
-- [ ] P8-T07 The watcher
-- [ ] P8-T08 Meridian snippets
-- [ ] P8-T09 Backups
-- [ ] P8-T10 Deployment docs
+- [x] P8-T01 `snapshot`, `healthcheck` and `starred-list` subcommands
+- [x] P8-T02 Dockerfile
+- [x] P8-T03 Compose and environment
+- [x] P8-T04 CI: publish the image
+- [x] P8-T05 Update endpoints in the server
+- [x] P8-T06 The real update client in the web app, and the stale-tab banner
+- [x] P8-T07 The watcher
+- [x] P8-T08 Meridian snippets
+- [x] P8-T09 Backups
+- [x] P8-T10 Deployment docs
 - [ ] P8-T11 [HUMAN] First deploy
 - [ ] P8-T12 [HUMAN] Homelab documentation
-- [ ] P8-T13 Phase wrap-up
+- [x] P8-T13 Phase wrap-up
 
 ## Phase 9: polish and stretch
 
