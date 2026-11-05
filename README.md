@@ -86,7 +86,9 @@ share links are not private. The container runs read-only, as a non-root user, w
 The technique descends from [satyarth/pixelsort](https://github.com/satyarth/pixelsort) (MIT) and, before it,
 Kim Asendorf's *ASDF Pixel Sort* Processing script. Icons will use [Lucide](https://lucide.dev). Mockup type is
 [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif) and
-[DM Mono](https://fonts.google.com/specimen/DM+Mono).
+[DM Mono](https://fonts.google.com/specimen/DM+Mono). Studio's first-run sample is an aerial forest
+photograph from [Unsplash](https://unsplash.com) (<https://images.unsplash.com/photo-1793556119647-46da040a5a4c>),
+used under the Unsplash License.
 
 ## License
 

@@ -57,6 +57,19 @@ export function sampleImage(w = 960, h = 600): { w: number; h: number; rgba: Uin
 	return { w, h, rgba: g.getImageData(0, 0, w, h).data };
 }
 
+/** The bundled first-run photo. Falls back to the procedural sample if it cannot be fetched. */
+export async function defaultImage(
+	longEdge: number = defaultLongEdge()
+): Promise<{ w: number; h: number; rgba: Uint8ClampedArray }> {
+	try {
+		const res = await fetch('/samples/forest.jpg');
+		if (!res.ok) throw new Error(`sample: ${res.status}`);
+		return await decodeFile(await res.blob(), longEdge);
+	} catch {
+		return sampleImage();
+	}
+}
+
 class Studio {
 	params = $state<Params>({ ...defaultParams, algo: 'oddeven', mode: 'random', length: 83, randomness: 10 });
 	size = $state<{ w: number; h: number } | null>(null);

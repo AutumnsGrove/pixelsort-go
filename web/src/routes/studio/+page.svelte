@@ -12,7 +12,7 @@
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
-	import { studio, sampleImage } from '#lib/studio.svelte';
+	import { studio, defaultImage } from '#lib/studio.svelte';
 	import { BUILTIN, chips, rolls } from '#lib/presets';
 	import { keys, modes, algos } from '#lib/engine/params';
 	import { describe } from '#lib/errors';
@@ -57,7 +57,7 @@
 
 	onMount(() => {
 		studio.onFrame = paint;
-		void studio.load(sampleImage());
+		void defaultImage().then((img) => void studio.load(img));
 	});
 	onDestroy(() => {
 		studio.onFrame = null;

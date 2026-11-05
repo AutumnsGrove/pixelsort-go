@@ -63,6 +63,15 @@ on R2) and P8-T12 (the homelab docs are pushed).
 - **Ticked:** `P0-T09`, `P6B-T09` and `P8-T12`. `P8-T11` stays open until the update and rollback have
   both been exercised.
 
+## 2026-11-05 · Home screen and the first-run sample
+
+The root `/` was leftover scaffold ("pixelsort-go / Open the lab") and was invisible in practice: its content was
+unpositioned while `.glow` is a fixed `z-index: 0` layer painted above it. `/` is now a real home screen (hero,
+**Open Studio**, Archive and Settings cards, responsive) using the same top bar and tokens. The Studio sample is now
+a real photograph (`web/static/samples/forest.jpg`, Unsplash) fetched and decoded at the working size; the old
+procedural image stays as the fallback when the fetch fails. The `Load from a link` button already existed in the
+dock and works now that the Worker is configured (no issue needed).
+
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 
 The desktop steps are written out command by command in `DESKTOP-HANDOFF.md` at the repository root (it deletes itself when you are done).
