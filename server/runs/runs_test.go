@@ -364,6 +364,36 @@ func TestTrashStarredNeedsConfirm(t *testing.T) {
 	}
 }
 
+func TestEmptyDetachesRunsFromShares(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	r := e.create(t, spec{orig: 1, res: 2, thumb: 3, seed: 1})
+	if _, err := e.svc.DB.ExecContext(ctx, `INSERT INTO shares (share_id, created_at, expires_at, include_recipe, include_original, title, revoked_at) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaa', 1, NULL, 1, 0, NULL, NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.DB.ExecContext(ctx, `INSERT INTO share_items (share_id, run_id, position) VALUES (1, ?, 0)`, r.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Trash(ctx, []int64{r.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	// Without detaching share_items first, the FOREIGN KEY on share_items.run_id fails the delete.
+	n, err := e.svc.EmptyTrash(ctx)
+	if err != nil || n != 1 {
+		t.Fatalf("empty with a shared run: %d %v", n, err)
+	}
+	if _, err := e.svc.Get(ctx, r.ID); !errors.Is(err, runs.ErrNotFound) {
+		t.Fatalf("run should be gone: %v", err)
+	}
+	var items, shares int
+	if err := e.svc.DB.QueryRowContext(ctx, `SELECT COUNT(*), (SELECT COUNT(*) FROM shares) FROM share_items`).Scan(&items, &shares); err != nil {
+		t.Fatal(err)
+	}
+	if items != 0 || shares != 1 {
+		t.Fatalf("items detached and the share kept: items=%d shares=%d", items, shares)
+	}
+}
+
 func TestEmptyReparentsChildrenAndKeepsSharedImages(t *testing.T) {
 	e := newEnv(t)
 	grand := e.create(t, spec{orig: 1, res: 2, thumb: 3, seed: 1})
