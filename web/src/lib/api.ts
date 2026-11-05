@@ -19,6 +19,8 @@ export type ApiRun = {
 	notes: string | null;
 	trashed_at: number | null;
 	tags: string[];
+	/** only on GET /api/runs/{id}: a live share contains this run */
+	shared?: boolean;
 };
 export type Usage = { used_bytes: number; budget_bytes: number; trash_bytes: number; runs: number; trash_runs: number };
 

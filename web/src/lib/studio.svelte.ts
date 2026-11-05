@@ -8,6 +8,7 @@ import { engineErrorCode } from './errors';
 import { suggest } from './naming';
 import { Autosaver } from './autosave';
 import { ServerBackend } from './api';
+import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
 import { classCount, classDefsToEngine, defaultTiling, type ClassDefs, type MaskObject, type Tiling } from './regions';
 
@@ -163,6 +164,25 @@ class Studio {
 		}
 	}
 	errorName = $state('');
+
+	/** Loads a picture from a link: straight from the site, or through the server's relay. A failure becomes a catalog dialog. */
+	async loadUrl(url: string, features: Features): Promise<void> {
+		let parsed: URL;
+		try {
+			parsed = new URL(url.trim());
+			if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('scheme');
+		} catch {
+			this.errorCode = 'link-not-image';
+			return;
+		}
+		try {
+			const blob = await loadFromUrl(parsed.toString(), { relay: new ShareBackend(), features });
+			const name = decodeURIComponent(parsed.pathname.split('/').pop() ?? '') || 'link';
+			await this.loadFile(Object.assign(blob, { name }));
+		} catch (e) {
+			this.errorCode = e instanceof LinkError ? e.code : 'link-blocked';
+		}
+	}
 
 	private fail(e: unknown): void {
 		this.errorCode = engineErrorCode(e);

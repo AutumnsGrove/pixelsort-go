@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { makePng } from './png';
 
 const sha = (c: string) => c.repeat(64);
 const img = (c: string) => ({ sha256: sha(c), mime: 'image/png', w: 8, h: 8, bytes: 100 });
@@ -41,10 +42,7 @@ type Mock = { shares: object[]; posted: Buffer[]; revoked: string[] };
 async function mockServer(page: Page, opts: { features?: { share: boolean; fetch: boolean } } = {}): Promise<Mock> {
 	const m: Mock = { shares: [], posted: [], revoked: [] };
 	const jpeg = await jpegWithExif(page);
-	const png = Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGP4z8Dwn4GBgQEAAA8AAdyZ0W4AAAAASUVORK5CYII=',
-		'base64'
-	);
+	const png = makePng(1, 8);
 	await page.route('**/api/features', (r) => r.fulfill({ json: opts.features ?? { share: true, fetch: true } }));
 	await page.route('**/api/runs?**', (r) => r.fulfill({ json: { runs: [run], next_cursor: null } }));
 	await page.route('**/api/usage', (r) =>
@@ -141,4 +139,23 @@ test('a failed share says what is safe and offers to try again', async ({ page }
 	await page.getByRole('button', { name: 'Create link' }).click();
 	await expect(page.getByTestId('share-error')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create link' })).toBeEnabled();
+});
+
+test('binning a picture that is in a shared link warns first', async ({ page }) => {
+	await mockServer(page);
+	await page.route('**/api/runs/1', (r) => r.fulfill({ json: { ...run, shared: true } }));
+	let trashed = 0;
+	await page.route('**/api/runs/trash', (r) => {
+		trashed++;
+		return r.fulfill({ json: { trashed: [1] } });
+	});
+	await page.goto('/archive');
+	await page.getByRole('button', { name: 'Move Sunset ridge to the bin' }).click({ force: true });
+	await expect(page.getByTestId('trash-warn')).toContainText('The shared copy stays up until you revoke it');
+	expect(trashed).toBe(0);
+	await page.getByRole('button', { name: 'Keep it' }).click();
+	await expect(page.getByTestId('trash-warn')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Move Sunset ridge to the bin' }).click({ force: true });
+	await page.getByRole('button', { name: 'Move to the bin anyway' }).click();
+	await expect.poll(() => trashed).toBe(1);
 });

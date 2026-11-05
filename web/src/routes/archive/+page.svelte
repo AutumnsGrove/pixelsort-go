@@ -69,7 +69,14 @@
 		await api.patchRun(it.id, { starred: !it.starred });
 		await load();
 	}
-	async function trash(it: RunItem): Promise<void> {
+	let trashWarn = $state<RunItem | null>(null);
+	async function trash(it: RunItem, force = false): Promise<void> {
+		// a shared run can be binned, but the shared copy stays up until it is revoked: say so first
+		if (!force && features.share && (await api.getRun(it.id).catch(() => null))?.shared) {
+			trashWarn = it;
+			return;
+		}
+		trashWarn = null;
 		await api.trash([it.id], true);
 		await load();
 	}
@@ -191,6 +198,16 @@
 	{/each}
 </main>
 
+{#if trashWarn}
+	<div class="warn glass" role="alertdialog" aria-label="Shared picture" data-testid="trash-warn">
+		<p>
+			<b>“{trashWarn.name}” is in a shared link.</b> The shared copy stays up until you revoke it in Albums.
+		</p>
+		<button class="btn sm" type="button" onclick={() => (trashWarn = null)}>Keep it</button>
+		<button class="btn danger sm" type="button" onclick={() => trash(trashWarn!, true)}>Move to the bin anyway</button>
+	</div>
+{/if}
+
 {#if sharing}
 	<ShareDialog run={sharing} name={nameOf(sharing)} onclose={() => (sharing = null)} />
 {/if}
@@ -227,6 +244,23 @@
 	}
 	.search {
 		max-width: 260px;
+	}
+	.warn {
+		position: fixed;
+		left: 50%;
+		bottom: 24px;
+		transform: translateX(-50%);
+		z-index: 140;
+		padding: 12px 18px;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		flex-wrap: wrap;
+		font-size: 11.5px;
+		max-width: min(92vw, 640px);
+	}
+	.warn p {
+		margin: 0;
 	}
 	.empty {
 		padding: 60px 0;

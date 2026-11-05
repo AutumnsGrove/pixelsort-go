@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, SlidersHorizontal } from '@lucide/svelte';
+	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
 	import { overlayPixels } from '#lib/overlay';
@@ -23,6 +23,7 @@
 		type FormatId
 	} from '#lib/export-model';
 	import { settings } from '#lib/settings.svelte';
+	import { ShareBackend, type Features } from '#lib/share';
 
 	let canvas: HTMLCanvasElement | undefined = $state();
 	let overlay: HTMLCanvasElement | undefined = $state();
@@ -116,6 +117,16 @@
 		studio.customName = clean(nameDraft) || null;
 		renaming = false;
 	}
+	let features = $state<Features>({ share: false, fetch: false });
+	let linkOpen = $state(false);
+	let linkDraft = $state('');
+	onMount(() => void new ShareBackend().features().then((f) => (features = f)));
+	function submitLink(): void {
+		const url = linkDraft.trim();
+		if (!url) return;
+		linkOpen = false;
+		void studio.loadUrl(url, features);
+	}
 	function onDrop(e: DragEvent): void {
 		e.preventDefault();
 		const f = e.dataTransfer?.files[0];
@@ -177,7 +188,14 @@
 	ondrop={onDrop}
 	onpaste={(e) => {
 		const f = e.clipboardData?.files[0];
-		if (f) void studio.loadFile(f);
+		if (f) return void studio.loadFile(f);
+		const text = e.clipboardData?.getData('text')?.trim() ?? '';
+		// a pasted address loads the picture, unless you are typing into a field
+		if (
+			/^https?:\/\/\S+$/.test(text) &&
+			!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+		)
+			void studio.loadUrl(text, features);
 	}}
 />
 <svelte:head><title>Studio · pixelsort-go</title></svelte:head>
@@ -238,8 +256,10 @@
 							class:pri={a.primary}
 							type="button"
 							onclick={() => {
+								const wasLink = err?.code.startsWith('link-');
 								studio.errorCode = null;
 								if (a.id === 'choose') fileInput?.click();
+								if (a.id === 'retry' && wasLink) linkOpen = true;
 							}}>{a.label}</button
 						>
 					{/each}
@@ -485,6 +505,13 @@
 		<button class="round" type="button" onclick={() => fileInput?.click()} aria-label="New picture"
 			><ImagePlus size={17} /></button
 		>
+		<button
+			class="round"
+			type="button"
+			onclick={() => (linkOpen = true)}
+			aria-label="Load from a link"
+			data-testid="link-open"><Link2 size={17} /></button
+		>
 		<button class="round" type="button" onclick={() => (exportOpen = true)} aria-label="Export" data-testid="export"
 			><Download size={17} /></button
 		>
@@ -505,6 +532,38 @@
 		if (f) void studio.loadFile(f);
 	}}
 />
+
+{#if linkOpen}
+	<div class="er" role="dialog" aria-modal="true" aria-label="Load from a link">
+		<form
+			class="er-card glass"
+			onsubmit={(e) => {
+				e.preventDefault();
+				submitLink();
+			}}
+		>
+			<div class="eyebrow">Load from a link</div>
+			<h3>Paste a picture’s address</h3>
+			<input
+				class="field"
+				type="url"
+				placeholder="https://…"
+				bind:value={linkDraft}
+				aria-label="Picture address"
+				data-testid="link-input"
+			/>
+			<p class="sub">
+				{features.fetch
+					? 'If the site blocks your browser, your server fetches it for you.'
+					: 'The site has to allow it. Otherwise save the picture and drop the file here.'}
+			</p>
+			<div class="er-foot">
+				<button class="btn" type="button" onclick={() => (linkOpen = false)}>Cancel</button>
+				<button class="btn pri" type="submit">Load</button>
+			</div>
+		</form>
+	</div>
+{/if}
 
 {#if helpOpen}
 	<div class="er" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">

@@ -136,7 +136,7 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T05 Scheduled expiry sweep
 - [x] P6B-T06 URL loading relay
 - [x] P6B-T07 The potato side: client, tables, API
-- [ ] P6B-T08 Web: share dialog, Albums, URL loading (done except two small UI pieces: the studio "load from a link" box and the warning before trashing a shared run)
+- [x] P6B-T08 Web: share dialog, Albums, URL loading
 - [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
 - [ ] P6B-T10 Phase wrap-up
 

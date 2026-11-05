@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { makePng } from './png';
 
 const waitDone = (page: Page) => expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
 
@@ -114,4 +115,35 @@ test('Archive lists runs from the API, stars and trashes them', async ({ page })
 	await expect(page.getByRole('button', { name: /^Unstar/ })).toHaveCount(1);
 	await page.getByRole('button', { name: /bin$/ }).click({ force: true });
 	await expect(page.getByTestId('empty')).toContainText('Nothing sorted yet.');
+});
+
+test('load from a link: a CORS-blocked site goes through the relay; a page that is not a picture says so', async ({
+	page
+}) => {
+	const png = makePng(1, 8);
+	await page.route('**/api/features', (r) => r.fulfill({ json: { share: true, fetch: true } }));
+	// the site refuses a browser (no CORS headers)
+	await page.route('https://pics.example/**', (r) => r.abort('failed'));
+	let relayed = '';
+	await page.route('**/api/fetch', (r) => {
+		relayed = r.request().postDataJSON().url;
+		return relayed.endsWith('page.html')
+			? r.fulfill({ status: 415, json: { error: { code: 'link-not-image', message: 'x' } } })
+			: r.fulfill({ body: png, contentType: 'image/png' });
+	});
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+
+	await page.getByTestId('link-open').click();
+	await page.getByTestId('link-input').fill('https://pics.example/ridge.png');
+	await page.getByRole('button', { name: 'Load', exact: true }).click();
+	await expect(page.getByTestId('topread')).toContainText('8×8', { timeout: 20_000 }); // the relayed picture is now loaded
+	expect(relayed).toBe('https://pics.example/ridge.png');
+
+	await page.getByTestId('link-open').click();
+	await page.getByTestId('link-input').fill('https://pics.example/page.html');
+	await page.getByRole('button', { name: 'Load', exact: true }).click();
+	await expect(page.getByRole('alertdialog')).toContainText('That link isn’t a picture.');
+	await page.getByRole('button', { name: 'Try another link' }).click();
+	await expect(page.getByTestId('link-input')).toBeVisible();
 });
