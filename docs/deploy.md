@@ -36,6 +36,21 @@ A single Docker container (about 31 MB, distroless, read-only, no capabilities, 
 6. **you** — Front it with Tailscale: `tailscale serve --bg --https=443 http://127.0.0.1:8895` (adjust to your tailnet). Open the HTTPS address and, in the
    browser console, check `crossOriginIsolated` is `true`. If it is `false` the proxy is stripping the `Cross-Origin-*` headers: see PLAN.md phase 0 (P0-T09).
 
+## Cloudflare (the share Worker)
+
+`.github/workflows/deploy-worker.yml` tests and deploys `worker/` whenever it changes on `main`, or when you run it by hand from the Actions tab.
+It also creates the `pixelsort-share` R2 bucket if it is missing, sets the Worker's `SHARED_SECRET`, and smoke-tests the live URL
+(`GET /a/<id>` must be `404`, an unsigned `PUT` must be `401`). Once, in the GitHub repository settings:
+
+1. **Settings, Environments:** create one named `production`. Add yourself as a required reviewer if you want a click before each deploy.
+2. **Cloudflare, My Profile, API Tokens:** create a token with *Workers Scripts: Edit* and *Workers R2 Storage: Edit* for your account.
+3. **Secrets** (on the environment, or on the repository): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers overview page),
+   and `WORKER_SHARED_SECRET` (make one with `openssl rand -hex 32`).
+4. Put the **same** secret in the server's `.env` as `PIXELSORT_WORKER_SECRET`, and the Worker's URL (printed by the deploy run) as `PIXELSORT_WORKER_URL`.
+
+To rotate the secret: change `WORKER_SHARED_SECRET`, run the workflow by hand, then update `.env` and restart. The Worker itself is still being
+written (phase 6b): for now it is a skeleton that checks signatures, and the album routes come next.
+
 ## What updates, and what does not
 
 | | How it updates |

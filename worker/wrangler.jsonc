@@ -1,0 +1,9 @@
+{
+	"name": "pixelsort-share",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-01",
+	"r2_buckets": [{ "binding": "ALBUMS", "bucket_name": "pixelsort-share" }],
+	"triggers": { "crons": ["17 3 * * *"] },
+	"vars": { "MAX_FETCH_BYTES": "52428800" }
+	// SHARED_SECRET is a secret, set with `wrangler secret put SHARED_SECRET` (the deploy workflow does it from a GitHub secret).
+}

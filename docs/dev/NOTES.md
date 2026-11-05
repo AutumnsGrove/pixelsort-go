@@ -16,7 +16,8 @@ In the order to do them (docs/deploy.md has the commands):
 
 1. **P8-T11** · Push; let CI publish the first image; make the GHCR package public. Clone to `~/Pixelsort`, run `deploy/install.sh`, set the
    Worker URL/secret and backup remote in `.env`, pin a first digest, `docker compose up -d`, `tailscale serve`, check `crossOriginIsolated`.
-2. **P6B-T09** · Cloudflare account setup and Worker deploy (the Worker itself, phase 6b, is not written yet).
+2. **P6B-T09** · Cloudflare: create the `production` environment and the three secrets (docs/deploy.md, "Cloudflare"); the
+   `deploy-worker` workflow does the rest on the next push to `main`. The Worker so far is a skeleton plus request signing.
 3. **P8-T11 (rest)** · Apply the Meridian snippets (`deploy/meridian/`, the field names are inferred from `docs/update.md`: check them against a
    neighbouring entry), run the backup once, test an update from Settings, and deliberately publish a broken tag to watch the rollback.
 4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.

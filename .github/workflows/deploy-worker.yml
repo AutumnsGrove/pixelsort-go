@@ -1,0 +1,102 @@
+name: deploy-worker
+
+# Deploys the Cloudflare share Worker (worker/). It runs when the Worker changes on main, or by hand from the Actions tab.
+# One-time setup (Autumn): see "Cloudflare" in docs/deploy.md. The repository needs these secrets, ideally on a
+# GitHub Environment named "production" (add required reviewers there if you want a click before each deploy):
+#   CLOUDFLARE_API_TOKEN    an API token with "Workers Scripts: Edit" and "Workers R2 Storage: Edit"
+#   CLOUDFLARE_ACCOUNT_ID   the account id (Workers & Pages overview page)
+#   WORKER_SHARED_SECRET    the shared secret; the same value goes in the server's PIXELSORT_WORKER_SECRET
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/deploy-worker.yml']
+  workflow_dispatch:
+    inputs:
+      rotate_secret:
+        description: 'Push WORKER_SHARED_SECRET to the Worker even though the code did not change'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm --dir worker install --frozen-lockfile
+      - run: pnpm --dir worker check
+      - run: pnpm --dir worker test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm --dir worker install --frozen-lockfile
+
+      - name: Check the Cloudflare secrets are set
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_SHARED_SECRET: ${{ secrets.WORKER_SHARED_SECRET }}
+        run: |
+          missing=0
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID WORKER_SHARED_SECRET; do
+            if [ -z "${!v}" ]; then echo "::error::Repository secret $v is not set (docs/deploy.md, Cloudflare)"; missing=1; fi
+          done
+          exit $missing
+
+      # Creating a bucket that already exists is not an error worth stopping for.
+      - name: Make sure the R2 bucket exists
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          out=$(pnpm exec wrangler r2 bucket create pixelsort-share 2>&1) && echo "created the bucket" || {
+            case "$out" in
+              *"already exists"*) echo "bucket already exists" ;;
+              *) echo "$out"; exit 1 ;;
+            esac
+          }
+
+      - name: Deploy the Worker
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          packageManager: pnpm
+          secrets: |
+            SHARED_SECRET
+        env:
+          SHARED_SECRET: ${{ secrets.WORKER_SHARED_SECRET }}
+
+      # The Worker answers 404 for an album that does not exist and 401 for an unsigned write. If either is
+      # different, the deploy is not healthy, whatever wrangler said.
+      - name: Smoke test the live Worker
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          if [ -z "$URL" ]; then echo "::warning::wrangler did not report a URL; skipping the smoke test"; exit 0; fi
+          id=abcdefghijklmnopqrstuvwxyz
+          get=$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 3 --retry-all-errors "$URL/a/$id")
+          put=$(curl -s -o /dev/null -w '%{http_code}' -X PUT --data hello "$URL/api/albums/$id/images/0")
+          echo "GET /a/$id -> $get (want 404); unsigned PUT -> $put (want 401)"
+          [ "$get" = 404 ] && [ "$put" = 401 ]
