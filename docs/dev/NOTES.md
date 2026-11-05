@@ -61,9 +61,10 @@ One entry per choice the agent made when the spec was unclear (format in `AGENT.
   `sort` 32 ms; 8 MP 286 + 158 ms; 24 MP 823 + 535 ms. That is above PLAN.md's hoped-for ~15 ms pass at 2 MP for
   an instant sort, though the stepper (phase 3) is what the live preview runs, not this. Re-measure on your Mac.
   **Transfer strategy: copy** (view was not 20% faster at 8 MP; both give identical pixels). `/lab?transfer=view` re-tests.
-- **`golangci-lint` does not run in this container** (the installed binary is built with Go 1.25, `go.mod` says 1.27).
-  `make check`'s lint step is therefore unverified for everything written in the cloud session: `gofmt`, `go vet`
-  and all tests pass. Run `make check` locally and fix whatever the linter finds.
+- **The preinstalled `golangci-lint` in this container is built with Go 1.25** (`go.mod` says 1.27), so it refuses to run.
+  Update: building it with the project's toolchain works:
+  `GOTOOLCHAIN=go1.27.0 GOBIN=/tmp/gobin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`
+  (the version CI uses). With that, the whole tree lints clean; CI caught what it caught before I found this.
 - **`make wasm-test` fails in this container** with "total length of command line and environment variables exceeds
   limit" (the container's environment is huge); with a clean environment (`env -i ...`) it passes.
 - **SvelteKit is 3.x here** (not what the plan was written against): config lives in the `sveltekit()` plugin in
