@@ -80,7 +80,7 @@ pnpm exec wrangler deploy                          # prints the Worker's URL
 ```bash
 URL=https://<the printed url>
 curl -s -o /dev/null -w '%{http_code}\n' "$URL/a/AAAAAAAAAAAAAAAAAAAAAAAAAA"   # 26 characters: expect 404
-curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$URL/a/AAAAAAAAAAAAAAAAAAAAAAAAAA"   # unsigned PUT: expect 401
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$URL/api/albums/AAAAAAAAAAAAAAAAAAAAAAAAAA/images/0"   # unsigned PUT: expect 401
 ```
 
 **Record:** the URL (and the account and expiry decisions) in `NOTES.md`; tick `P6B-T09` in `PROGRESS.md`.

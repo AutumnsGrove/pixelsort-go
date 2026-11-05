@@ -23,6 +23,24 @@ In the order to do them (docs/deploy.md has the commands):
 4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
 5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
 
+## 2026-11-05 · Deploy results (desktop session)
+
+- **GHCR:** the first publish succeeded from `main`. `ghcr.io/autumnsgrove/pixelsort:latest` is public and
+  multi-arch; index digest `sha256:7f8d5fcf0e84d8dd0e3fe246c1d7a1d06113ca06991f2195650863c247b02daf`.
+- **Share Worker (P6B-T09):** deployed by hand with `wrangler deploy` (the GitHub secrets are still to be added).
+  URL `https://pixelsort-share.m7jv4v7npb.workers.dev`; R2 bucket `pixelsort-share` created; `SHARED_SECRET` set
+  from a 32-byte random value generated on Autumn's Mac and kept outside the repo. Smoke checks: `GET /a/<id>`
+  `404`, unsigned `PUT /api/albums/<id>/images/0` `401`.
+- **Doc fix:** the smoke-test command in `DESKTOP-HANDOFF.md` and the wording in `docs/deploy.md` used
+  `PUT /a/<id>`, which is the public GET-only viewer and answers `405`. The signed upload route is
+  `PUT /api/albums/<id>/images/0`. The deploy workflow already used the right route.
+- **Local checks:** `make check`, `make test`, `make wasm-test`, `make image-test` (amd64 and arm64), the web
+  typecheck/lint/261 tests, the worker typecheck/62 tests, `make e2e` (78) and `make e2e-worker` (3) all pass.
+  `make deploy-test` (7) and `make compose-test` fail on macOS only because the shell tests use GNU `stat -c`
+  and `sed -i` without a backup suffix; they pass on the Linux paths they target.
+- `make e2e` does not rebuild the WASM; a stale `web/static/engine.wasm` made 16 region/brush/shape tests fail
+  until `make wasm` was run. CI builds the WASM first, so this is a local-ergonomics gap only.
+
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 
 The desktop steps are written out command by command in `DESKTOP-HANDOFF.md` at the repository root (it deletes itself when you are done).
