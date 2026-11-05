@@ -43,3 +43,20 @@ export function overlayPixels(labels: Uint16Array, classOf: Uint8Array, w: numbe
 	}
 	return out;
 }
+
+/**
+ * The "what can move" overlay: pixels the recipe holds still get a dark veil, pixels that can move stay clear.
+ * `mask` is the engine's own answer (1 = can move), so this never re-derives any rule.
+ */
+export function holdPixels(mask: Uint8Array, w: number, h: number): Uint8ClampedArray {
+	const out = new Uint8ClampedArray(w * h * 4);
+	for (let i = 0; i < w * h; i++) {
+		if (mask[i]) continue;
+		const p = i * 4;
+		out[p] = 10;
+		out[p + 1] = 9;
+		out[p + 2] = 8;
+		out[p + 3] = 170;
+	}
+	return out;
+}

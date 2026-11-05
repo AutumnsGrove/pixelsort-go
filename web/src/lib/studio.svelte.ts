@@ -66,6 +66,22 @@ class Studio {
 	labels = $state<Uint16Array | null>(null);
 	classOf = $state<Uint8Array | null>(null);
 	showCells = $state(true);
+	/** Hold T: veil the pixels the recipe holds still. `movable` is the engine's mask, fetched when the key goes down. */
+	peeking = $state(false);
+	movable = $state<Uint8Array | null>(null);
+	async peek(on: boolean): Promise<void> {
+		if (!on) {
+			this.peeking = false;
+			return;
+		}
+		if (!this.client || !this.size) return;
+		try {
+			this.movable = await this.client.sortable();
+			this.peeking = true;
+		} catch {
+			this.peeking = false; // nothing to show yet; the sort itself reports real failures
+		}
+	}
 	maskObjects = $state<MaskObject[]>([]);
 	maskInvert = $state(false);
 	maskFeather = $state(0);

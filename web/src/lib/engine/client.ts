@@ -103,6 +103,13 @@ export class EngineClient {
 		return res.spot;
 	}
 
+	/** Which pixels the current recipe lets move: 1 where a pixel is in some interval, 0 where it is held. Asked of the engine, never worked out here. */
+	async sortable(): Promise<Uint8Array> {
+		const res = await this.send({ type: 'sortable' }, []);
+		if (!res.ok || !res.mask) throw new Error(res.ok ? 'no mask' : res.error);
+		return new Uint8Array(res.mask);
+	}
+
 	async setSoft(radius: number): Promise<void> {
 		await this.expectOk(this.send({ type: 'setSoft', radius }, []));
 	}

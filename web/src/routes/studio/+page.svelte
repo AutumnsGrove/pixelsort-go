@@ -3,7 +3,7 @@
 	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
-	import { overlayPixels } from '#lib/overlay';
+	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
 	import { studio, sampleImage } from '#lib/studio.svelte';
@@ -74,7 +74,13 @@
 		const g = c.getContext('2d');
 		if (!g) return;
 		g.clearRect(0, 0, size.w, size.h);
-		if (studio.labels && studio.classOf && studio.showCells && studio.labels.length === size.w * size.h) {
+		if (studio.peeking && studio.movable && studio.movable.length === size.w * size.h) {
+			g.putImageData(
+				new ImageData(holdPixels(studio.movable, size.w, size.h) as Uint8ClampedArray<ArrayBuffer>, size.w, size.h),
+				0,
+				0
+			);
+		} else if (studio.labels && studio.classOf && studio.showCells && studio.labels.length === size.w * size.h) {
 			g.putImageData(
 				new ImageData(
 					overlayPixels(studio.labels, studio.classOf, size.w, size.h) as Uint8ClampedArray<ArrayBuffer>,
@@ -99,6 +105,7 @@
 		else if (id === 'play') void studio.togglePlay();
 		else if (id === 'restart') void studio.restart();
 		else if (id === 'compare') studio.comparing = true;
+		else if (id === 'peek') void studio.peek(true);
 		else if (id === 'new') fileInput?.click();
 		else if (id === 'export') exportOpen = true;
 		else if (id === 'help') helpOpen = !helpOpen;
@@ -108,6 +115,7 @@
 	}
 	function onKeyUp(e: KeyboardEvent): void {
 		if (e.key.toLowerCase() === 'c') studio.comparing = false;
+		if (e.key.toLowerCase() === 't') void studio.peek(false);
 	}
 	function startRename(): void {
 		nameDraft = studio.name;

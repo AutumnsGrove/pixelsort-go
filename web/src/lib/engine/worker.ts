@@ -158,6 +158,14 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 				transfer: []
 			};
 		}
+		case 'sortable': {
+			const prep = api.prepare();
+			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
+			const r = api.sortable();
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			const mask = r.mask.slice().buffer; // a copy that can be transferred
+			return { res: { id: req.id, ok: true, mask }, transfer: [mask] };
+		}
 		case 'configure':
 			return { res: done(api.configure(req.json)), transfer: [] };
 		case 'animate': {

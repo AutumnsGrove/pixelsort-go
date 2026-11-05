@@ -15,6 +15,7 @@ export type Request =
 	| { id: number; type: 'setTiling'; specJson: string | null; defsJson: string | null } // answers with labels + classOf
 	| { id: number; type: 'setMaskSpec'; specJson: string | null }
 	| { id: number; type: 'brightestSpot' }
+	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
 	| { id: number; type: 'animate'; speed: Speed } // prepare, reset and start streaming frames
@@ -34,6 +35,7 @@ export type Response =
 			labels?: ArrayBuffer; // Uint16Array region label per pixel (setTiling)
 			classOf?: ArrayBuffer; // Uint8Array class per cell id (setTiling)
 			spot?: { cx: number; cy: number; w: number; h: number };
+			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable)
 	  }
 	| { id: number; ok: false; error: string };
 

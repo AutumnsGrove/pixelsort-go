@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { classColor, overlayPixels } from './overlay';
+import { classColor, holdPixels, overlayPixels } from './overlay';
 
 test('edges between labels are outlined; cell interiors are tinted by class; gaps stay clear', () => {
 	// 4x1: gap, cell 1 (class 2), cell 1, cell 2 (class 1)
@@ -19,4 +19,12 @@ test('size and unknown classes never throw', () => {
 	expect(px).toHaveLength(24);
 	expect(classColor(99)).toEqual(classColor(0));
 	expect(() => overlayPixels(new Uint16Array([5, 5]), new Uint8Array(0), 2, 1)).not.toThrow();
+});
+
+test('what can move: held pixels are veiled, movable pixels stay clear', () => {
+	const mask = new Uint8Array([1, 0, 0, 1]);
+	const px = holdPixels(mask, 2, 2);
+	const alpha = (i: number) => px[i * 4 + 3];
+	expect([alpha(0), alpha(1), alpha(2), alpha(3)]).toEqual([0, 170, 170, 0]);
+	expect(holdPixels(new Uint8Array(0), 0, 0)).toHaveLength(0);
 });
