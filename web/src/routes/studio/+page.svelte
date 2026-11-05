@@ -4,6 +4,8 @@
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
+	import Tour from '#components/Tour';
+	import { seen as touredBefore } from '#lib/tour';
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
@@ -130,8 +132,13 @@
 	let features = $state<Features>({ share: false, fetch: false });
 	let linkOpen = $state(false);
 	let stripOpen = $state(false);
+	let tourOpen = $state(false);
 	let linkDraft = $state('');
-	onMount(() => void new ShareBackend().features().then((f) => (features = f)));
+	onMount(() => {
+		void new ShareBackend().features().then((f) => (features = f));
+		// first run, or "Take the tour" in Settings (?tour)
+		if (!touredBefore() || new URLSearchParams(location.search).has('tour')) tourOpen = true;
+	});
 	function submitLink(): void {
 		const url = linkDraft.trim();
 		if (!url) return;
@@ -543,6 +550,10 @@
 		if (f) void studio.loadFile(f);
 	}}
 />
+
+{#if tourOpen}
+	<Tour ondone={() => (tourOpen = false)} />
+{/if}
 
 {#if stripOpen}
 	<Strip onopen={(r) => void studio.openRun(r)} />

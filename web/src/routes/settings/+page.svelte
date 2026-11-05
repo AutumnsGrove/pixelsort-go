@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import TopBar from '#components/TopBar';
 	import UpdatesBlock from '#components/UpdatesBlock';
 	import { settings, updateSettings, resetSettings } from '#lib/settings.svelte';
@@ -83,6 +84,12 @@
 				oninput={(e) => updateSettings({ speed: Number(e.currentTarget.value) })}
 			/></label
 		>
+	</section>
+	<section class="glass card">
+		<h3>Tour</h3>
+		<p class="sub">A short walk around Studio.</p>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() base plus a query string -->
+		<a class="btn" href={resolve('/studio') + '?tour'} data-testid="take-tour">Take the tour</a>
 	</section>
 	<UpdatesBlock />
 	<button class="btn" type="button" onclick={resetSettings}>Reset to defaults</button>
