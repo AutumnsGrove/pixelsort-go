@@ -103,7 +103,7 @@ File: [`phase-5.md`](phase-5.md)
 - [x] P5-T21 Archive screen
 - [x] P5-T22 Pro panel shell, histogram, rule browser
 - [x] P5-T23 Layout scan, accessibility pass, and the acceptance table
-- [ ] P5-T24 Phase wrap-up
+- [x] P5-T24 Phase wrap-up
 
 ## Phase 6: the gallery server
 
