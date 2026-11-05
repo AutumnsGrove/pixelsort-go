@@ -14,6 +14,12 @@ interface PixelsortApi {
 	setImage(rgba: Uint8Array | Uint8ClampedArray): GoResult;
 	setRegions(labels: Uint16Array | null, classOf: Uint8Array | null, defsJson: string | null): GoResult;
 	setMask(mask: Uint8Array | null): GoResult;
+	setTiling(specJson: string | null, defsJson?: string | null): GoResult;
+	setMaskSpec(specJson: string | null): GoResult;
+	labelsPtr(): GoResult<{ ptr: number; len: number }>;
+	classOf(): GoResult<{ classes: Uint8Array }>;
+	sortable(): GoResult<{ mask: Uint8Array }>;
+	brightestSpot(): GoResult<{ cx: number; cy: number; w: number; h: number }>;
 	setSoft(radius: number): GoResult;
 	configure(json: string): GoResult;
 	prepare(): GoResult<{ stats: { lines: number; intervals: number; sortable: number; frozen: number } }>;

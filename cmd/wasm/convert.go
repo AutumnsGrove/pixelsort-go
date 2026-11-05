@@ -45,6 +45,21 @@ func u16From(v js.Value) []uint16 {
 	return out
 }
 
+// newU8 copies Go bytes into a fresh Uint8Array.
+func newU8(b []byte) js.Value {
+	a := js.Global().Get("Uint8Array").New(len(b))
+	js.CopyBytesToJS(a, b)
+	return a
+}
+
+// labelAddr is the byte address of the first region label in Go's linear memory (stable until the next SetTiling).
+func labelAddr(l []uint16) uintptr {
+	if len(l) == 0 {
+		return 0
+	}
+	return uintptr(unsafe.Pointer(&l[0])) //nolint:gosec // an address handed to JavaScript, which only reads it
+}
+
 func isNull(v js.Value) bool { return v.IsNull() || v.IsUndefined() }
 
 func result(fields map[string]any) any {

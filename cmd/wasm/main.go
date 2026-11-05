@@ -36,6 +36,43 @@ func main() {
 			}
 			return okOr(s.SetRegions(u16From(a[0]), bytesFrom(a[1]), []byte(a[2].String())))
 		},
+		"setTiling": func(a []js.Value) (any, error) {
+			if len(a) < 1 || isNull(a[0]) {
+				return okOr(s.SetTiling(nil, nil))
+			}
+			var defs []byte
+			if len(a) > 1 && !isNull(a[1]) {
+				defs = []byte(a[1].String())
+			}
+			return okOr(s.SetTiling([]byte(a[0].String()), defs))
+		},
+		"setMaskSpec": func(a []js.Value) (any, error) {
+			if len(a) < 1 || isNull(a[0]) {
+				return okOr(s.SetMaskSpec(nil))
+			}
+			return okOr(s.SetMaskSpec([]byte(a[0].String())))
+		},
+		"labelsPtr": func([]js.Value) (any, error) {
+			l := s.Labels()
+			return result(map[string]any{"ptr": int(labelAddr(l)), "len": len(l) * 2}), nil
+		},
+		"classOf": func([]js.Value) (any, error) {
+			return result(map[string]any{"classes": newU8(s.ClassOf())}), nil
+		},
+		"sortable": func([]js.Value) (any, error) {
+			m, err := s.Sortable()
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"mask": newU8(m)}), nil
+		},
+		"brightestSpot": func([]js.Value) (any, error) {
+			cx, cy, w, h, err := s.BrightestSpot()
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"cx": cx, "cy": cy, "w": w, "h": h}), nil
+		},
 		"setMask": func(a []js.Value) (any, error) {
 			if len(a) < 1 || isNull(a[0]) {
 				return okOr(s.SetMask(nil))

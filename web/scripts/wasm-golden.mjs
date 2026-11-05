@@ -73,4 +73,29 @@ for (const rc of recipes) {
 		}
 	}
 }
+// Region label maps: the tessellations must match the native goldens in engine/shapes/testdata/golden, bit for bit.
+const tilings = {
+	'square-0': { shape: 'square', size: 120, gap: 10, rotate: 0 },
+	'diamond-0': { shape: 'diamond', size: 120, gap: 10, rotate: 0 },
+	'circle-17': { shape: 'circle', size: 120, gap: 10, rotate: 17 },
+	'octagon-45': { shape: 'octagon', size: 120, gap: 10, rotate: 45 },
+	'hexagon-0': { shape: 'hexagon', size: 120, gap: 10, rotate: 0 },
+	'hexagon-33': { shape: 'hexagon', size: 100, gap: 0, rotate: 33 },
+	'triangle-0': { shape: 'triangle', size: 150, gap: 10, rotate: 0 },
+	'triangle-61': { shape: 'triangle', size: 150, gap: 0, rotate: 61 },
+	'voronoi-1': { shape: 'voronoi', size: 120, gap: 10, rotate: 0 }
+};
+for (const [name, t] of Object.entries(tilings)) {
+	ok(ps.init(97, 61), 'init');
+	ok(ps.setTiling(JSON.stringify({ ...t, seed: 1, pattern: 'all' })), 'setTiling ' + name);
+	const p = ok(ps.labelsPtr(), 'labelsPtr');
+	const view = new Uint8Array(go._inst.exports.mem.buffer, p.ptr, p.len);
+	const got = createHash('sha256').update(view).digest('hex');
+	const want = readFileSync(`engine/shapes/testdata/golden/shape-${name}.sha256`, 'utf8').trim();
+	if (got === want) console.log(`ok   shape ${name}`);
+	else {
+		failed++;
+		console.log(`FAIL shape ${name}: ${got} != ${want}`);
+	}
+}
 process.exit(failed ? 1 : 0);

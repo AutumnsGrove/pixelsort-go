@@ -4,11 +4,16 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 
 	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/engine/masks"
+	"github.com/AutumnsGrove/pixelsort-go/engine/shapes"
 )
 
 // ErrState means a call was made out of order, for example Prepare before Configure.
@@ -83,6 +88,117 @@ func (s *Session) SetRegions(labels []uint16, classOf []uint8, defsJSON []byte) 
 	s.regions = r
 	s.invalidate()
 	return nil
+}
+
+// SetTiling tessellates the working image from a JSON tiling spec, classifies the cells by the spec's pattern and
+// installs the result as the region map. defsJSON is an optional JSON array of class definitions; class 0 (the gaps)
+// is frozen unless it supplies its own. Nil specJSON clears the regions. Because the spec is vector, the same call at
+// another size (a full-resolution export) gives the same character of result.
+func (s *Session) SetTiling(specJSON, defsJSON []byte) error {
+	if !s.inited {
+		return fmt.Errorf("api: set tiling before init: %w", ErrState)
+	}
+	if specJSON == nil {
+		s.regions = nil
+		s.invalidate()
+		return nil
+	}
+	var t shapes.Tiling
+	if err := decodeStrict(specJSON, &t); err != nil {
+		return fmt.Errorf("api: tiling: %w", err)
+	}
+	var defs []engine.ClassDef
+	if len(defsJSON) > 0 {
+		if err := json.Unmarshal(defsJSON, &defs); err != nil {
+			return fmt.Errorf("api: class definitions: %w", err)
+		}
+	}
+	cells, err := shapes.Tessellate(s.w, s.h, t)
+	if err != nil {
+		return fmt.Errorf("api: tiling: %w", err)
+	}
+	r := shapes.BuildRegions(cells, shapes.Classify(cells, t.Pattern, t.Kinds, t.Seed), defs)
+	if err := r.Validate(s.w, s.h); err != nil {
+		return fmt.Errorf("api: tiling: %w", err)
+	}
+	s.regions = r
+	s.invalidate()
+	return nil
+}
+
+// SetMaskSpec rasterises a JSON mask spec (objects, strokes, invert, feather) at the working size and installs it as the
+// frozen mask, with a soft edge when the spec asks for one. Nil clears both.
+func (s *Session) SetMaskSpec(specJSON []byte) error {
+	if !s.inited {
+		return fmt.Errorf("api: set mask spec before init: %w", ErrState)
+	}
+	if specJSON == nil {
+		s.mask, s.soft = nil, 0
+		s.invalidate()
+		return nil
+	}
+	var spec masks.Spec
+	if err := decodeStrict(specJSON, &spec); err != nil {
+		return fmt.Errorf("api: mask spec: %w", err)
+	}
+	if spec.Feather < 0 || spec.Feather > 0.5 {
+		return fmt.Errorf("api: feather %v outside 0..0.5", spec.Feather)
+	}
+	s.mask = masks.Rasterize(s.w, s.h, spec)
+	s.soft = int(math.Round(spec.Feather * float64(s.w)))
+	s.invalidate()
+	return nil
+}
+
+func decodeStrict(data []byte, v any) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("unexpected data after the value")
+	}
+	return nil
+}
+
+// Labels is the current region map, one id per pixel (nil if none), for drawing outlines.
+func (s *Session) Labels() []uint16 {
+	if s.regions == nil {
+		return nil
+	}
+	return s.regions.Labels
+}
+
+// ClassOf is the class of each cell id of the current region map (nil if none).
+func (s *Session) ClassOf() []uint8 {
+	if s.regions == nil {
+		return nil
+	}
+	return s.regions.ClassOf
+}
+
+// BrightestSpot finds the brightest blob of the picture as an ellipse in fractions of the picture.
+func (s *Session) BrightestSpot() (cx, cy, w, h float64, err error) {
+	if !s.inited {
+		return 0, 0, 0, 0, fmt.Errorf("api: brightest spot before init: %w", ErrState)
+	}
+	cx, cy, w, h = engine.BrightestSpot(s.image)
+	return cx, cy, w, h, nil
+}
+
+// Sortable marks 1 where a pixel belongs to some interval of the prepared plan: what the recipe lets move.
+func (s *Session) Sortable() ([]uint8, error) {
+	if s.plan == nil {
+		return nil, fmt.Errorf("api: sortable before prepare: %w", ErrState)
+	}
+	out := make([]uint8, s.w*s.h)
+	for _, iv := range s.plan.Intervals {
+		for i := iv.A; i < iv.B; i++ {
+			out[s.plan.Lines.P[i]] = 1
+		}
+	}
+	return out, nil
 }
 
 // SetMask installs a frozen mask (non-zero = frozen). Pass nil to clear it.
