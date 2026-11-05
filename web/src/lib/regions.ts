@@ -5,7 +5,12 @@ export const SHAPES = ['square', 'hexagon', 'triangle', 'diamond', 'circle', 'oc
 export const PATTERNS = ['all', 'checker', 'thirds', 'random'] as const;
 
 export type Tiling = {
-	shape: (typeof SHAPES)[number];
+	shape: (typeof SHAPES)[number] | 'custom';
+	/** custom: brick offset on odd rows. */
+	stagger?: boolean;
+	/** custom: the outline in the unit square, and extra rings (holes or more pieces, even-odd). */
+	poly?: [number, number][];
+	more?: [number, number][][];
 	size: number; // per mille of the picture width
 	gap: number; // per mille of the picture width
 	rotate: number; // whole degrees

@@ -3,6 +3,7 @@
 	import { studio } from '#lib/studio.svelte';
 	import { PATTERNS, SHAPES, classCount } from '#lib/regions';
 	import RegionCard from '#components/RegionCard';
+	import ShapeLibrary from '#components/ShapeLibrary';
 
 	let { onclose }: { onclose: () => void } = $props();
 
@@ -126,6 +127,7 @@
 					data-testid="shape-{s}">{s}</button
 				>{/each}
 		</div>
+		<ShapeLibrary />
 
 		{#if t}
 			<label

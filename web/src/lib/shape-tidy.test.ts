@@ -4,6 +4,7 @@ import {
 	needsTidy,
 	normalizeRings,
 	ringArea,
+	ringsPath,
 	simplifyRing,
 	splitRings,
 	statsText,
@@ -102,6 +103,29 @@ describe('needsTidy', () => {
 	});
 	it('asks when there are a lot of points', () => {
 		expect(needsTidy(raw(piece(circle(50, 50, 40, 400))))).toBe(true);
+	});
+});
+
+describe('ringsPath', () => {
+	it('draws every ring as its own closed sub-path, scaled to the box', () => {
+		expect(
+			ringsPath(
+				[
+					[
+						[0, 0],
+						[1, 0],
+						[1, 1]
+					],
+					[
+						[0.25, 0.25],
+						[0.5, 0.25],
+						[0.5, 0.5]
+					]
+				],
+				40
+			)
+		).toBe('M0 0L40 0L40 40ZM10 10L20 10L20 20Z');
+		expect(ringsPath([], 40)).toBe('');
 	});
 });
 

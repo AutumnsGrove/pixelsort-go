@@ -7,6 +7,7 @@
 	import MaskHandles from '#components/MaskHandles';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
+	import { isSvgFile, looksLikeSvg } from '#lib/svg-shapes';
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
@@ -151,7 +152,12 @@
 	function onDrop(e: DragEvent): void {
 		e.preventDefault();
 		const f = e.dataTransfer?.files[0];
-		if (f) void studio.loadFile(f);
+		if (f) void (isSvgFile(f) ? takeSvg(f) : studio.loadFile(f));
+	}
+	/** An SVG is a shape for the library, not a picture: hand its text to the Pro panel's shape library. */
+	async function takeSvg(f: Blob): Promise<void> {
+		studio.pendingSvg = await f.text();
+		proOpen = true;
 	}
 
 	const knob = (id: string) => () => (popover = popover === id ? null : id);
@@ -213,8 +219,14 @@
 	ondrop={onDrop}
 	onpaste={(e) => {
 		const f = e.clipboardData?.files[0];
-		if (f) return void studio.loadFile(f);
+		if (f) return void (isSvgFile(f) ? takeSvg(f) : studio.loadFile(f));
 		const text = e.clipboardData?.getData('text')?.trim() ?? '';
+		// pasted SVG code becomes a shape (unless you are typing it into a field, which already holds it)
+		if (looksLikeSvg(text) && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+			studio.pendingSvg = text;
+			proOpen = true;
+			return;
+		}
 		// a pasted address loads the picture, unless you are typing into a field
 		if (
 			/^https?:\/\/\S+$/.test(text) &&

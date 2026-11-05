@@ -155,7 +155,7 @@ File: [`phase-7.md`](phase-7.md)
 - [x] P7-T09 Pro panel: Regions
 - [x] P7-T10 Region cards
 - [x] P7-T11 Protect: brush, objects, feather
-- [ ] P7-T12 Shape library
+- [x] P7-T12 Shape library
 - [ ] P7-T13 Phone: Protect and Shapes tabs
 - [ ] P7-T14 Acceptance and wrap-up
 

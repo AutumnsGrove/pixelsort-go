@@ -128,6 +128,13 @@ const GEOMETRY_ATTRS = [
 	'transform'
 ];
 
+/** A dropped or pasted file that is an SVG: it becomes a shape, never the picture. */
+export const isSvgFile = (f: { name?: string; type: string }): boolean =>
+	f.type === 'image/svg+xml' || /\.svg$/i.test(f.name ?? '');
+/** Pasted text that is SVG code (not a web address, not anything else). */
+export const looksLikeSvg = (text: string): boolean =>
+	/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(text);
+
 /** Read and build with sensible defaults (the largest piece, holes kept), for files that need no tidying. */
 export function parseSvg(text: string): { shape: BuiltShape; elements: number } | { error: string } {
 	const r = readSvg(text);

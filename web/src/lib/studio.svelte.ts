@@ -11,6 +11,9 @@ import { ServerBackend } from './api';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
 import { classCount, defaultTiling, type MaskObject, type Tiling } from './regions';
+import { LocalStorageBackend } from './storage';
+import { ShapeLibrary, nextShapeName, type SavedShape } from './shape-library';
+import type { Ring } from './shape-tidy';
 import { cardsToClassDefs, defaultCards, kindCounts, newCard, type RegionCard } from './region-cards';
 
 /** One card per possible kind (the "random" pattern can make eight); the first three start with a little personality. */
@@ -317,6 +320,45 @@ class Studio {
 	setTilingShape(shape: Tiling['shape'] | null): void {
 		this.tiling = shape ? { ...(this.tiling ?? defaultTiling(shape, this.params.seed)), shape } : null;
 		void this.applyRegions();
+	}
+
+	// ---- the shape library: starters and "your shapes" tile the picture as a custom shape ----
+	private shapeLib = new ShapeLibrary(this.server, new LocalStorageBackend());
+	myShapes = $state<SavedShape[]>([]);
+	/** SVG text dropped or pasted anywhere in Studio, waiting for the shape library to read it (never loaded as the picture). */
+	pendingSvg = $state<string | null>(null);
+	/** The shape (outline and extra rings) the custom tiling currently uses, for highlighting the chosen tile. */
+	customKey = $state<string | null>(null);
+
+	async loadMyShapes(): Promise<void> {
+		this.myShapes = await this.shapeLib.list();
+	}
+	/** Tile the picture with this outline (plus holes or extra pieces). `key` names the library tile that is now chosen. */
+	useShape(poly: Ring, more: Ring[], key: string | null): void {
+		const base = this.tiling ?? defaultTiling('custom', this.params.seed);
+		this.tiling = { ...base, shape: 'custom', poly, more };
+		this.customKey = key;
+		void this.applyRegions();
+	}
+	setStagger(stagger: boolean): void {
+		if (!this.tiling) return;
+		this.tiling = { ...this.tiling, stagger };
+		void this.applyRegions();
+	}
+	/** Save a shape to "your shapes" (server, or this browser if the server is away) and use it. */
+	async saveShape(name: string, poly: Ring, more: Ring[]): Promise<void> {
+		const saved = await this.shapeLib.add(name || nextShapeName(this.myShapes), poly, more);
+		this.myShapes = [saved, ...this.myShapes];
+		this.useShape(saved.poly, saved.more, saved.id);
+	}
+	async deleteShape(shape: SavedShape): Promise<void> {
+		try {
+			await this.shapeLib.remove(shape);
+		} catch {
+			return;
+		}
+		this.myShapes = this.myShapes.filter((s) => s.id !== shape.id);
+		if (this.customKey === shape.id) this.customKey = null;
 	}
 
 	/** Sends the mask objects as a vector spec; the engine rasterises them at whatever size it is working at. */

@@ -104,6 +104,12 @@ export function splitRings(pts: Point[], step: number): Ring[] {
 	return rings.filter((r) => r.length >= 3);
 }
 
+/** An SVG path (fill-rule evenodd) drawing the rings in a `size` x `size` box, for a tile's little picture. */
+export function ringsPath(rings: Ring[], size: number): string {
+	const n = (v: number) => Math.round(v * size * 100) / 100;
+	return rings.map((r) => r.map(([x, y], i) => `${i ? 'L' : 'M'}${n(x)} ${n(y)}`).join('') + 'Z').join('');
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** The words under the preview: "2 pieces, 1 hole, 84 points". */
