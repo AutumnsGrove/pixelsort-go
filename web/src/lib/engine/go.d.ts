@@ -19,6 +19,8 @@ interface PixelsortApi {
 	labelsPtr(): GoResult<{ ptr: number; len: number }>;
 	classOf(): GoResult<{ classes: Uint8Array }>;
 	sortable(): GoResult<{ mask: Uint8Array }>;
+	histogram(key: string): GoResult<{ counts: number[] }>;
+	caRules(): GoResult<{ rules: { rule: number; note: string }[] }>;
 	brightestSpot(): GoResult<{ cx: number; cy: number; w: number; h: number }>;
 	setSoft(radius: number): GoResult;
 	configure(json: string): GoResult;

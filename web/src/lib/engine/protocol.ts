@@ -15,6 +15,8 @@ export type Request =
 	| { id: number; type: 'setTiling'; specJson: string | null; defsJson: string | null } // answers with labels + classOf
 	| { id: number; type: 'setMaskSpec'; specJson: string | null }
 	| { id: number; type: 'brightestSpot' }
+	| { id: number; type: 'histogram'; key: string } // counts per 0..255 value of a sort key
+	| { id: number; type: 'caRules' } // the recommended cellular-automaton rules with notes
 	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
@@ -35,6 +37,8 @@ export type Response =
 			labels?: ArrayBuffer; // Uint16Array region label per pixel (setTiling)
 			classOf?: ArrayBuffer; // Uint8Array class per cell id (setTiling)
 			spot?: { cx: number; cy: number; w: number; h: number };
+			counts?: number[];
+			rules?: { rule: number; note: string }[];
 			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable)
 	  }
 	| { id: number; ok: false; error: string };

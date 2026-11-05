@@ -129,3 +129,38 @@ func TestFullResolutionHasTheSameCharacter(t *testing.T) {
 		}
 	}
 }
+
+func TestHistogramSumsToThePixelCountForEveryKey(t *testing.T) {
+	s := ready(t, 50, 30)
+	for _, key := range []string{"luma", "value", "intensity", "minimum", "hue", "saturation", "red", "green", "blue", "alpha"} {
+		h, err := s.Histogram(key)
+		if err != nil {
+			t.Fatalf("%s: %v", key, err)
+		}
+		n := 0
+		for _, c := range h {
+			n += c
+		}
+		if n != 50*30 {
+			t.Errorf("%s: counts add up to %d, want %d", key, n, 50*30)
+		}
+	}
+	if _, err := s.Histogram("nope"); err == nil {
+		t.Error("an unknown key was accepted")
+	}
+	if _, err := api.NewSession().Histogram("luma"); !errors.Is(err, api.ErrState) {
+		t.Errorf("histogram before init: %v", err)
+	}
+}
+
+func TestCARulesAreTheRecommendedOnesWithNotes(t *testing.T) {
+	rules := api.CARules()
+	if len(rules) != 17 || rules[0].Rule != 26 || rules[0].Note == "" {
+		t.Fatalf("%v", rules)
+	}
+	for _, r := range rules {
+		if r.Note == "" {
+			t.Errorf("rule %d has no note", r.Rule)
+		}
+	}
+}

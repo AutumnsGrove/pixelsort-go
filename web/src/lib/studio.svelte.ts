@@ -66,6 +66,23 @@ class Studio {
 	labels = $state<Uint16Array | null>(null);
 	classOf = $state<Uint8Array | null>(null);
 	showCells = $state(true);
+	/** Counts per 0..255 value of the threshold key, for the band picker; [] until there is a picture. */
+	async histogram(): Promise<number[]> {
+		if (!this.client || !this.size) return [];
+		try {
+			return await this.client.histogram(this.params.thresholdKey);
+		} catch {
+			return [];
+		}
+	}
+	async caRules(): Promise<{ rule: number; note: string }[]> {
+		if (!this.client) return [];
+		try {
+			return await this.client.caRules();
+		} catch {
+			return [];
+		}
+	}
 	/** Hold T: veil the pixels the recipe holds still. `movable` is the engine's mask, fetched when the key goes down. */
 	peeking = $state(false);
 	movable = $state<Uint8Array | null>(null);

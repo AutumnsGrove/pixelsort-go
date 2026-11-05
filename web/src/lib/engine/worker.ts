@@ -158,6 +158,14 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 				transfer: []
 			};
 		}
+		case 'histogram': {
+			const r = api.histogram(req.key);
+			return { res: r.ok ? { id: req.id, ok: true, counts: r.counts } : fail(req.id, r.error), transfer: [] };
+		}
+		case 'caRules': {
+			const r = api.caRules();
+			return { res: r.ok ? { id: req.id, ok: true, rules: r.rules } : fail(req.id, r.error), transfer: [] };
+		}
 		case 'sortable': {
 			const prep = api.prepare();
 			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };

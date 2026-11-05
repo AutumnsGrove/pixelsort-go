@@ -335,3 +335,41 @@ func (s *Session) Pixels() []uint32 {
 
 // invalidate drops the plan and result after any input changed.
 func (s *Session) invalidate() { s.plan, s.result, s.stepper = nil, nil, nil }
+
+var knownKeys = map[engine.SortKey]bool{
+	engine.KeyLuma: true, engine.KeyValue: true, engine.KeyIntensity: true, engine.KeyMinimum: true, engine.KeyHue: true,
+	engine.KeySaturation: true, engine.KeyRed: true, engine.KeyGreen: true, engine.KeyBlue: true, engine.KeyAlpha: true,
+}
+
+// Histogram counts the working copy's pixels by the 0..255 value of a sort key, for the threshold band picker. The counts
+// add up to w*h.
+func (s *Session) Histogram(key string) ([256]int, error) {
+	var h [256]int
+	if !s.inited || s.image == nil {
+		return h, fmt.Errorf("api: histogram before init: %w", ErrState)
+	}
+	k := engine.SortKey(key)
+	if !knownKeys[k] {
+		return h, fmt.Errorf("api: unknown sort key %q", key)
+	}
+	for _, v := range engine.ComputeKeys(s.image, k, false) {
+		h[v]++
+	}
+	return h, nil
+}
+
+// CARule is one recommended cellular-automaton rule and what it looks like.
+type CARule struct {
+	Rule int
+	Note string
+}
+
+// CARules lists the recommended Wolfram rules with their one-line notes, in the engine's order.
+func CARules() []CARule {
+	out := make([]CARule, 0, len(engine.RecommendedRules))
+	for _, r := range engine.RecommendedRules {
+		note, _ := engine.RuleNote(r)
+		out = append(out, CARule{Rule: int(r), Note: note})
+	}
+	return out
+}

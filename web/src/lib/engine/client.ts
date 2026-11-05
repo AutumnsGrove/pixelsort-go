@@ -103,6 +103,19 @@ export class EngineClient {
 		return res.spot;
 	}
 
+	/** How many pixels have each 0..255 value of a sort key (counts add up to w*h). */
+	async histogram(key: string): Promise<number[]> {
+		const res = await this.send({ type: 'histogram', key }, []);
+		if (!res.ok || !res.counts) throw new Error(res.ok ? 'no counts' : res.error);
+		return res.counts;
+	}
+	/** The recommended cellular-automaton rules and what each looks like, from the engine. */
+	async caRules(): Promise<{ rule: number; note: string }[]> {
+		const res = await this.send({ type: 'caRules' }, []);
+		if (!res.ok || !res.rules) throw new Error(res.ok ? 'no rules' : res.error);
+		return res.rules;
+	}
+
 	/** Which pixels the current recipe lets move: 1 where a pixel is in some interval, 0 where it is held. Asked of the engine, never worked out here. */
 	async sortable(): Promise<Uint8Array> {
 		const res = await this.send({ type: 'sortable' }, []);

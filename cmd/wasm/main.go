@@ -66,6 +66,31 @@ func main() {
 			}
 			return result(map[string]any{"mask": newU8(m)}), nil
 		},
+		"histogram": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("histogram needs a sort key")
+			}
+			h, err := s.Histogram(a[0].String())
+			if err != nil {
+				return nil, err
+			}
+			arr := js.Global().Get("Array").New(len(h))
+			for i, c := range h {
+				arr.SetIndex(i, c)
+			}
+			return result(map[string]any{"counts": arr}), nil
+		},
+		"caRules": func([]js.Value) (any, error) {
+			rules := api.CARules()
+			arr := js.Global().Get("Array").New(len(rules))
+			for i, r := range rules {
+				o := js.Global().Get("Object").New()
+				o.Set("rule", r.Rule)
+				o.Set("note", r.Note)
+				arr.SetIndex(i, o)
+			}
+			return result(map[string]any{"rules": arr}), nil
+		},
 		"brightestSpot": func([]js.Value) (any, error) {
 			cx, cy, w, h, err := s.BrightestSpot()
 			if err != nil {

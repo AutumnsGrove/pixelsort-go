@@ -61,3 +61,43 @@ test('hold T: the engine says which pixels can move, and the rest are veiled', a
 	await page.keyboard.up('t');
 	await expect.poll(veiled).toBe(0);
 });
+
+test('Pro panel: Tab toggles it without squeezing the picture; the histogram and the CA rule browser come from the engine', async ({
+	page
+}) => {
+	for (const width of [1024, 1440]) {
+		await page.setViewportSize({ width, height: 800 });
+		await page.goto('/studio');
+		await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+		const before = (await page.getByTestId('stage').boundingBox())!.width;
+		await page.keyboard.press('Tab');
+		await expect(page.getByTestId('pro')).toBeVisible();
+		const after = (await page.getByTestId('stage').boundingBox())!.width;
+		expect(after, `picture at ${width}`).toBeGreaterThan(Math.min(before, width) * 0.5); // never a thumbnail
+		await page.keyboard.press('Tab');
+		await expect(page.getByTestId('pro')).toHaveCount(0);
+	}
+
+	await page.setViewportSize({ width: 1440, height: 800 });
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('pro-toggle').click();
+
+	// threshold: a 256-bar histogram and a band
+	await page.getByTestId('k-mode').click();
+	await page.getByRole('dialog', { name: 'Intervals' }).getByRole('button', { name: 'threshold', exact: true }).click();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('histogram').locator('rect')).toHaveCount(257, { timeout: 10_000 }); // 256 bars and the band
+	await page.getByRole('slider', { name: 'Band from' }).fill('120');
+	await expect(page.getByTestId('histogram')).toBeVisible();
+
+	// cellular automaton: the recommended rules with their notes
+	await page.getByTestId('k-mode').click();
+	await page.getByRole('dialog', { name: 'Intervals' }).getByRole('button', { name: 'ca', exact: true }).click();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('rules-section').locator('button')).toHaveCount(17, { timeout: 10_000 });
+	await page.getByTestId('rule-110').click();
+	await expect(page.getByTestId('rules-section')).toContainText('Cellular rule 110');
+	await expect(page.getByTestId('rule-110')).toContainText('Turing complete');
+	await page.screenshot({ path: 'test-results/pro-rules.png' });
+});

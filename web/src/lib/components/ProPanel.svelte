@@ -7,6 +7,20 @@
 
 	let { onclose }: { onclose: () => void } = $props();
 
+	let hist = $state<number[]>([]);
+	let caList = $state<{ rule: number; note: string }[]>([]);
+	const peak = $derived(Math.max(1, ...hist));
+	$effect(() => {
+		// the histogram follows the picture and the key; it is asked of the engine, which owns the key maths
+		void studio.size;
+		void studio.params.thresholdKey;
+		if (studio.params.mode === 'threshold') void studio.histogram().then((h) => (hist = h));
+	});
+	$effect(() => {
+		if ((studio.params.mode === 'ca' || studio.params.mode === 'ca-edges') && caList.length === 0)
+			void studio.caRules().then((r) => (caList = r));
+	});
+
 	const t = $derived(studio.tiling);
 	const nClasses = $derived(t ? classCount(t.pattern, t.kinds) : 0);
 
@@ -31,6 +45,78 @@
 		</div>
 		<button class="round" type="button" onclick={onclose} aria-label="Close the Pro panel"><X size={17} /></button>
 	</header>
+
+	{#if studio.params.mode === 'threshold'}
+		<section data-testid="histogram-section">
+			<h4 class="eyebrow">Threshold band</h4>
+			<svg
+				class="hist"
+				viewBox="0 0 256 60"
+				preserveAspectRatio="none"
+				role="img"
+				aria-label="Histogram of the {studio.params.thresholdKey} values"
+				data-testid="histogram"
+			>
+				{#each hist as c, i (i)}<rect x={i} y={60 - (c / peak) * 60} width="1" height={(c / peak) * 60} />{/each}
+				<rect
+					class="band"
+					x={studio.params.lo}
+					y="0"
+					width={Math.max(0, studio.params.hi - studio.params.lo)}
+					height="60"
+				/>
+			</svg>
+			<label
+				>from {studio.params.lo}
+				<input
+					type="range"
+					min="0"
+					max="255"
+					value={studio.params.lo}
+					oninput={(e) => {
+						studio.params.lo = Math.min(Number(e.currentTarget.value), studio.params.hi);
+						studio.changed();
+					}}
+					aria-label="Band from"
+				/></label
+			>
+			<label
+				>to {studio.params.hi}
+				<input
+					type="range"
+					min="0"
+					max="255"
+					value={studio.params.hi}
+					oninput={(e) => {
+						studio.params.hi = Math.max(Number(e.currentTarget.value), studio.params.lo);
+						studio.changed();
+					}}
+					aria-label="Band to"
+				/></label
+			>
+		</section>
+	{/if}
+
+	{#if studio.params.mode === 'ca' || studio.params.mode === 'ca-edges'}
+		<section data-testid="rules-section">
+			<h4 class="eyebrow">Cellular rule {studio.params.rule}</h4>
+			<ul class="rules">
+				{#each caList as r (r.rule)}
+					<li>
+						<button
+							type="button"
+							class:on={studio.params.rule === r.rule}
+							onclick={() => {
+								studio.params.rule = r.rule;
+								studio.changed();
+							}}
+							data-testid="rule-{r.rule}"><b>{r.rule}</b> <span>{r.note}</span></button
+						>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<section>
 		<h4 class="eyebrow">Cut the picture into</h4>
@@ -248,6 +334,41 @@
 </aside>
 
 <style>
+	.hist {
+		width: 100%;
+		height: 60px;
+		background: rgba(0, 0, 0, 0.25);
+		border-radius: 6px;
+	}
+	.hist rect {
+		fill: var(--dim);
+	}
+	.hist .band {
+		fill: var(--ver);
+		opacity: 0.25;
+	}
+	.rules {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 4px;
+	}
+	.rules button {
+		display: flex;
+		gap: 10px;
+		width: 100%;
+		text-align: left;
+		padding: 6px 10px;
+		border-radius: 8px;
+		font-size: 11px;
+	}
+	.rules button.on {
+		background: rgba(255, 90, 54, 0.18);
+	}
+	.rules span {
+		color: var(--dim);
+	}
 	.pro {
 		position: fixed;
 		right: 14px;

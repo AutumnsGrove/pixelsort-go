@@ -101,7 +101,7 @@ File: [`phase-5.md`](phase-5.md)
 - [x] P5-T19 Settings page and Updates block
 - [x] P5-T20 Phone Studio
 - [x] P5-T21 Archive screen
-- [ ] P5-T22 Pro panel shell, histogram, rule browser
+- [x] P5-T22 Pro panel shell, histogram, rule browser
 - [ ] P5-T23 Layout scan, accessibility pass, and the acceptance table
 - [ ] P5-T24 Phase wrap-up
 
