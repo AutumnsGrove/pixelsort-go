@@ -123,7 +123,7 @@ File: [`phase-6.md`](phase-6.md)
 - [x] P6-T12 Wire it together: app and `serve`
 - [x] P6-T13 `docs/api.md`
 - [x] P6-T14 The web `ServerBackend` and auto-save
-- [ ] P6-T15 Phase wrap-up
+- [x] P6-T15 Phase wrap-up
 
 ## Phase 6b: the Cloudflare Worker (share links and URL loading)
 
@@ -175,7 +175,7 @@ File: [`phase-8.md`](phase-8.md)
 - [x] P8-T10 Deployment docs
 - [ ] P8-T11 [HUMAN] First deploy
 - [ ] P8-T12 [HUMAN] Homelab documentation
-- [ ] P8-T13 Phase wrap-up
+- [x] P8-T13 Phase wrap-up
 
 ## Phase 9: polish and stretch
 

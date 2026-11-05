@@ -183,3 +183,19 @@ P0-T09.
 
 - The `shares` table has no `revoke_token` column (PLAN.md's sketch had one): only this server holds the Worker's secret, so only it can revoke.
 - With `include_original`, each original is added to the album as an extra image right after its result (named "... (original)"), using the run's thumbnail as its thumbnail. The Worker has no separate original route.
+
+## Size of a 12 MP run (P6-T15)
+
+Measured with `pixelsort-go render` on a **synthetic** 4000×3000 "photo" (smooth colour fields, soft shapes, sensor-like noise of about
+4.5 levels, slight blur), recipe `random`, 45°, length 120. I had no real photo in the cloud container, so repeat this with one of yours.
+
+| File | Size |
+|---|---|
+| original, JPEG quality 90 | 1.1 MB (a real 12 MP camera JPEG is usually 3–6 MB) |
+| original as PNG | 13.4 MB |
+| result PNG | **26.7 MB** |
+| thumbnail | tens of KB |
+
+So one run is about **27 MB** of result plus its original (stored once however many runs use it): roughly 28–33 MB for the first run of a
+picture and 27 MB for each further one. The 50 GB budget holds on the order of **1,500–1,800 runs**, which matches PLAN.md's "20–30 MB". The
+render took about 3 s natively. Noise inflates PNGs; a clean, smooth photo will come in lower, a grainy one higher.
