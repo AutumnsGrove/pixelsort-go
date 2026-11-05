@@ -1,8 +1,11 @@
 package server
 
 import (
+	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Config is everything the server reads from its environment.
@@ -15,7 +18,13 @@ type Config struct {
 	LogFormat   string  // PIXELSORT_LOG: "text" or "json"
 	Deployment  string  // PIXELSORT_DEPLOYMENT: "docker" or "dev"
 	UpdateDir   string  // PIXELSORT_UPDATE_DIR: the signal folder shared with the host watcher; empty = updates off
+	// WorkerURL and WorkerSecret point at the Cloudflare share Worker. Both empty = sharing and URL loading are off.
+	WorkerURL    string // PIXELSORT_WORKER_URL: https, no trailing slash (http is allowed for localhost, for wrangler dev)
+	WorkerSecret string // PIXELSORT_WORKER_SECRET: signs every request; never leaves this process
 }
+
+// WorkerConfigured reports whether the share Worker can be used.
+func (c Config) WorkerConfigured() bool { return c.WorkerURL != "" && c.WorkerSecret != "" }
 
 // BudgetBytes is the storage budget in bytes.
 func (c Config) BudgetBytes() int64 { return int64(c.BudgetGB * (1 << 30)) }
@@ -34,6 +43,9 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		c.DataDir = v
 	}
 	c.UpdateDir = getenv("PIXELSORT_UPDATE_DIR")
+	if err := loadWorker(getenv, &c); err != nil {
+		return Config{}, err
+	}
 	if v := getenv("PIXELSORT_BUDGET_GB"); v != "" {
 		f, err := strconv.ParseFloat(v, 64)
 		if err != nil || f <= 0 || f != f || f > 1e6 {
@@ -68,4 +80,26 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		c.Deployment = v
 	}
 	return c, nil
+}
+
+// loadWorker reads the Worker pair. Both or neither: one without the other is a mistake worth stopping for.
+func loadWorker(getenv func(string) string, c *Config) error {
+	raw, secret := strings.TrimSpace(getenv("PIXELSORT_WORKER_URL")), getenv("PIXELSORT_WORKER_SECRET")
+	if raw == "" && secret == "" {
+		return nil
+	}
+	if raw == "" || secret == "" {
+		return errors.New("PIXELSORT_WORKER_URL and PIXELSORT_WORKER_SECRET must be set together")
+	}
+	u, err := url.Parse(strings.TrimRight(raw, "/"))
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return fmt.Errorf("PIXELSORT_WORKER_URL=%q: want a plain https address like https://pixelsort-share.example.workers.dev", raw)
+	}
+	local := u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1"
+	if u.Scheme != "https" && (u.Scheme != "http" || !local) {
+		return fmt.Errorf("PIXELSORT_WORKER_URL=%q: want https (http is only allowed for localhost)", raw)
+	}
+	c.WorkerURL = u.Scheme + "://" + u.Host
+	c.WorkerSecret = secret
+	return nil
 }

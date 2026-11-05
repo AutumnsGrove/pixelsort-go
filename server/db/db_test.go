@@ -53,7 +53,7 @@ func TestMigrateTwiceIsANoop(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := count(t, d, "SELECT count(*) FROM schema_migrations"); n != 1 {
+	if n := count(t, d, "SELECT count(*) FROM schema_migrations"); n != 2 {
 		t.Fatalf("%d migrations recorded", n)
 	}
 }

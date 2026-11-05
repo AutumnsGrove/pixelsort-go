@@ -16,6 +16,7 @@ import (
 	"github.com/AutumnsGrove/pixelsort-go/server/blob"
 	"github.com/AutumnsGrove/pixelsort-go/server/db"
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
+	"github.com/AutumnsGrove/pixelsort-go/server/share"
 	"github.com/AutumnsGrove/pixelsort-go/server/spa"
 	"github.com/AutumnsGrove/pixelsort-go/server/update"
 )
@@ -64,8 +65,12 @@ func New(ctx context.Context, cfg Config, opts Options) (*App, error) {
 			return nil, err //nolint:wrapcheck // update.New already names the folder
 		}
 	}
+	var shares *share.Service
+	if cfg.WorkerConfigured() {
+		shares = share.New(d, store, svc, share.NewClient(cfg.WorkerURL, cfg.WorkerSecret))
+	}
 	a := api.New(api.Deps{Runs: svc, Blobs: store, BudgetBytes: cfg.BudgetBytes(), MaxUploadBytes: cfg.MaxUploadBytes(),
-		Deployment: cfg.Deployment, EngineVersion: engineVersion, Update: signals})
+		Deployment: cfg.Deployment, EngineVersion: engineVersion, Update: signals, Share: shares})
 	web := opts.WebFS
 	if web == nil {
 		web = spa.FS()

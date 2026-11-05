@@ -178,3 +178,8 @@ Chose: the mockups' Playwright Chromium (`mockups/tests/node_modules`) driving t
 for a person to look at the page, and a headless load answers the same question (isolated, `ping()` returns
 `1`) without adding a dependency before phase 5 needs one. Alternative: leave the page unverified until
 P0-T09.
+
+## Deviations (phase 6b)
+
+- The `shares` table has no `revoke_token` column (PLAN.md's sketch had one): only this server holds the Worker's secret, so only it can revoke.
+- With `include_original`, each original is added to the album as an extra image right after its result (named "... (original)"), using the run's thumbnail as its thumbnail. The Worker has no separate original route.

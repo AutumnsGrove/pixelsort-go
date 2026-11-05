@@ -14,6 +14,7 @@ import (
 	"github.com/AutumnsGrove/pixelsort-go/server/blob"
 	"github.com/AutumnsGrove/pixelsort-go/server/httpx"
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
+	"github.com/AutumnsGrove/pixelsort-go/server/share"
 	"github.com/AutumnsGrove/pixelsort-go/server/update"
 )
 
@@ -26,6 +27,7 @@ type Deps struct {
 	Deployment     string
 	EngineVersion  string
 	Update         *update.Signals // nil when no update folder is configured
+	Share          *share.Service  // nil when the share Worker is not configured
 }
 
 // API holds the handlers and remembers which routes it registered.
@@ -34,12 +36,15 @@ type API struct {
 	mux      *http.ServeMux
 	routes   []string
 	inflight atomic.Int64 // uploads in progress, for GET /api/busy and for refusing an update mid-upload
+
+	fetchLimit bucket
+	now        func() time.Time // the clock, replaced in tests
 }
 
 // New builds the API. Every route carries the shared middleware: request id, recovery, access log and a timeout for
 // everything except uploads and image downloads, which may legitimately take longer.
 func New(d Deps) *API {
-	a := &API{d: d, mux: http.NewServeMux()}
+	a := &API{d: d, mux: http.NewServeMux(), now: time.Now}
 	a.handle("GET /healthz", a.healthz)
 	a.handle("GET /api/version", a.version)
 	a.handle("POST /api/runs", a.trackBusy(a.createRun))
@@ -48,6 +53,11 @@ func New(d Deps) *API {
 	a.handle("POST /api/update/start", a.updateStart)
 	a.handle("GET /api/update/status", a.updateStatus)
 	a.handle("GET /api/busy", a.busy)
+	a.handle("GET /api/features", a.features)
+	a.handle("POST /api/shares", a.createShare)
+	a.handle("GET /api/shares", a.listShares)
+	a.handle("DELETE /api/shares/{id}", a.revokeShare)
+	a.handle("POST /api/fetch", a.fetchURL)
 	a.handle("POST /api/images/check", a.checkImage)
 	a.handle("GET /api/images/{sha256}", a.getImage)
 	a.handle("GET /api/runs", a.listRuns)
@@ -87,7 +97,7 @@ func (a *API) Routes() []string {
 func (a *API) handle(pattern string, h http.HandlerFunc) {
 	a.routes = append(a.routes, pattern)
 	var handler http.Handler = h
-	if pattern != "POST /api/runs" && pattern != "GET /api/images/{sha256}" {
+	if pattern != "POST /api/runs" && pattern != "GET /api/images/{sha256}" && pattern != "POST /api/shares" && pattern != "POST /api/fetch" {
 		handler = httpx.Timeout(30 * time.Second)(handler)
 	}
 	a.mux.Handle(pattern, handler)

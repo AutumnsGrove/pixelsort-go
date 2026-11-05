@@ -8,7 +8,7 @@ seconds; ids are integers. Every response carries `X-Request-Id`. Errors look li
 ```
 
 Codes: `bad_request` (400), `not_found` (404), `conflict` (409), `too_large` (413), `bad_type` (400), `hash_mismatch`
-(400), `starred_needs_confirm` (409, also carries `ids`), `rate_limited`, `internal` (500). The server never touches pixels:
+(400), `starred_needs_confirm` (409, also carries `ids`), `rate_limited` (429), `not_configured` (503), `upstream_failed` (502), `originals_required` (400), `internal` (500). The server never touches pixels:
 the browser decodes and encodes images and uploads the results.
 
 A **run** looks like:
@@ -56,6 +56,37 @@ while an upload is in progress.
 `{"busy": true|false}`, true while a `POST /api/runs` is running. Answers loopback callers only (the watcher on the host);
 anyone else gets `404`.
 
+## Sharing and URL loading
+
+These need the share Worker (`PIXELSORT_WORKER_URL` and `PIXELSORT_WORKER_SECRET`). Without it every endpoint here answers
+`503` with code `not_configured`, and `GET /api/features` says so. The secret lives only in this server: the browser never
+sees it or the Worker's address, and nothing here ever echoes it.
+
+### `GET /api/features`
+`{"share":true,"fetch":true}`; both are false when the Worker is not configured. The web app hides share and URL-loading
+controls when they are off.
+
+### `POST /api/shares`
+JSON `{"run_ids":[1,2],"include_recipe":false,"include_original":false,"expires_in_days":30|null,"title":"…"}`, or
+`multipart/form-data` with the same JSON in a `meta` field plus one `orig-<run_id>` file per run. Uploads the results
+(and thumbnails) to the Worker, then the manifest last, and records the share. Returns `201`
+`{"id":"…26 chars…","url":"https://…/a/<id>","expires_at":null}`. `include_original` needs a browser re-encoded,
+metadata-stripped original for every run (`400 originals_required` without them): a stored original is never sent as is.
+If any upload fails the partial album is removed and nothing is recorded (`502 upstream_failed`).
+
+### `GET /api/shares`
+`{"shares":[{"id","url","created_at","expires_at","revoked_at","title","include_recipe","include_original","items","run_ids"}]}`,
+newest first.
+
+### `DELETE /api/shares/{id}`
+Revokes: asks the Worker to delete the album, then marks the share revoked. `502` and no change if the Worker cannot be
+reached, so it can be tried again. Revoking twice is fine.
+
+### `POST /api/fetch`
+`{"url":"https://example.com/a.png"}`. The Worker loads the picture and the response streams back with the Worker's own
+status, `Content-Type` (sniffed), and `X-Source-URL`. Failures keep the Worker's codes: `link-blocked` (502),
+`link-not-image` (415), `link-too-large` (413), `link-timeout` (504). At most 30 requests a minute (`429 rate_limited`).
+
 ## Runs
 
 ### `POST /api/runs`
@@ -75,7 +106,7 @@ mode, key, `45°`, `rule 110`), `starred=1`, `trashed=0|1|any` (default `0`), `s
 `curl 'localhost:8895/api/runs?limit=20&q=wave'`
 
 ### `GET /api/runs/{id}`
-One run, or `404 not_found`.
+One run, or `404 not_found`. It also carries `"shared": true` when a live (not revoked, not expired) share contains it; trashing a shared run does not revoke the share.
 
 ### `PATCH /api/runs/{id}`
 Any of `{"starred":bool,"title":string,"notes":string,"tags":[string]}`. The title is tidied like the web naming module

@@ -135,7 +135,7 @@ File: [`phase-6b.md`](phase-6b.md)
 - [x] P6B-T04 The public viewer and file routes
 - [x] P6B-T05 Scheduled expiry sweep
 - [x] P6B-T06 URL loading relay
-- [ ] P6B-T07 The potato side: client, tables, API
+- [x] P6B-T07 The potato side: client, tables, API
 - [ ] P6B-T08 Web: share dialog, Albums, URL loading
 - [ ] P6B-T09 [HUMAN] Cloudflare setup and deploy
 - [ ] P6B-T10 Phase wrap-up

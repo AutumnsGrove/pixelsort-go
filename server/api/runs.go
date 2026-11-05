@@ -138,7 +138,18 @@ func (a *API) getRun(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	httpx.Write(w, http.StatusOK, run)
+	shared := false
+	if a.d.Share != nil {
+		var err error
+		if shared, err = a.d.Share.IsShared(r.Context(), id); err != nil {
+			fail(w, err)
+			return
+		}
+	}
+	httpx.Write(w, http.StatusOK, struct {
+		runs.Run
+		Shared bool `json:"shared"`
+	}{run, shared})
 }
 
 func (a *API) listRuns(w http.ResponseWriter, r *http.Request) {
