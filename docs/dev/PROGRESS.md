@@ -130,7 +130,7 @@ File: [`phase-6.md`](phase-6.md)
 File: [`phase-6b.md`](phase-6b.md)
 
 - [x] P6B-T01 Worker scaffold
-- [ ] P6B-T02 Request signing (both languages) (Worker side done; Go signer still to do)
+- [x] P6B-T02 Request signing (both languages)
 - [x] P6B-T03 Album upload and revoke
 - [ ] P6B-T04 The public viewer and file routes
 - [ ] P6B-T05 Scheduled expiry sweep
