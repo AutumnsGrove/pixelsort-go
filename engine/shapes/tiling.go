@@ -174,16 +174,16 @@ func Tessellate(w, h int, t Tiling) (Cells, error) {
 }
 
 // gridCell is square, diamond (the grid turned 45 degrees), circle and octagon: a square grid with an inset shape.
-func gridCell(num *numberer, shape string, rx, ry, S, gap float64) uint16 {
+func gridCell(num *numberer, shape string, rx, ry, cell, gap float64) uint16 {
 	ux, uy := rx, ry
 	if shape == Diamond {
 		ux = float64(rx+ry) / math.Sqrt2
 		uy = float64(ry-rx) / math.Sqrt2
 	}
-	i, j := math.Floor(ux/S), math.Floor(uy/S)
-	lx := ux - float64(float64(i+0.5)*S)
-	ly := uy - float64(float64(j+0.5)*S)
-	R := S/2 - gap/2
+	i, j := math.Floor(ux/cell), math.Floor(uy/cell)
+	lx := ux - float64(float64(i+0.5)*cell)
+	ly := uy - float64(float64(j+0.5)*cell)
+	R := cell/2 - gap/2
 	ok := math.Abs(lx) <= R && math.Abs(ly) <= R
 	if ok && shape == Circle {
 		ok = float64(lx*lx)+float64(ly*ly) <= float64(R*R)
@@ -198,18 +198,20 @@ func gridCell(num *numberer, shape string, rx, ry, S, gap float64) uint16 {
 }
 
 // hexCell rounds to the nearest hexagon in cube coordinates, then tests the inset hexagon.
-func hexCell(num *numberer, rx, ry, S, gap float64) uint16 {
-	Rc := S / 2
+func hexCell(num *numberer, rx, ry, cell, gap float64) uint16 {
+	Rc := cell / 2
 	xf := float64(float64(sq3/3)*rx-ry/3) / Rc
 	zf := float64(float64(2.0/3)*ry) / Rc
 	yf := -xf - zf
 	rxx, ryy, rzz := math.Round(xf), math.Round(yf), math.Round(zf)
 	ex, ey, ez := math.Abs(rxx-xf), math.Abs(ryy-yf), math.Abs(rzz-zf)
+	// Cube coordinates sum to zero, so the one with the largest rounding error is recomputed from the other two. Only
+	// x and z are used below, so when y is the odd one out nothing needs to change.
 	switch {
 	case ex > ey && ex > ez:
 		rxx = -ryy - rzz
 	case ey > ez:
-		ryy = -rxx - rzz
+		// y is recomputed from x and z, which are already right
 	default:
 		rzz = -rxx - ryy
 	}

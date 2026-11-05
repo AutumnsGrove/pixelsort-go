@@ -61,16 +61,16 @@ func PolyBitmap(poly [][2]float64, more [][][2]float64, m int) ([]uint8, error) 
 
 // customCell tiles the bitmap on the grid: each tile is scaled about its centre to leave the gap, odd rows may be
 // shifted half a tile (stagger), and a pixel belongs to its tile's cell when the bitmap is set at its position.
-func customCell(num *numberer, bits []uint8, t Tiling, rx, ry, S, gap float64) uint16 {
-	rj := math.Floor(ry / S)
+func customCell(num *numberer, bits []uint8, t Tiling, rx, ry, cell, gap float64) uint16 {
+	rj := math.Floor(ry / cell)
 	sx := 0.0
 	if t.Stagger && int64(rj)&1 == 1 {
-		sx = S / 2
+		sx = cell / 2
 	}
 	ux := rx + sx
-	i := math.Floor(ux / S)
-	u0, v0 := ux/S-i, ry/S-rj
-	sc := math.Max(0.06, (S-gap)/S)
+	i := math.Floor(ux / cell)
+	u0, v0 := ux/cell-i, ry/cell-rj
+	sc := math.Max(0.06, (cell-gap)/cell)
 	uu := (u0-0.5)/sc + 0.5
 	vv := (v0-0.5)/sc + 0.5
 	if uu < 0 || uu >= 1 || vv < 0 || vv >= 1 {

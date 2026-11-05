@@ -9,6 +9,8 @@ import { suggest } from './naming';
 import { Autosaver } from './autosave';
 import { ServerBackend } from './api';
 
+import { classCount, classDefsToEngine, defaultTiling, type ClassDefs, type MaskObject, type Tiling } from './regions';
+
 export type RunState = 'idle' | 'preparing' | 'animating' | 'paused' | 'done' | 'error';
 
 /** A procedural landscape, so Studio is useful before any file is chosen (and tests need no fixture). */
@@ -57,6 +59,15 @@ class Studio {
 	timings = $state<{ prepareMs: number; sortMs: number } | null>(null);
 	onFrame: ((rgba: Uint8ClampedArray, w: number, h: number) => void) | null = null;
 
+	// ---- regions (cut the picture into cells, give each kind of cell its own rules) and protect (freeze shapes) ----
+	tiling = $state<Tiling | null>(null);
+	classDefs = $state<ClassDefs>({ 1: {}, 2: {}, 3: {} });
+	labels = $state<Uint16Array | null>(null);
+	classOf = $state<Uint8Array | null>(null);
+	showCells = $state(true);
+	maskObjects = $state<MaskObject[]>([]);
+	maskInvert = $state(false);
+	maskFeather = $state(0);
 	saveFailed = $state(false);
 	private server = new ServerBackend();
 	private saver = new Autosaver(
@@ -118,6 +129,22 @@ class Studio {
 		try {
 			await this.client!.init(img.w, img.h);
 			await this.client!.setImage(img.rgba);
+			// A new picture resets the engine session, so the cells and the protected shapes (vector specs) are sent again.
+			if (this.tiling) {
+				const r = await this.client!.setTiling(
+					{ ...this.tiling },
+					classDefsToEngine(this.classDefs, classCount(this.tiling.pattern, this.tiling.kinds))
+				);
+				this.labels = r?.labels ?? null;
+				this.classOf = r?.classOf ?? null;
+			}
+			if (this.maskObjects.length > 0 || this.maskInvert) {
+				await this.client!.setMaskSpec({
+					objects: this.maskObjects,
+					invert: this.maskInvert,
+					feather: this.maskFeather
+				});
+			}
 			this.onFrame?.(img.rgba, img.w, img.h);
 			await this.instant();
 		} catch (e) {
@@ -202,6 +229,60 @@ class Studio {
 	setSpeed(v: number): void {
 		this.speed = v;
 		void this.client?.setSpeed(v);
+	}
+
+	/** Sends the tiling and its class rules to the engine, then re-sorts. */
+	async applyRegions(): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const t = this.tiling;
+			const defs = t ? classDefsToEngine(this.classDefs, classCount(t.pattern, t.kinds)) : null;
+			const r = await this.client.setTiling(t ? { ...t } : null, defs);
+			this.labels = r?.labels ?? null;
+			this.classOf = r?.classOf ?? null;
+			await this.instant();
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+
+	setTilingShape(shape: Tiling['shape'] | null): void {
+		this.tiling = shape ? { ...(this.tiling ?? defaultTiling(shape, this.params.seed)), shape } : null;
+		void this.applyRegions();
+	}
+
+	/** Sends the mask objects as a vector spec; the engine rasterises them at whatever size it is working at. */
+	async applyMask(): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const has = this.maskObjects.length > 0 || this.maskInvert;
+			await this.client.setMaskSpec(
+				has ? { objects: this.maskObjects, invert: this.maskInvert, feather: this.maskFeather } : null
+			);
+			await this.instant();
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+
+	addMaskObject(kind: MaskObject['kind'], over?: Partial<MaskObject>): void {
+		this.maskObjects.push({
+			kind,
+			cx: 0.5,
+			cy: 0.5,
+			w: 0.3,
+			h: 0.3 * ((this.size?.w ?? 1) / (this.size?.h ?? 1)),
+			rot: 0,
+			mode: 'add',
+			...over
+		});
+		void this.applyMask();
+	}
+
+	async protectBrightestSpot(): Promise<void> {
+		if (!this.client) return;
+		const s = await this.client.brightestSpot();
+		this.addMaskObject('ellipse', { cx: s.cx, cy: s.cy, w: s.w, h: s.h });
 	}
 
 	/** What identifies a run: the picture, the recipe, the seed and the engine version. */

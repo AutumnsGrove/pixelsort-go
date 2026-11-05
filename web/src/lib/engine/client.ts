@@ -76,6 +76,33 @@ export class EngineClient {
 		await this.expectOk(this.send({ type: 'setMask', mask: m }, m ? [m] : []));
 	}
 
+	/** Cuts the picture into cells from a tiling spec (null clears). Resolves with the label map and the class of each cell. */
+	async setTiling(
+		spec: object | null,
+		defs: object[] | null = null
+	): Promise<{ labels: Uint16Array; classOf: Uint8Array } | null> {
+		const res = await this.send(
+			{ type: 'setTiling', specJson: spec ? JSON.stringify(spec) : null, defsJson: defs ? JSON.stringify(defs) : null },
+			[]
+		);
+		if (!res.ok) throw new Error(res.error);
+		return res.labels && res.classOf
+			? { labels: new Uint16Array(res.labels), classOf: new Uint8Array(res.classOf) }
+			: null;
+	}
+
+	/** Rasterises a mask spec (objects, strokes, invert, feather) in the engine; null clears. */
+	async setMaskSpec(spec: object | null): Promise<void> {
+		await this.expectOk(this.send({ type: 'setMaskSpec', specJson: spec ? JSON.stringify(spec) : null }, []));
+	}
+
+	/** The brightest blob of the picture as an ellipse in fractions of the picture. */
+	async brightestSpot(): Promise<{ cx: number; cy: number; w: number; h: number }> {
+		const res = await this.send({ type: 'brightestSpot' }, []);
+		if (!res.ok || !res.spot) throw new Error(res.ok ? 'no spot' : res.error);
+		return res.spot;
+	}
+
 	async setSoft(radius: number): Promise<void> {
 		await this.expectOk(this.send({ type: 'setSoft', radius }, []));
 	}

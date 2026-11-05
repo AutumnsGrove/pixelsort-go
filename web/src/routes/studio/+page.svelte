@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus } from '@lucide/svelte';
+	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, SlidersHorizontal } from '@lucide/svelte';
 	import TopBar from '#components/TopBar';
+	import ProPanel from '#components/ProPanel';
+	import { overlayPixels } from '#lib/overlay';
 	import AngleDial from '#components/AngleDial';
 	import { studio, sampleImage } from '#lib/studio.svelte';
 	import { BUILTIN, chips, rolls } from '#lib/presets';
@@ -22,6 +24,8 @@
 	import { settings } from '#lib/settings.svelte';
 
 	let canvas: HTMLCanvasElement | undefined = $state();
+	let overlay: HTMLCanvasElement | undefined = $state();
+	let proOpen = $state(false);
 	let popover = $state<string | null>(null);
 	let helpOpen = $state(false);
 	let exportOpen = $state(false);
@@ -58,6 +62,29 @@
 		else if (studio.sorted) paint(studio.sorted, studio.size.w, studio.size.h);
 	});
 
+	$effect(() => {
+		// Cell outlines and class tints, drawn from the engine's own label map so they agree with what sorts.
+		const c = overlay;
+		const size = studio.size;
+		if (!c || !size) return;
+		c.width = size.w;
+		c.height = size.h;
+		const g = c.getContext('2d');
+		if (!g) return;
+		g.clearRect(0, 0, size.w, size.h);
+		if (studio.labels && studio.classOf && studio.showCells && studio.labels.length === size.w * size.h) {
+			g.putImageData(
+				new ImageData(
+					overlayPixels(studio.labels, studio.classOf, size.w, size.h) as Uint8ClampedArray<ArrayBuffer>,
+					size.w,
+					size.h
+				),
+				0,
+				0
+			);
+		}
+	});
+
 	function onKeyDown(e: KeyboardEvent): void {
 		const id = shortcutFor(e);
 		if (!id) return;
@@ -66,7 +93,8 @@
 			helpOpen = false;
 			exportOpen = false;
 			renaming = false;
-		} else if (id === 'play') void studio.togglePlay();
+		} else if (id === 'pro') proOpen = !proOpen;
+		else if (id === 'play') void studio.togglePlay();
 		else if (id === 'restart') void studio.restart();
 		else if (id === 'compare') studio.comparing = true;
 		else if (id === 'new') fileInput?.click();
@@ -156,6 +184,7 @@
 	<section class="stage">
 		<div class="frame">
 			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
+			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
 			<div class="caption">
 				{#if renaming}
@@ -438,6 +467,15 @@
 			{/if}
 		</div>
 		<span class="sep"></span>
+		<button
+			class="round"
+			type="button"
+			class:on={proOpen}
+			onclick={() => (proOpen = !proOpen)}
+			aria-label="Pro panel"
+			aria-pressed={proOpen}
+			data-testid="pro-toggle"><SlidersHorizontal size={17} /></button
+		>
 		<button class="round" type="button" onclick={() => fileInput?.click()} aria-label="New picture"
 			><ImagePlus size={17} /></button
 		>
@@ -447,6 +485,8 @@
 		<button class="round" type="button" onclick={() => (helpOpen = true)} aria-label="Shortcuts">?</button>
 	</div>
 </main>
+
+{#if proOpen}<ProPanel onclose={() => (proOpen = false)} />{/if}
 
 <input
 	bind:this={fileInput}
@@ -554,6 +594,16 @@
 		max-height: calc(100vh - 250px);
 		width: auto;
 		height: auto;
+	}
+	.overlay {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+	.round.on {
+		color: var(--ver);
 	}
 	.progress {
 		position: absolute;

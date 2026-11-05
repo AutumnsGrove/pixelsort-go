@@ -70,7 +70,7 @@ func TestShapeCoverageOrder(t *testing.T) {
 		}
 		area[s] = labelled(c)
 	}
-	if !(area[shapes.Circle] < area[shapes.Octagon] && area[shapes.Octagon] < area[shapes.Square]) {
+	if area[shapes.Circle] >= area[shapes.Octagon] || area[shapes.Octagon] >= area[shapes.Square] {
 		t.Fatalf("coverage %v: want circle < octagon < square", area)
 	}
 }

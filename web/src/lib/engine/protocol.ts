@@ -12,6 +12,9 @@ export type Request =
 	| { id: number; type: 'setRegions'; labels: ArrayBuffer | null; classOf: ArrayBuffer | null; defsJson: string | null }
 	| { id: number; type: 'setMask'; mask: ArrayBuffer | null }
 	| { id: number; type: 'setSoft'; radius: number }
+	| { id: number; type: 'setTiling'; specJson: string | null; defsJson: string | null } // answers with labels + classOf
+	| { id: number; type: 'setMaskSpec'; specJson: string | null }
+	| { id: number; type: 'brightestSpot' }
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
 	| { id: number; type: 'animate'; speed: Speed } // prepare, reset and start streaming frames
@@ -22,7 +25,16 @@ export type Request =
 	| { id: number; type: 'ack' }; // the page drew the last frame; no reply
 
 export type Response =
-	| { id: number; ok: true; stats?: Stats; rgba?: ArrayBuffer; timings?: Timings }
+	| {
+			id: number;
+			ok: true;
+			stats?: Stats;
+			rgba?: ArrayBuffer;
+			timings?: Timings;
+			labels?: ArrayBuffer; // Uint16Array region label per pixel (setTiling)
+			classOf?: ArrayBuffer; // Uint8Array class per cell id (setTiling)
+			spot?: { cx: number; cy: number; w: number; h: number };
+	  }
 	| { id: number; ok: false; error: string };
 
 /** Not tied to a request: the worker streams one after each batch of passes, at most one unacknowledged. */

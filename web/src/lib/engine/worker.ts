@@ -136,6 +136,28 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			return { res: done(api.setMask(req.mask ? new Uint8Array(req.mask) : null)), transfer: [] };
 		case 'setSoft':
 			return { res: done(api.setSoft(req.radius)), transfer: [] };
+		case 'setTiling': {
+			const r = api.setTiling(req.specJson, req.defsJson);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			if (req.specJson === null) return { res: { id: req.id, ok: true }, transfer: [] };
+			// Copy the label map and the class table out of Go memory so the page can draw outlines and class tints.
+			const p = api.labelsPtr();
+			const mem = goInstance?._inst?.exports.mem;
+			const c = api.classOf();
+			if (!p.ok || !mem || !c.ok) return { res: fail(req.id, 'no region data'), transfer: [] };
+			const labels = new Uint8Array(mem.buffer, p.ptr, p.len).slice().buffer;
+			const classOf = c.classes.slice().buffer;
+			return { res: { id: req.id, ok: true, labels, classOf }, transfer: [labels, classOf] };
+		}
+		case 'setMaskSpec':
+			return { res: done(api.setMaskSpec(req.specJson)), transfer: [] };
+		case 'brightestSpot': {
+			const r = api.brightestSpot();
+			return {
+				res: r.ok ? { id: req.id, ok: true, spot: { cx: r.cx, cy: r.cy, w: r.w, h: r.h } } : fail(req.id, r.error),
+				transfer: []
+			};
+		}
 		case 'configure':
 			return { res: done(api.configure(req.json)), transfer: [] };
 		case 'animate': {
