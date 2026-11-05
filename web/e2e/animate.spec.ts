@@ -56,9 +56,16 @@ test('pause holds the picture, restart begins again', async ({ page }) => {
 	await expect(page.getByTestId('anim-state')).toHaveText('animating');
 	await page.getByRole('button', { name: 'Pause' }).click();
 	await expect(page.getByTestId('anim-state')).toHaveText('paused');
-	await page.waitForTimeout(300);
-	const held = await canvasHash(page, 'sorted');
-	await page.waitForTimeout(400);
+	// A frame already in flight when Pause was clicked may still land; wait until the canvas stops changing, then check
+	// that it stays that way.
+	let held = await canvasHash(page, 'sorted');
+	for (let stable = 0; stable < 3;) {
+		await page.waitForTimeout(250);
+		const now = await canvasHash(page, 'sorted');
+		stable = now === held ? stable + 1 : 0;
+		held = now;
+	}
+	await page.waitForTimeout(600);
 	expect(await canvasHash(page, 'sorted')).toBe(held);
 	await page.screenshot({ path: 'test-results/animate-paused.png', fullPage: true });
 	await page.getByRole('button', { name: 'Restart' }).click();
