@@ -1,7 +1,7 @@
 // Mask objects on the canvas: the geometry of moving, resizing and rotating them. Pure maths, tested without a browser.
 // Objects are stored as fractions of the picture (centre and size) plus a rotation in degrees, so the preview and a
 // full-size export agree. Port of the geometry in mockups/shared/mask-editor.js.
-import type { MaskObject } from './regions';
+import type { MaskObject, Stroke } from './regions';
 
 export type Size = { w: number; h: number }; // the picture in working pixels
 /** A handle's place on the box: -1, 0 or 1 on each axis. (-1,-1) is the top-left corner. */
@@ -105,9 +105,23 @@ export function duplicate(o: MaskObject): MaskObject {
 }
 
 /** What the engine's `masks.Spec` takes: objects as fractions, plus the invert toggle (a toggle, never a bake). */
-export function toSpec(objects: readonly MaskObject[], invert: boolean, feather: number): object {
+export function toSpec(
+	objects: readonly MaskObject[],
+	invert: boolean,
+	feather: number,
+	strokes: readonly Stroke[] = []
+): object {
 	return {
 		objects: objects.map((o) => ({ kind: o.kind, cx: o.cx, cy: o.cy, w: o.w, h: o.h, rot: o.rot, mode: o.mode })),
+		...(strokes.length
+			? {
+					strokes: strokes.map((s) => ({
+						radius: s.radius,
+						...(s.erase ? { erase: true } : {}),
+						points: s.points
+					}))
+				}
+			: {}),
 		...(invert ? { invert: true } : {}),
 		...(feather > 0 ? { feather } : {})
 	};

@@ -3,6 +3,14 @@
 import type { ErrorCode } from './errors';
 
 export type ApiImage = { sha256: string; mime: string; w: number; h: number; bytes: number };
+/** A saved custom shape: an outline and extra rings (holes or more pieces) in the unit square. */
+export type ApiShape = {
+	id: number;
+	name: string;
+	poly: [number, number][];
+	more: [number, number][][] | null;
+	created_at: string;
+};
 export type ApiRun = {
 	id: number;
 	created_at: number;
@@ -114,6 +122,17 @@ export class ServerBackend {
 	}
 	imageUrl(sha: string): string {
 		return `${this.base}/api/images/${sha}`;
+	}
+
+	/** Saved custom shapes, newest first. */
+	async listShapes(): Promise<ApiShape[]> {
+		return (await this.json<{ shapes: ApiShape[] }>('/api/shapes')).shapes;
+	}
+	addShape(s: { name: string; poly: [number, number][]; more: [number, number][][] }): Promise<ApiShape> {
+		return this.post('/api/shapes', s);
+	}
+	async deleteShape(id: number): Promise<void> {
+		await this.json(`/api/shapes/${id}`, { method: 'DELETE' });
 	}
 
 	/** Saves a run, uploading the original only if the server does not have it. Returns the run (200 = already saved). */

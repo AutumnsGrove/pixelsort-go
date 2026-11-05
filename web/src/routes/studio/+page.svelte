@@ -5,8 +5,10 @@
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
 	import MaskHandles from '#components/MaskHandles';
+	import BrushLayer from '#components/BrushLayer';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
+	import { isSvgFile, looksLikeSvg } from '#lib/svg-shapes';
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
@@ -151,7 +153,12 @@
 	function onDrop(e: DragEvent): void {
 		e.preventDefault();
 		const f = e.dataTransfer?.files[0];
-		if (f) void studio.loadFile(f);
+		if (f) void (isSvgFile(f) ? takeSvg(f) : studio.loadFile(f));
+	}
+	/** An SVG is a shape for the library, not a picture: hand its text to the Pro panel's shape library. */
+	async function takeSvg(f: Blob): Promise<void> {
+		studio.pendingSvg = await f.text();
+		proOpen = true;
 	}
 
 	const knob = (id: string) => () => (popover = popover === id ? null : id);
@@ -213,8 +220,14 @@
 	ondrop={onDrop}
 	onpaste={(e) => {
 		const f = e.clipboardData?.files[0];
-		if (f) return void studio.loadFile(f);
+		if (f) return void (isSvgFile(f) ? takeSvg(f) : studio.loadFile(f));
 		const text = e.clipboardData?.getData('text')?.trim() ?? '';
+		// pasted SVG code becomes a shape (unless you are typing it into a field, which already holds it)
+		if (looksLikeSvg(text) && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+			studio.pendingSvg = text;
+			proOpen = true;
+			return;
+		}
 		// a pasted address loads the picture, unless you are typing into a field
 		if (
 			/^https?:\/\/\S+$/.test(text) &&
@@ -230,12 +243,27 @@
 />
 
 <main class="workspace">
-	<section class="stage">
+	<section class="stage" class:sheet={proOpen}>
 		<div class="frame">
 			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
 			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
+			<BrushLayer active={proOpen} />
 			<MaskHandles active={proOpen} />
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
+			{#if studio.scrubbable}
+				<input
+					class="scrub"
+					type="range"
+					min="0"
+					max={studio.maxPass}
+					step="1"
+					value={studio.pass}
+					oninput={(e) => void studio.scrub(Number(e.currentTarget.value))}
+					aria-label="Scrub through the sort"
+					aria-valuetext="pass {studio.pass} of {studio.maxPass}"
+					data-testid="scrub"
+				/>
+			{/if}
 			<div class="caption">
 				{#if renaming}
 					<div
@@ -732,6 +760,22 @@
 	.round.on {
 		color: var(--ver);
 	}
+	/* The scrub slider sits inside the picture's bottom edge; 44 px tall on a phone so a thumb can hold it. */
+	.scrub {
+		position: absolute;
+		left: 12px;
+		right: 12px;
+		bottom: 8px;
+		width: calc(100% - 24px);
+		z-index: 7;
+		opacity: 0.85;
+	}
+	@media (max-width: 600px) {
+		.scrub {
+			min-height: 44px;
+			bottom: 0;
+		}
+	}
 	.progress {
 		position: absolute;
 		left: 0;
@@ -972,12 +1016,22 @@
 		.stage {
 			padding: 64px 10px 150px;
 		}
+		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
+		.stage.sheet {
+			padding-bottom: calc(46dvh + 114px);
+		}
 		.frame {
 			max-width: 100%;
 			max-height: calc(100dvh - 230px);
 		}
+		.stage.sheet .frame {
+			max-height: calc(54dvh - 190px);
+		}
 		canvas {
 			max-height: calc(100dvh - 230px);
+		}
+		.stage.sheet canvas {
+			max-height: calc(54dvh - 190px);
 		}
 		.dock {
 			left: 8px;

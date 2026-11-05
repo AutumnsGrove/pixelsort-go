@@ -13,6 +13,9 @@ export class EngineCrashed extends Error {
 export type Frame = { rgba: Uint8ClampedArray; progress: number; pass: number; done: boolean; stepMs: number };
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
 
+export type SeekResult = { rgba: Uint8ClampedArray; pass: number; progress: number; done: boolean };
+type SeekWaiting = { resolve: (r: SeekResult | 'superseded') => void; reject: (e: Error) => void; pass: number };
+
 type Pending = { resolve: (r: Response) => void; reject: (e: Error) => void };
 type Waiting = { resolve: (r: RunResult | 'superseded') => void; reject: (e: Error) => void };
 
@@ -35,6 +38,8 @@ export class EngineClient {
 	private params: Params = { ...defaultParams };
 	private runInFlight = false;
 	private waiting: Waiting | null = null;
+	private seekInFlight = false;
+	private seekWaiting: SeekWaiting | null = null;
 	private frameListeners = new Set<(f: Frame) => void>();
 	transfer: 'copy' | 'view' = 'copy';
 
@@ -167,6 +172,37 @@ export class EngineClient {
 	}
 	async restart(): Promise<void> {
 		await this.expectOk(this.send({ type: 'restart' }, []));
+	}
+
+	/**
+	 * Pauses and jumps to the state after `pass` passes, answering with those pixels. Latest wins: while one seek is in flight
+	 * only the newest further seek is kept, and any older waiting one resolves 'superseded', so dragging a slider never queues
+	 * up work for positions already passed.
+	 */
+	seek(pass: number): Promise<SeekResult | 'superseded'> {
+		if (this.seekInFlight) {
+			this.seekWaiting?.resolve('superseded');
+			return new Promise((resolve, reject) => {
+				this.seekWaiting = { resolve, reject, pass };
+			});
+		}
+		return this.startSeek(pass);
+	}
+	private startSeek(pass: number): Promise<SeekResult | 'superseded'> {
+		this.seekInFlight = true;
+		const result = this.send({ type: 'seek', pass }, []).then((res): SeekResult => {
+			if (!res.ok) throw new Error(res.error);
+			if (!res.rgba || !res.seek) throw new Error('seek answered without pixels');
+			return { rgba: new Uint8ClampedArray(res.rgba), ...res.seek };
+		});
+		const next = (): void => {
+			this.seekInFlight = false;
+			const w = this.seekWaiting;
+			this.seekWaiting = null;
+			if (w) this.startSeek(w.pass).then(w.resolve, w.reject);
+		};
+		result.then(next, next);
+		return result;
 	}
 
 	dispose(): void {

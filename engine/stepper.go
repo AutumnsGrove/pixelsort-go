@@ -1,5 +1,7 @@
 package engine
 
+import "slices"
+
 // family is one algorithm's share of a stepper: the intervals that use it and whatever state it needs between
 // passes. Families run side by side, one pass each per Step (decision E9).
 type family interface {
@@ -8,6 +10,8 @@ type family interface {
 	// progress is the family's own 0..1 estimate; weight is its interval count, used to average the families.
 	progress() float64
 	weight() int
+	// clone is an independent copy: stepping either never changes the other. Scratch buffers are fresh, not shared.
+	clone() family
 }
 
 // Stepper advances a Plan one pass at a time on a live copy of the pixels, so a canvas can show pixels moving into
@@ -82,6 +86,25 @@ func (s *Stepper) Step() (done bool) {
 	s.pass++
 	s.finished = s.allDone()
 	return s.finished
+}
+
+// Clone is an independent copy of the stepper at its current pass: the pixels, keys and every algorithm's own state. The
+// plan is shared (it is never modified). Scrubbing keeps a few clones as checkpoints so a seek replays only the passes since the
+// nearest one.
+func (s *Stepper) Clone() *Stepper {
+	c := &Stepper{
+		pl:       s.pl,
+		live:     slices.Clone(s.live),
+		keys:     slices.Clone(s.keys),
+		fams:     make([]family, len(s.fams)),
+		pass:     s.pass,
+		finished: s.finished,
+		progMax:  s.progMax,
+	}
+	for i, f := range s.fams {
+		c.fams[i] = f.clone()
+	}
+	return c
 }
 
 // Done reports whether every family has finished.

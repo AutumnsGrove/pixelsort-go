@@ -25,3 +25,10 @@ func (f *reveal) step(s *Stepper) {
 func (f *reveal) done() bool        { return f.cursor >= len(f.idx) }
 func (f *reveal) weight() int       { return len(f.idx) }
 func (f *reveal) progress() float64 { return float64(f.cursor) / float64(len(f.idx)) }
+
+// clone copies the cursor; the order buffer is scratch, so the copy gets its own.
+func (f *reveal) clone() family {
+	c := *f
+	c.order = make([]int32, len(f.order))
+	return &c
+}

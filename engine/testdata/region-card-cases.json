@@ -1,0 +1,18 @@
+[
+  { "name": "an untouched card inherits everything", "card": {}, "classDef": {} },
+  { "name": "frozen", "card": { "frozen": true }, "classDef": { "frozen": true } },
+  { "name": "own direction", "card": { "angleOn": true, "angle": 90 }, "classDef": { "angle": 90 } },
+  { "name": "direction is wrapped into 0..359", "card": { "angleOn": true, "angle": -45 }, "classDef": { "angle": 315 } },
+  { "name": "own sort key and order", "card": { "key": "hue", "order": "desc" }, "classDef": { "key": "hue", "reverse": true } },
+  { "name": "order alone", "card": { "order": "asc" }, "classDef": { "reverse": false } },
+  { "name": "own animation", "card": { "algo": "insertion" }, "classDef": { "algo": "insertion" } },
+  { "name": "random cutting sends length and randomness", "card": { "cutOn": true, "mode": "random", "length": 40, "randomness": 25 }, "classDef": { "mode": "random", "length": 40, "randomness": 25 } },
+  { "name": "threshold sends the band", "card": { "cutOn": true, "mode": "threshold", "lo": 30, "hi": 200, "randomness": 0 }, "classDef": { "mode": "threshold", "lo": 30, "hi": 200, "randomness": 0 } },
+  { "name": "a band typed backwards is put in order", "card": { "cutOn": true, "mode": "threshold", "lo": 200, "hi": 30 }, "classDef": { "mode": "threshold", "lo": 200, "hi": 200, "randomness": 10 } },
+  { "name": "edges sends the sensitivity", "card": { "cutOn": true, "mode": "edges", "edge": 40 }, "classDef": { "mode": "edges", "edge": 40, "randomness": 10 } },
+  { "name": "cellular sends rule and cell", "card": { "cutOn": true, "mode": "ca", "rule": 154, "cell": 6 }, "classDef": { "mode": "ca", "rule": 154, "cell": 6, "randomness": 10 } },
+  { "name": "mode none sends no randomness", "card": { "cutOn": true, "mode": "none" }, "classDef": { "mode": "none" } },
+  { "name": "a recipe that is switched off is not sent", "card": { "cutOn": false, "mode": "wave", "length": 99 }, "classDef": {} },
+  { "name": "out-of-range numbers are clamped", "card": { "cutOn": true, "mode": "random", "length": 5000, "randomness": 400 }, "classDef": { "mode": "random", "length": 1000, "randomness": 100 } },
+  { "name": "everything at once", "card": { "frozen": true, "angleOn": true, "angle": 12, "key": "saturation", "order": "desc", "algo": "reveal", "cutOn": true, "mode": "wave", "length": 60, "randomness": 5 }, "classDef": { "frozen": true, "angle": 12, "key": "saturation", "reverse": true, "algo": "reveal", "mode": "wave", "length": 60, "randomness": 5 } }
+]

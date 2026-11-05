@@ -1,6 +1,9 @@
 package engine
 
-import "math/bits"
+import (
+	"math/bits"
+	"slices"
+)
 
 // merge is bottom-up merge sort: pass k merges neighbouring runs of 2^(k-1) into runs of 2^k, taking from the left
 // run on ties so equal keys keep their order. It needs ceil(log2 n) passes, and looks like growing blocks.
@@ -79,6 +82,15 @@ func (f *merge) done() bool {
 	return true
 }
 func (f *merge) weight() int { return len(f.idx) }
+
+// clone copies the run widths; the temporary merge buffers are scratch, so the copy gets its own.
+func (f *merge) clone() family {
+	c := *f
+	c.width = slices.Clone(f.width)
+	c.tmpPx = make([]uint32, len(f.tmpPx))
+	c.tmpKey = make([]uint8, len(f.tmpKey))
+	return &c
+}
 func (f *merge) progress() float64 {
 	return min(0.99, float64(f.passes)/float64(max(1, f.needed)))
 }

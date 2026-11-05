@@ -1,0 +1,267 @@
+[
+  {
+    "name": "no objects freezes nothing",
+    "objects": [],
+    "invert": false,
+    "feather": 0,
+    "spec": {
+      "objects": []
+    },
+    "centreFrozen": false,
+    "cornerFrozen": false
+  },
+  {
+    "name": "an ellipse in the middle freezes the centre only",
+    "objects": [
+      {
+        "kind": "ellipse",
+        "cx": 0.5,
+        "cy": 0.5,
+        "w": 0.4,
+        "h": 0.4,
+        "rot": 0,
+        "mode": "add"
+      }
+    ],
+    "invert": false,
+    "feather": 0,
+    "spec": {
+      "objects": [
+        {
+          "kind": "ellipse",
+          "cx": 0.5,
+          "cy": 0.5,
+          "w": 0.4,
+          "h": 0.4,
+          "rot": 0,
+          "mode": "add"
+        }
+      ]
+    },
+    "centreFrozen": true,
+    "cornerFrozen": false
+  },
+  {
+    "name": "invert is a toggle on the spec",
+    "objects": [
+      {
+        "kind": "ellipse",
+        "cx": 0.5,
+        "cy": 0.5,
+        "w": 0.4,
+        "h": 0.4,
+        "rot": 0,
+        "mode": "add"
+      }
+    ],
+    "invert": true,
+    "feather": 0,
+    "spec": {
+      "objects": [
+        {
+          "kind": "ellipse",
+          "cx": 0.5,
+          "cy": 0.5,
+          "w": 0.4,
+          "h": 0.4,
+          "rot": 0,
+          "mode": "add"
+        }
+      ],
+      "invert": true
+    },
+    "centreFrozen": false,
+    "cornerFrozen": true
+  },
+  {
+    "name": "a cut punches a hole in an add",
+    "objects": [
+      {
+        "kind": "rect",
+        "cx": 0.5,
+        "cy": 0.5,
+        "w": 0.8,
+        "h": 0.8,
+        "rot": 0,
+        "mode": "add"
+      },
+      {
+        "kind": "rect",
+        "cx": 0.5,
+        "cy": 0.5,
+        "w": 0.2,
+        "h": 0.2,
+        "rot": 45,
+        "mode": "cut"
+      }
+    ],
+    "invert": false,
+    "feather": 0,
+    "spec": {
+      "objects": [
+        {
+          "kind": "rect",
+          "cx": 0.5,
+          "cy": 0.5,
+          "w": 0.8,
+          "h": 0.8,
+          "rot": 0,
+          "mode": "add"
+        },
+        {
+          "kind": "rect",
+          "cx": 0.5,
+          "cy": 0.5,
+          "w": 0.2,
+          "h": 0.2,
+          "rot": 45,
+          "mode": "cut"
+        }
+      ]
+    },
+    "centreFrozen": false,
+    "cornerFrozen": false
+  },
+  {
+    "name": "feather is sent when above zero",
+    "objects": [
+      {
+        "kind": "rect",
+        "cx": 0.5,
+        "cy": 0.5,
+        "w": 0.9,
+        "h": 0.9,
+        "rot": 0,
+        "mode": "add"
+      }
+    ],
+    "invert": false,
+    "feather": 0.02,
+    "spec": {
+      "objects": [
+        {
+          "kind": "rect",
+          "cx": 0.5,
+          "cy": 0.5,
+          "w": 0.9,
+          "h": 0.9,
+          "rot": 0,
+          "mode": "add"
+        }
+      ],
+      "feather": 0.02
+    },
+    "centreFrozen": true,
+    "cornerFrozen": false
+  },
+  {
+    "name": "a paint stroke freezes along its path",
+    "objects": [],
+    "strokes": [
+      {
+        "radius": 0.08,
+        "points": [
+          [
+            0.4,
+            0.5
+          ],
+          [
+            0.6,
+            0.5
+          ]
+        ]
+      }
+    ],
+    "invert": false,
+    "feather": 0,
+    "spec": {
+      "objects": [],
+      "strokes": [
+        {
+          "radius": 0.08,
+          "points": [
+            [
+              0.4,
+              0.5
+            ],
+            [
+              0.6,
+              0.5
+            ]
+          ]
+        }
+      ]
+    },
+    "centreFrozen": true,
+    "cornerFrozen": false
+  },
+  {
+    "name": "an erase stroke clears what was painted",
+    "objects": [],
+    "strokes": [
+      {
+        "radius": 0.2,
+        "points": [
+          [
+            0.5,
+            0.5
+          ],
+          [
+            0.5,
+            0.5
+          ]
+        ]
+      },
+      {
+        "radius": 0.05,
+        "erase": true,
+        "points": [
+          [
+            0.5,
+            0.5
+          ],
+          [
+            0.5,
+            0.5
+          ]
+        ]
+      }
+    ],
+    "invert": false,
+    "feather": 0,
+    "spec": {
+      "objects": [],
+      "strokes": [
+        {
+          "radius": 0.2,
+          "points": [
+            [
+              0.5,
+              0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ]
+        },
+        {
+          "radius": 0.05,
+          "erase": true,
+          "points": [
+            [
+              0.5,
+              0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ]
+        }
+      ]
+    },
+    "centreFrozen": false,
+    "cornerFrozen": false
+  }
+]

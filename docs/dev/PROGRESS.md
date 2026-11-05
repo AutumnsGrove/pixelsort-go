@@ -151,13 +151,13 @@ File: [`phase-7.md`](phase-7.md)
 - [x] P7-T05 Region properties and goldens
 - [x] P7-T06 Masks: objects, strokes, invert, brightest spot
 - [x] P7-T07 Session API and WASM for regions
-- [ ] P7-T08 TypeScript geometry modules
+- [x] P7-T08 TypeScript geometry modules
 - [x] P7-T09 Pro panel: Regions
-- [ ] P7-T10 Region cards
+- [x] P7-T10 Region cards
 - [x] P7-T11 Protect: brush, objects, feather
-- [ ] P7-T12 Shape library
-- [ ] P7-T13 Phone: Protect and Shapes tabs
-- [ ] P7-T14 Acceptance and wrap-up
+- [x] P7-T12 Shape library
+- [x] P7-T13 Phone: Protect and Shapes tabs
+- [x] P7-T14 Acceptance and wrap-up
 
 ## Phase 8: deploy, in-app updates, backups
 
@@ -183,7 +183,7 @@ File: [`phase-9.md`](phase-9.md)
 
 - [ ] P9-T01 Worker pool (parallel sort)
 - [ ] P9-T02 Video recording of the animation
-- [ ] P9-T03 Scrubbing and rewind
+- [x] P9-T03 Scrubbing and rewind
 - [ ] P9-T04 More segmentations
 - [ ] P9-T05 Mask morphology and multiple mask layers
 - [ ] P9-T06 Batch processing

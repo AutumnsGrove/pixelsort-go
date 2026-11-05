@@ -73,6 +73,9 @@
 
 	async function animate(): Promise<void> {
 		if (!client || !size) return;
+		// A pending debounced re-run would call animate() again later and reset a Pause the user has clicked since;
+		// this call already applies the current params, so it supersedes that one.
+		clearTimeout(debounce);
 		try {
 			await client.configure(params);
 			finished = false;

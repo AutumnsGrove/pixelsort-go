@@ -10,7 +10,21 @@ import { Autosaver } from './autosave';
 import { ServerBackend } from './api';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
-import { classCount, classDefsToEngine, defaultTiling, type ClassDefs, type MaskObject, type Tiling } from './regions';
+import { classCount, defaultTiling, type MaskObject, type Stroke, type Tiling } from './regions';
+import { toSpec } from './mask-model';
+import { acceptGuess, DEFAULT_RADIUS, suggestFor, type Tool } from './brush';
+import type { Guess } from './snap';
+import { LocalStorageBackend } from './storage';
+import { ShapeLibrary, nextShapeName, type SavedShape } from './shape-library';
+import type { Ring } from './shape-tidy';
+import { cardsToClassDefs, defaultCards, kindCounts, newCard, type RegionCard } from './region-cards';
+
+/** One card per possible kind (the "random" pattern can make eight); the first three start with a little personality. */
+function startingCards(): Record<number, RegionCard> {
+	const cards = defaultCards();
+	for (let k = 4; k <= 8; k++) cards[k] = newCard(`Kind ${k}`);
+	return cards;
+}
 
 export type RunState = 'idle' | 'preparing' | 'animating' | 'paused' | 'done' | 'error';
 
@@ -62,7 +76,16 @@ class Studio {
 
 	// ---- regions (cut the picture into cells, give each kind of cell its own rules) and protect (freeze shapes) ----
 	tiling = $state<Tiling | null>(null);
-	classDefs = $state<ClassDefs>({ 1: {}, 2: {}, 3: {} });
+	/** What each kind of cell does; anything not overridden inherits the global recipe. See region-cards.ts. */
+	cards = $state<Record<number, RegionCard>>(startingCards());
+	/** Shapes per kind, for the card headers. */
+	kindCounts(): Record<number, number> {
+		return kindCounts(this.classOf);
+	}
+	/** The cards as the engine wants them, for the current pattern (class 0, the gaps, first). */
+	engineDefs(): object[] {
+		return this.tiling ? cardsToClassDefs(this.cards, classCount(this.tiling.pattern, this.tiling.kinds)) : [];
+	}
 	labels = $state<Uint16Array | null>(null);
 	classOf = $state<Uint8Array | null>(null);
 	showCells = $state(true);
@@ -136,10 +159,11 @@ class Studio {
 		if (this.client) return;
 		this.client = new EngineClient();
 		this.off = this.client.onFrame((f) => {
-			if (!this.size) return;
+			if (!this.size || this.scrubbed) return;
 			this.sorted = f.rgba;
 			this.progress = f.progress;
 			this.pass = f.pass;
+			this.maxPass = Math.max(this.maxPass, f.pass);
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
@@ -167,20 +191,11 @@ class Studio {
 			await this.client!.setImage(img.rgba);
 			// A new picture resets the engine session, so the cells and the protected shapes (vector specs) are sent again.
 			if (this.tiling) {
-				const r = await this.client!.setTiling(
-					{ ...this.tiling },
-					classDefsToEngine(this.classDefs, classCount(this.tiling.pattern, this.tiling.kinds))
-				);
+				const r = await this.client!.setTiling({ ...this.tiling }, this.engineDefs());
 				this.labels = r?.labels ?? null;
 				this.classOf = r?.classOf ?? null;
 			}
-			if (this.maskObjects.length > 0 || this.maskInvert) {
-				await this.client!.setMaskSpec({
-					objects: this.maskObjects,
-					invert: this.maskInvert,
-					feather: this.maskFeather
-				});
-			}
+			if (this.hasMask()) await this.client!.setMaskSpec(this.maskSpec());
 			this.onFrame?.(img.rgba, img.w, img.h);
 			await this.instant();
 		} catch (e) {
@@ -235,6 +250,7 @@ class Studio {
 
 	async instant(): Promise<void> {
 		if (!this.client || !this.size) return;
+		this.stepped = false;
 		this.run = 'preparing';
 		try {
 			await this.client.configure(this.params);
@@ -257,6 +273,9 @@ class Studio {
 			await this.client.configure(this.params);
 			this.progress = 0;
 			this.pass = 0;
+			this.maxPass = 0;
+			this.stepped = true;
+			this.scrubbed = false;
 			this.run = 'animating';
 			await this.client.animate(this.speed);
 		} catch (e) {
@@ -270,13 +289,46 @@ class Studio {
 			await this.client?.pause();
 		} else if (this.run === 'paused') {
 			this.run = 'animating';
+			this.scrubbed = false; // frames flow again from wherever the slider left the sort
 			await this.client?.resume();
 		} else await this.play();
+	}
+
+	// ---- scrubbing: drag through the sort. The engine replays deterministically (it never stores a frame per step). ----
+	/** A stepped sort exists (an animation was started and the picture has not been replaced by an instant sort since). */
+	stepped = $state(false);
+	/** The furthest pass seen so far, or the total once the sort finished: the slider's end. */
+	maxPass = $state(0);
+	private scrubbed = false;
+	get scrubbable(): boolean {
+		return (
+			this.stepped && (this.run === 'animating' || this.run === 'paused' || this.run === 'done') && this.maxPass > 0
+		);
+	}
+	/** Jump to the state after `pass` passes. Pauses the animation; newer calls replace older ones still waiting. */
+	async scrub(pass: number): Promise<void> {
+		if (!this.client || !this.size || !this.stepped) return;
+		this.scrubbed = true; // a frame still in flight from before must not overwrite what the slider shows
+		if (this.run === 'animating') this.run = 'paused';
+		try {
+			const r = await this.client.seek(Math.max(0, Math.round(pass)));
+			if (r === 'superseded') return;
+			this.sorted = r.rgba;
+			this.progress = r.progress;
+			this.pass = r.pass;
+			this.maxPass = Math.max(this.maxPass, r.pass);
+			this.run = r.done ? 'done' : 'paused';
+			this.onFrame?.(r.rgba, this.size.w, this.size.h);
+		} catch (e) {
+			this.fail(e);
+		}
 	}
 
 	async restart(): Promise<void> {
 		this.progress = 0;
 		this.pass = 0;
+		this.maxPass = 0;
+		this.scrubbed = false;
 		this.run = 'animating';
 		await this.client?.restart();
 	}
@@ -291,8 +343,7 @@ class Studio {
 		if (!this.client || !this.size) return;
 		try {
 			const t = this.tiling;
-			const defs = t ? classDefsToEngine(this.classDefs, classCount(t.pattern, t.kinds)) : null;
-			const r = await this.client.setTiling(t ? { ...t } : null, defs);
+			const r = await this.client.setTiling(t ? { ...t } : null, t ? this.engineDefs() : null);
 			this.labels = r?.labels ?? null;
 			this.classOf = r?.classOf ?? null;
 			await this.instant();
@@ -306,18 +357,93 @@ class Studio {
 		void this.applyRegions();
 	}
 
+	// ---- the shape library: starters and "your shapes" tile the picture as a custom shape ----
+	private shapeLib = new ShapeLibrary(this.server, new LocalStorageBackend());
+	myShapes = $state<SavedShape[]>([]);
+	/** SVG text dropped or pasted anywhere in Studio, waiting for the shape library to read it (never loaded as the picture). */
+	pendingSvg = $state<string | null>(null);
+	/** The shape (outline and extra rings) the custom tiling currently uses, for highlighting the chosen tile. */
+	customKey = $state<string | null>(null);
+
+	async loadMyShapes(): Promise<void> {
+		this.myShapes = await this.shapeLib.list();
+	}
+	/** Tile the picture with this outline (plus holes or extra pieces). `key` names the library tile that is now chosen. */
+	useShape(poly: Ring, more: Ring[], key: string | null): void {
+		const base = this.tiling ?? defaultTiling('custom', this.params.seed);
+		this.tiling = { ...base, shape: 'custom', poly, more };
+		this.customKey = key;
+		void this.applyRegions();
+	}
+	setStagger(stagger: boolean): void {
+		if (!this.tiling) return;
+		this.tiling = { ...this.tiling, stagger };
+		void this.applyRegions();
+	}
+	/** Save a shape to "your shapes" (server, or this browser if the server is away) and use it. */
+	async saveShape(name: string, poly: Ring, more: Ring[]): Promise<void> {
+		const saved = await this.shapeLib.add(name || nextShapeName(this.myShapes), poly, more);
+		this.myShapes = [saved, ...this.myShapes];
+		this.useShape(saved.poly, saved.more, saved.id);
+	}
+	async deleteShape(shape: SavedShape): Promise<void> {
+		try {
+			await this.shapeLib.remove(shape);
+		} catch {
+			return;
+		}
+		this.myShapes = this.myShapes.filter((s) => s.id !== shape.id);
+		if (this.customKey === shape.id) this.customKey = null;
+	}
+
 	/** Sends the mask objects as a vector spec; the engine rasterises them at whatever size it is working at. */
 	async applyMask(): Promise<void> {
 		if (!this.client || !this.size) return;
 		try {
-			const has = this.maskObjects.length > 0 || this.maskInvert;
-			await this.client.setMaskSpec(
-				has ? { objects: this.maskObjects, invert: this.maskInvert, feather: this.maskFeather } : null
-			);
+			await this.client.setMaskSpec(this.hasMask() ? this.maskSpec() : null);
 			await this.instant();
 		} catch (e) {
 			this.fail(e);
 		}
+	}
+
+	private hasMask(): boolean {
+		return this.maskObjects.length > 0 || this.maskStrokes.length > 0 || this.maskInvert;
+	}
+	private maskSpec(): object {
+		return toSpec(this.maskObjects, this.maskInvert, this.maskFeather, this.maskStrokes);
+	}
+
+	// ---- painting: brush strokes protect (paint) or unprotect (erase) pixels; a loop can become an object ----
+	maskStrokes = $state<Stroke[]>([]);
+	tool = $state<Tool>('move');
+	brushRadius = $state(DEFAULT_RADIUS);
+	/** A finished paint stroke that looks like a circle or rectangle, offered as "Snap". */
+	suggestion = $state<{ index: number; guess: Guess } | null>(null);
+
+	/** A finished stroke: keep it, offer a snap if it is a loop, and re-sort. */
+	addStroke(stroke: Stroke): void {
+		this.maskStrokes.push(stroke);
+		const g = this.size ? suggestFor(stroke, this.size) : null;
+		this.suggestion = g ? { index: this.maskStrokes.length - 1, guess: g } : null;
+		void this.applyMask();
+	}
+	/** Replace the suggested stroke with an editable object (never both). */
+	snapSuggestion(): void {
+		const s = this.suggestion;
+		if (!s) return;
+		const { strokes, object } = acceptGuess(this.maskStrokes, s.index, s.guess);
+		this.maskStrokes = strokes;
+		this.maskObjects.push(object);
+		this.selectedMask = this.maskObjects.length - 1;
+		this.suggestion = null;
+		this.tool = 'move';
+		void this.applyMask();
+	}
+	clearStrokes(): void {
+		this.maskStrokes = [];
+		this.suggestion = null;
+		void this.applyMask();
 	}
 
 	addMaskObject(kind: MaskObject['kind'], over?: Partial<MaskObject>): void {
