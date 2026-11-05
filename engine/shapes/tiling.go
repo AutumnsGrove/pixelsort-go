@@ -227,9 +227,9 @@ func hexCell(num *numberer, rx, ry, cell, gap float64) uint16 {
 
 // triangleCell splits each parallelogram of the skewed grid into two triangles and keeps pixels at least gap/2 from
 // every edge.
-func triangleCell(num *numberer, rx, ry, S, gap float64) uint16 {
-	u := (rx - ry/sq3) / S
-	v := float64(2*ry/sq3) / S
+func triangleCell(num *numberer, rx, ry, cell, gap float64) uint16 {
+	u := (rx - ry/sq3) / cell
+	v := float64(2*ry/sq3) / cell
 	i, j := math.Floor(u), math.Floor(v)
 	fu, fv := u-i, v-j
 	var l1, l2, l3 float64
@@ -240,7 +240,7 @@ func triangleCell(num *numberer, rx, ry, S, gap float64) uint16 {
 		half = 1
 		l1, l2, l3 = 1-fu, 1-fv, fu+fv-1
 	}
-	if float64(float64(min(l1, l2, l3)*S)*sq3/2) >= gap/2 {
+	if float64(float64(min(l1, l2, l3)*cell)*sq3/2) >= gap/2 {
 		return num.id(cellKey{int32(i), int32(j), half}, int32(i)*2+half, int32(j))
 	}
 	return 0

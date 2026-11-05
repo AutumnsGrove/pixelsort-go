@@ -17,10 +17,10 @@ type siteGrid struct {
 
 // newSiteGrid places n = max(6, w*h/(S*S*1.1)) sites with the integer RNG: each coordinate is one Uint32n divided by a
 // constant, so only integer output feeds a single division (platform-independent).
-func newSiteGrid(w, h, S int, seed uint32) *siteGrid {
-	n := max(6, (w*h*10)/(S*S*11))
+func newSiteGrid(w, h, cell int, seed uint32) *siteGrid {
+	n := max(6, (w*h*10)/(cell*cell*11))
 	rng := engine.NewStream(seed, 0x564F)
-	g := &siteGrid{xs: make([]float64, n), ys: make([]float64, n), bucket: max(1, S)}
+	g := &siteGrid{xs: make([]float64, n), ys: make([]float64, n), bucket: max(1, cell)}
 	for i := 0; i < n; i++ {
 		g.xs[i] = float64(rng.Uint32n(uint32(w)*256)) / 256 //nolint:gosec // w is at most 2^14, so w*256 fits
 		g.ys[i] = float64(rng.Uint32n(uint32(h)*256)) / 256 //nolint:gosec // same bound for h
