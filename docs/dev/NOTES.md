@@ -12,20 +12,35 @@ Steps only a person can do (Cloudflare, the homelab, accounts). Each line: the t
   Chromium run of `http://127.0.0.1:8895/` showed `crossOriginIsolated true`, `SharedArrayBuffer available`
   and `engine version 1`. What is unproven is only whether the HTTPS proxy passes the headers through.
 
-- **P6B-T09, P8-T11, P8-T12** · Cloudflare setup, first deploy and homelab docs, as in the plans. Phases 6b and 8 are not started.
-- **Run `make check` locally** — `golangci-lint` could not run in the cloud container (see the phase 2 note), so lint is unverified.
+In the order to do them (docs/deploy.md has the commands):
+
+1. **P8-T11** · Push; let CI publish the first image; make the GHCR package public. Clone to `~/Pixelsort`, run `deploy/install.sh`, set the
+   Worker URL/secret and backup remote in `.env`, pin a first digest, `docker compose up -d`, `tailscale serve`, check `crossOriginIsolated`.
+2. **P6B-T09** · Cloudflare account setup and Worker deploy (the Worker itself, phase 6b, is not written yet).
+3. **P8-T11 (rest)** · Apply the Meridian snippets (`deploy/meridian/`, the field names are inferred from `docs/update.md`: check them against a
+   neighbouring entry), run the backup once, test an update from Settings, and deliberately publish a broken tag to watch the rollback.
+4. **P8-T12** · Copy the drafted text in `docs/deploy.md` into the homelab repository, after you approve it.
+5. **Optional** · Run `/lab/bench` on a phone and paste the table into `docs/perf.md`.
 
 ## Where the cloud session stopped (everything is on one branch, `build/all`, PR #1)
 
-Done and tested: phases 2, 3, 4; phase 6 (server T01-T14); phase 5's pure modules plus first versions of the Studio,
-Archive and Settings screens (desktop only); phase 7's whole engine side (tilings, custom polygons, classes, masks,
-brightest spot, session + WASM calls, goldens matching on native and WASM) and the Pro panel (regions, class rules,
-protect shapes, cell overlay).
+Done and tested: phases 2, 3, 4; phase 5's pure modules, the desktop and phone Studio, Archive and Settings; phase 6 (server T01-T14);
+phase 7's whole engine side (tilings, custom polygons, classes, masks, brightest spot, session + WASM calls, goldens matching on native and
+WASM) and the Pro panel; phase 8 except the two human steps and the web side of the updater (P8-T06): `snapshot`/`healthcheck`/`starred-list`,
+the update endpoints, Dockerfile (built and run for real: 31 MB, read-only, restart keeps data), compose (hardening tested), publish
+workflow, the watcher (104 checks against fakes), install script, backups, Meridian snippets and `docs/deploy.md`.
 
-Not done: the phone layout (P5-T20), the first-run tour, runs strip, naming polish and the layout scan (P5-T14..T17, T22-T24);
-SVG import and shape library, brush painting, snap-to-shape and the phone Shapes/Protect tabs (P7-T08, T10, T12, T13);
-P6-T15; phases 6b (Cloudflare), 8 (deploy) and 9 (polish). The Pro panel's protect section places ellipses and rectangles
-with sliders (no on-canvas dragging yet).
+Not done: P8-T06 (the HTTP update client and stale-tab banner in the web app; the pure model and a fake client exist), the first-run tour,
+runs strip, naming polish and the layout scan (P5-T14..T17, T22-T24); SVG import and shape library, brush painting, snap-to-shape and the
+phone Shapes/Protect tabs (P7-T08, T10, T12, T13); P6-T15; phase 6b (the Worker) and phase 9. The Pro panel's protect section places ellipses
+and rectangles with sliders (no on-canvas dragging yet).
+
+## Docker in the cloud container
+
+The preinstalled Docker has no running daemon: `nohup dockerd &` starts one. Docker Hub rate-limits this sandbox (429), so pull base images from
+`mirror.gcr.io/library/<image>` and `docker tag` them locally, then build with `PIXELSORT_BUILD_FLAGS=--pull=false`. The sandbox proxy re-signs TLS,
+so the build needs its CA as a secret: `PIXELSORT_BUILD_CA=/root/.ccr/ca-bundle.crt PIXELSORT_SKIP_ARM64=1 deploy/image-test.sh` (the Dockerfile
+reads an optional `ca` build secret for this). The linux/arm64 build is **not verified** here; CI builds it on the first publish.
 
 ## Decisions and questions
 
