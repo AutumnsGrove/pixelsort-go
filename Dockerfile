@@ -9,7 +9,9 @@ ARG VERSION=dev
 FROM golang:1.27 AS go-wasm
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+# Behind a TLS-intercepting proxy, pass its CA as a build secret: docker build --secret id=ca,src=/path/ca.crt .
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then export SSL_CERT_FILE=/run/secrets/ca; fi; go mod download
 COPY engine ./engine
 COPY cmd/wasm ./cmd/wasm
 COPY internal ./internal
@@ -25,7 +27,9 @@ FROM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /web
 COPY web/package.json web/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca SSL_CERT_FILE=/run/secrets/ca; fi; \
+    pnpm install --frozen-lockfile
 COPY web/ ./
 COPY --from=go-wasm /out/engine.wasm ./static/engine.wasm
 COPY --from=go-wasm /out/wasm_exec.js ./src/lib/engine/vendor/wasm_exec.js
@@ -35,7 +39,8 @@ RUN pnpm build
 FROM golang:1.27 AS go-server
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then export SSL_CERT_FILE=/run/secrets/ca; fi; go mod download
 COPY . .
 COPY --from=web /web/build ./server/spa/build
 ARG VERSION

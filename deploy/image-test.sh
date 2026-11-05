@@ -32,7 +32,14 @@ run() {
     --user "$(id -u):$(id -g)" "$image" >/dev/null
 }
 
-docker build --build-arg "VERSION=$version" -t "$image" "$root"
+# PIXELSORT_BUILD_CA: a CA bundle to trust while building, for networks that re-sign TLS (a corporate or sandbox proxy).
+secret=()
+if [ -n "${PIXELSORT_BUILD_CA:-}" ]; then secret=(--secret "id=ca,src=$PIXELSORT_BUILD_CA"); fi
+
+# PIXELSORT_BUILD_FLAGS: extra flags for docker build, e.g. --pull=false when the base images are already local.
+read -ra extra <<<"${PIXELSORT_BUILD_FLAGS:-}"
+
+docker build "${secret[@]}" "${extra[@]}" --build-arg "VERSION=$version" -t "$image" "$root"
 
 run
 if wait_healthy; then ok "serves /healthz read-only, unprivileged"; else bad "did not become healthy"; docker logs "$name" || true; exit 1; fi
@@ -59,8 +66,10 @@ echo "image size: $((bytes / 1000000)) MB"
 if [ "$bytes" -lt 40000000 ]; then ok "under 40 MB"; else bad "image is $((bytes / 1000000)) MB, over 40"; fi
 
 # arm64 (QEMU emulation is fine); record in NOTES.md if buildx is missing
-if docker buildx version >/dev/null 2>&1; then
-  if docker buildx build --platform linux/arm64 --build-arg "VERSION=$version" -t "$image-arm64" "$root" >/dev/null; then ok "builds for linux/arm64"; else bad "arm64 build failed"; fi
+if [ -n "${PIXELSORT_SKIP_ARM64:-}" ]; then
+  echo "skip arm64: PIXELSORT_SKIP_ARM64 is set"
+elif docker buildx version >/dev/null 2>&1; then
+  if docker buildx build "${secret[@]}" --platform linux/arm64 --build-arg "VERSION=$version" -t "$image-arm64" "$root" >/dev/null; then ok "builds for linux/arm64"; else bad "arm64 build failed"; fi
 else
   echo "skip arm64: docker buildx is not available (note it in docs/dev/NOTES.md)"
 fi
