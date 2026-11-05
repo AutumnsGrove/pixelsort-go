@@ -5,6 +5,7 @@
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
 	import MaskHandles from '#components/MaskHandles';
+	import BrushLayer from '#components/BrushLayer';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
 	import { isSvgFile, looksLikeSvg } from '#lib/svg-shapes';
@@ -246,6 +247,7 @@
 		<div class="frame">
 			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
 			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
+			<BrushLayer active={proOpen} />
 			<MaskHandles active={proOpen} />
 			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
 			<div class="caption">

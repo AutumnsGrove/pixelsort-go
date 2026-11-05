@@ -99,6 +99,7 @@
 	<svg
 		bind:this={svg}
 		class="medit"
+		class:off={studio.tool !== 'move'}
 		viewBox="0 0 {size.w} {size.h}"
 		preserveAspectRatio="none"
 		data-testid="mask-handles"
@@ -162,6 +163,10 @@
 {/if}
 
 <style>
+	/* While painting or erasing, the brush layer takes the pointer, not the shapes under it. */
+	.medit.off {
+		pointer-events: none;
+	}
 	.medit {
 		position: absolute;
 		inset: 0;

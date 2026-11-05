@@ -10,7 +10,10 @@ import { Autosaver } from './autosave';
 import { ServerBackend } from './api';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
-import { classCount, defaultTiling, type MaskObject, type Tiling } from './regions';
+import { classCount, defaultTiling, type MaskObject, type Stroke, type Tiling } from './regions';
+import { toSpec } from './mask-model';
+import { acceptGuess, DEFAULT_RADIUS, suggestFor, type Tool } from './brush';
+import type { Guess } from './snap';
 import { LocalStorageBackend } from './storage';
 import { ShapeLibrary, nextShapeName, type SavedShape } from './shape-library';
 import type { Ring } from './shape-tidy';
@@ -191,13 +194,7 @@ class Studio {
 				this.labels = r?.labels ?? null;
 				this.classOf = r?.classOf ?? null;
 			}
-			if (this.maskObjects.length > 0 || this.maskInvert) {
-				await this.client!.setMaskSpec({
-					objects: this.maskObjects,
-					invert: this.maskInvert,
-					feather: this.maskFeather
-				});
-			}
+			if (this.hasMask()) await this.client!.setMaskSpec(this.maskSpec());
 			this.onFrame?.(img.rgba, img.w, img.h);
 			await this.instant();
 		} catch (e) {
@@ -365,14 +362,50 @@ class Studio {
 	async applyMask(): Promise<void> {
 		if (!this.client || !this.size) return;
 		try {
-			const has = this.maskObjects.length > 0 || this.maskInvert;
-			await this.client.setMaskSpec(
-				has ? { objects: this.maskObjects, invert: this.maskInvert, feather: this.maskFeather } : null
-			);
+			await this.client.setMaskSpec(this.hasMask() ? this.maskSpec() : null);
 			await this.instant();
 		} catch (e) {
 			this.fail(e);
 		}
+	}
+
+	private hasMask(): boolean {
+		return this.maskObjects.length > 0 || this.maskStrokes.length > 0 || this.maskInvert;
+	}
+	private maskSpec(): object {
+		return toSpec(this.maskObjects, this.maskInvert, this.maskFeather, this.maskStrokes);
+	}
+
+	// ---- painting: brush strokes protect (paint) or unprotect (erase) pixels; a loop can become an object ----
+	maskStrokes = $state<Stroke[]>([]);
+	tool = $state<Tool>('move');
+	brushRadius = $state(DEFAULT_RADIUS);
+	/** A finished paint stroke that looks like a circle or rectangle, offered as "Snap". */
+	suggestion = $state<{ index: number; guess: Guess } | null>(null);
+
+	/** A finished stroke: keep it, offer a snap if it is a loop, and re-sort. */
+	addStroke(stroke: Stroke): void {
+		this.maskStrokes.push(stroke);
+		const g = this.size ? suggestFor(stroke, this.size) : null;
+		this.suggestion = g ? { index: this.maskStrokes.length - 1, guess: g } : null;
+		void this.applyMask();
+	}
+	/** Replace the suggested stroke with an editable object (never both). */
+	snapSuggestion(): void {
+		const s = this.suggestion;
+		if (!s) return;
+		const { strokes, object } = acceptGuess(this.maskStrokes, s.index, s.guess);
+		this.maskStrokes = strokes;
+		this.maskObjects.push(object);
+		this.selectedMask = this.maskObjects.length - 1;
+		this.suggestion = null;
+		this.tool = 'move';
+		void this.applyMask();
+	}
+	clearStrokes(): void {
+		this.maskStrokes = [];
+		this.suggestion = null;
+		void this.applyMask();
 	}
 
 	addMaskObject(kind: MaskObject['kind'], over?: Partial<MaskObject>): void {

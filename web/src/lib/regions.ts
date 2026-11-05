@@ -18,6 +18,8 @@ export type Tiling = {
 	pattern: (typeof PATTERNS)[number];
 	kinds: number; // how many classes the "random" pattern uses
 };
+/** A brush stroke: a round-capped polyline. `radius` is a fraction of the picture's width, points are fractions too. */
+export type Stroke = { radius: number; erase?: boolean; points: [number, number][] };
 export type MaskObject = {
 	kind: 'ellipse' | 'rect';
 	cx: number;

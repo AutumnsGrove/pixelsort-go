@@ -3,6 +3,7 @@
 	import { X, Trash2 } from '@lucide/svelte';
 	import { studio } from '#lib/studio.svelte';
 	import { PATTERNS, SHAPES, classCount } from '#lib/regions';
+	import { MAX_RADIUS, MIN_RADIUS } from '#lib/brush';
 	import RegionCard from '#components/RegionCard';
 	import ShapeLibrary from '#components/ShapeLibrary';
 
@@ -232,6 +233,48 @@
 
 	{#if showProtect}<section>
 			<h4 class="eyebrow">Protect from sorting</h4>
+			<div class="chips" role="group" aria-label="Tool">
+				{#each [['move', 'Move shapes'], ['paint', 'Paint'], ['erase', 'Erase']] as [id, label] (id)}
+					<button
+						type="button"
+						class:on={studio.tool === id}
+						aria-pressed={studio.tool === id}
+						onclick={() => (studio.tool = id as typeof studio.tool)}
+						data-testid="tool-{id}">{label}</button
+					>
+				{/each}
+			</div>
+			{#if studio.tool !== 'move'}
+				<label
+					>Brush size {Math.max(1, Math.round(studio.brushRadius * 2 * (studio.size?.w ?? 1000)))} px
+					<input
+						type="range"
+						min={MIN_RADIUS}
+						max={MAX_RADIUS}
+						step="0.001"
+						bind:value={studio.brushRadius}
+						aria-label="Brush size"
+						data-testid="brush-size"
+					/></label
+				>
+			{/if}
+			{#if studio.suggestion}
+				<div class="snap" role="status" data-testid="snap">
+					<span>Looks like a {studio.suggestion.guess.label}.</span>
+					<button type="button" class="mini" onclick={() => studio.snapSuggestion()} data-testid="snap-accept"
+						>Snap</button
+					>
+					<button type="button" class="mini" onclick={() => (studio.suggestion = null)}>Keep my stroke</button>
+				</div>
+			{/if}
+			{#if studio.maskStrokes.length}
+				<div class="obj" data-testid="strokes">
+					<b>{studio.maskStrokes.length} brush {studio.maskStrokes.length === 1 ? 'stroke' : 'strokes'}</b>
+					<button type="button" class="mini" onclick={() => studio.clearStrokes()} data-testid="clear-strokes"
+						>clear strokes</button
+					>
+				</div>
+			{/if}
 			<div class="chips">
 				<button type="button" onclick={() => studio.addMaskObject('ellipse')} data-testid="add-ellipse"
 					>+ ellipse</button
@@ -412,6 +455,16 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+	}
+	.snap {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 10px;
+		border: 1px solid var(--faint);
+		border-radius: 12px;
+		font-size: 11px;
 	}
 	.tabs {
 		display: flex;

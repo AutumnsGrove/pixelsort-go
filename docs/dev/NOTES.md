@@ -31,9 +31,9 @@ WASM) and the Pro panel; phase 8 except the two human steps and the web side of 
 the update endpoints, Dockerfile (built and run for real: 31 MB, read-only, restart keeps data), compose (hardening tested), publish
 workflow, the watcher (104 checks against fakes), install script, backups, Meridian snippets and `docs/deploy.md`.
 
-Not done: SVG import and the shape library, brush painting, the snap-to-shape *UI* (the maths in `snap.ts` is done and tested), region cards, the
-phone Shapes/Protect tabs (P7-T08 remainder, T10, T12, T13, T14), and phase 9. Protected ellipses and rectangles can be placed in the Pro panel and
-dragged, resized, rotated and nudged on the canvas.
+Later work on `build/next` finished phase 7: the geometry modules (`svg-shapes.ts`, `shape-tidy.ts`, `region-cards.ts`, `brush.ts`, shared Go/TypeScript
+fixtures), region cards, the shape library with the tidy panel, brush painting with "Looks like a circle, Snap", and the phone bottom sheet with
+Shapes and Protect tabs. Not done: phase 9 (P9-T01 to T10) and the small gaps in the acceptance table below.
 
 ## Docker in the cloud container
 
@@ -217,4 +217,9 @@ The tests live in different files than the plan guessed; this is where each mock
 | `updater.mjs` | `updater.test.ts`, `updater/updater-flow.test.ts`, `e2e/updater.spec.ts`, `deploy/watcher/test.sh` | Done |
 | `layout-scan.mjs` | `e2e/layout.spec.ts` (7 sizes, popovers, axe on each route) | Done |
 | `region-algo.mjs` | Go phase 3 tests + `e2e/animate.spec.ts` | Done |
-| `region-cards.mjs`, `shape-*.mjs`, `custom-shapes.mjs`, `mask-editor.mjs`, `phone-mask.mjs` | `regions.test.ts`, `e2e/regions.spec.ts` | Partial: cells and protect shapes only; the shape library, on-canvas mask dragging and phone tabs are not built |
+| `region-cards.mjs` | `region-cards.test.ts` (model, plus `engine/testdata/region-card-cases.json` read by Go in `engine/region_card_cases_test.go`), the cards test in `e2e/regions.spec.ts`, 44 px targets in `e2e/phone-pro.spec.ts` | Done |
+| `shape-holes.mjs` | `shape-tidy.test.ts`, `e2e/svg-shapes.spec.ts` (ring counts, nesting, starters), `e2e/shape-library.spec.ts` (starters tile the picture); holes in the tiling are covered by the Go tests in `engine/shapes` | Partial: the browser does not re-check "nothing in a hole moves" or stepper == instant for holed shapes; Go does |
+| `shape-tidy.mjs` | `e2e/shape-library.spec.ts` (tidy panel: holes, small holes, which pieces, simplify, cancel, add) | Partial: the phone's starter rail is the same component as Studio's, but only its visibility and tap size are checked on a phone |
+| `custom-shapes.mjs` | `shape-library.test.ts` (server with a fake backend, browser fallback and retry), `e2e/shape-library.spec.ts` (paste, drop an SVG file, hostile SVG, reload keeps your shapes), `server/integration_test.go` for `/api/shapes` | Partial: no browser run against the real gallery server's `/api/shapes`; the e2e uses the browser fallback |
+| `mask-editor.mjs` | `mask-model.test.ts`, `brush.test.ts` (noisy-circle and scribble properties, snap replaces the stroke), `mask-spec-cases.json` shared with Go, `e2e/regions.spec.ts` (drag, resize, rotate, nudge, delete), `e2e/brush.spec.ts` | Done |
+| `phone-mask.mjs` | `e2e/phone-pro.spec.ts` (sheet, tabs, picture stays in view), the phone case in `e2e/brush.spec.ts` | Partial: painting on a phone is driven with a mouse, not real touch gestures |
