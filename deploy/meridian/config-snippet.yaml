@@ -1,0 +1,17 @@
+# A tile for Pixelsort: health from /healthz (with the version as a vital) and disk use from /api/usage.
+tiles:
+  - id: pixelsort
+    title: Pixelsort
+    probe:
+      url: http://localhost:8895/healthz
+      expect_status: 200
+    vitals:
+      - name: version
+        from: json
+        path: version
+      - name: disk_used
+        url: http://localhost:8895/api/usage
+        from: json
+        value: used_bytes
+        of: budget_bytes
+        unit: ratio

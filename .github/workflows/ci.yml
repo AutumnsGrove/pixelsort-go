@@ -30,6 +30,8 @@ jobs:
         run: make hello
       - name: WASM output equals the native goldens
         run: node web/scripts/wasm-golden.mjs
+      - name: Deploy scripts (watcher, install, backup, Meridian snippets, compose)
+        run: make deploy-test
   web:
     runs-on: ubuntu-latest
     steps:

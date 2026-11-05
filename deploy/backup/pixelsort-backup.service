@@ -1,0 +1,10 @@
+[Unit]
+Description=Pixelsort nightly backup (database snapshot and starred results to the remote)
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@CHECKOUT@
+Environment=PIXELSORT_DIR=@CHECKOUT@
+ExecStart=@CHECKOUT@/deploy/backup/backup.sh
+TimeoutStartSec=30min

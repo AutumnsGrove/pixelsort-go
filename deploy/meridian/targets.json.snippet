@@ -1,0 +1,10 @@
+{
+  "pixelsort": {
+    "kind": "compose",
+    "dir": "~/Pixelsort",
+    "service": "pixelsort",
+    "actions": ["start", "stop", "restart", "update"],
+    "criticality": "low",
+    "update": { "kind": "unit", "unit": "pixelsort-update.service" }
+  }
+}
