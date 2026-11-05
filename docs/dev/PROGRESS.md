@@ -144,10 +144,10 @@ File: [`phase-6b.md`](phase-6b.md)
 
 File: [`phase-7.md`](phase-7.md)
 
-- [ ] P7-T01 Tessellation core: square, diamond, circle, octagon
-- [ ] P7-T02 Hexagon, triangle, Voronoi
-- [ ] P7-T03 Custom polygons with holes
-- [ ] P7-T04 Classes and patterns
+- [x] P7-T01 Tessellation core: square, diamond, circle, octagon
+- [x] P7-T02 Hexagon, triangle, Voronoi
+- [x] P7-T03 Custom polygons with holes
+- [x] P7-T04 Classes and patterns
 - [ ] P7-T05 Region properties and goldens
 - [ ] P7-T06 Masks: objects, strokes, invert, brightest spot
 - [ ] P7-T07 Session API and WASM for regions
