@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/theater.css">
+<link rel="stylesheet" href="shared/assistant.css">
 <script src="shared/settings.js"></script>
 <style>
   .wrap{position:relative;z-index:5;max-width:860px;margin:0 auto;padding:112px 28px 120px}
@@ -62,7 +63,7 @@
   <div class="eyebrow">Settings</div>
   <h1 class="display">Make it <em>yours</em>.</h1>
   <p class="lede">Saved as you change them, kept in this browser in the mockups (the real app keeps them with the rest of your data). Look and motion settings apply to every screen straight away.</p>
-  <nav class="jump" aria-label="Sections"><a href="#picture">Picture</a><a href="#export">Export</a><a href="#sharing">Sharing</a><a href="#look">Look &amp; motion</a><a href="#storage">Storage</a><a href="#presets">Presets</a><a href="#help">Help</a><a href="#updates">Updates</a><a href="#about">About</a></nav>
+  <nav class="jump" aria-label="Sections"><a href="#picture">Picture</a><a href="#export">Export</a><a href="#sharing">Sharing</a><a href="#assistant">Shape helper</a><a href="#look">Look &amp; motion</a><a href="#storage">Storage</a><a href="#presets">Presets</a><a href="#help">Help</a><a href="#updates">Updates</a><a href="#about">About</a></nav>
 
   <section class="set" id="picture">
     <h2>Picture</h2>
@@ -85,6 +86,20 @@
     <h2>Sharing</h2>
     <p class="sub">Links go through your Cloudflare Worker. A link that never expires stays in the shared bucket until you revoke it.</p>
     <div class="row"><div><b>New links expire</b><small>You can change this per link in the share dialog.</small></div><div class="chips" id="expChips"></div></div>
+  </section>
+
+  <section class="set" id="assistant">
+    <h2>Shape helper</h2>
+    <p class="sub">Optional. Helps you make a custom shape from something in the picture. <b>Cut out this object</b> (click an object in Studio) needs none of this and never sends anything anywhere. Off by default.</p>
+    <div class="tog" id="tgAsst" role="switch" tabindex="0"><div><b>Enable the Shape helper</b><small>Shows the Shape helper box under Shapes in the Pro panel, and the Helper tab on phones.</small></div><div class="sw"></div></div>
+    <div id="asstBody">
+      <div class="row"><div><b>Server key</b><small>The OpenRouter key lives on your server as <code>PIXELSORT_OPENROUTER_KEY</code>. It is never sent to your browser, so it can’t be shown or changed here.</small></div><div class="chips"><button class="on" id="asKey" type="button" style="pointer-events:none">configured</button></div></div>
+      <div class="row stack"><div><b>Model</b><small>Must accept pictures. A text-only model is refused with a plain message. Checked against OpenRouter’s model list.</small></div><input class="as-in2" id="asModel" spellcheck="false" aria-label="Model" value=""></div>
+      <div class="btns"><button class="btn" id="asTest">Check model</button><span id="asTestR" style="align-self:center;font-size:11px;color:var(--dim)"></span></div>
+      <div class="row"><div><b>Requests per session</b><small>A hard stop for one visit. Each request costs a fraction of a cent.</small></div><div class="chips" id="asCap"></div></div>
+      <div class="row"><div><b>First-use notice</b><small id="asNoticeS"></small></div><div><button class="btn" id="asNotice" type="button">Show it again</button></div></div>
+      <div class="note"><b>What is sent:</b> your prompt and a copy of the picture scaled to 512 px on the long edge, with no EXIF, to OpenRouter. Never the original. Nothing is logged by the server. <b>Cancel</b> stops the request. Results are checked by the same validator as a pasted SVG, and nothing is added to your shapes until you press <b>Use it</b>.</div>
+    </div>
   </section>
 
   <section class="set" id="look">
@@ -176,6 +191,30 @@
   window.__upd=Updater.mount({host:$('#upMount'),toast:toast,pollMs:fast?60:500,
     sim:Updater.createSim({scenario:um?um[1]:'ready',timing:fast?{check:140,pull:260,down:110}:null}),
     busy:function(){return {exporting:/[?&]busyexport\b/.test(q)}}});
+})();
+</script>
+<script src="shared/assistant.js"></script>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  function paint(){var c=Assistant.load();
+    $('#tgAsst .sw').classList.toggle('on',c.on);$('#asstBody').style.opacity=c.on?1:.45;$('#asstBody').style.pointerEvents=c.on?'auto':'none';
+    $('#asModel').value=c.model;
+    $('#asKey').textContent=c.sim==='nokey'?'not configured':'configured';$('#asKey').classList.toggle('on',c.sim!=='nokey');
+    $('#asNoticeS').textContent=c.noticed?'You’ve seen it on this device, so it won’t appear again.':'It will appear the first time you use the helper on this device.';
+    $('#asNotice').disabled=!c.noticed;
+    $('#asCap').innerHTML=[4,8,16,0].map(function(n){return '<button class="'+(c.cap===n?'on':'')+'" data-n="'+n+'">'+(n||'no cap')+'</button>'}).join('')}
+  function flip(){Assistant.save({on:!Assistant.load().on});paint()}
+  $('#tgAsst').onclick=flip;$('#tgAsst').onkeydown=function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}};
+  $('#asCap').addEventListener('click',function(e){var b=e.target.closest('button');if(b){Assistant.save({cap:+b.dataset.n});paint()}});
+  $('#asModel').onchange=function(e){Assistant.save({model:e.target.value})};
+  $('#asNotice').onclick=function(){Assistant.save({noticed:false});paint()};
+  $('#asTest').onclick=function(){var r=$('#asTestR'),c=Assistant.load();r.style.color='var(--dim)';r.textContent='Checking with OpenRouter…';setTimeout(function(){
+    if(c.sim==='offline'){r.style.color='#ff8a6e';r.textContent='Can’t reach OpenRouter'}
+    else if(c.sim==='nokey'){r.style.color='#ff8a6e';r.textContent='No key on the server'}
+    else if(c.sim==='novision'){r.style.color='var(--gold)';r.textContent=c.model+' doesn’t accept pictures'}
+    else{r.style.color='#9fd08a';r.textContent='OK · '+c.model+' accepts pictures and tools (mockup)'}},600)};
+  paint();
 })();
 </script>
 </body>

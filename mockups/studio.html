@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/theater.css">
+<link rel="stylesheet" href="shared/assistant.css">
 <script src="shared/settings.js"></script>
 <style>
   :root{
@@ -427,6 +428,11 @@
         <div class="tog" id="ovTog"><div><b>Show outlines on the picture</b><small>drawing aid only — never in the export</small></div><div class="sw on"></div></div>
       </div>
     </section>
+    <section id="asstSec">
+      <h5>Shape helper</h5>
+      <p class="sub">Make a shape from something in the picture. <b>Cut out this object</b> works on its own; the helper is optional and asks a vision model on OpenRouter.</p>
+      <div id="asst"></div>
+    </section>
     <section>
       <h5>Protect from the sort</h5>
       <p class="sub">Protected pixels are frozen — nothing moves into, out of, or across them. Drop in a shape you can <b>move, resize and turn</b>, or paint freehand.</p>
@@ -470,6 +476,8 @@
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
 <script src="shared/region-cards.js"></script>
+<script src="shared/assistant.js"></script>
+<script src="shared/assistant-ui.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
@@ -884,6 +892,8 @@
     var m=q.match(/shape=(\w+)/);if(m){selectTile(m[1]);renderLib();applyRegions();renderClasses();d.reset();d.play()}})();
   renderLib();renderClasses();
 
+  Assistant.mount({host:'#asst',frame:'.frame',d:d,toast:toast,use:function(name,svg){importSvgText(svg,name);var t=$('#svgClean').style.display==='block';return t?'That outline has holes or pieces: tidy it, then press Add to my shapes':'Added “'+name+'” to your shapes. It’s now the active tile.'},beforePick:function(){togglePro(true)}});
+  if(/[?&]asst\b/.test(location.search)){setTimeout(function(){togglePro(true);var a=document.querySelector('#asstSec');if(a)a.scrollIntoView({block:'start'})},300)}
   refresh();
   setTimeout(function(){if(!intake.classList.contains('on'))d.play()},700);
 })();
