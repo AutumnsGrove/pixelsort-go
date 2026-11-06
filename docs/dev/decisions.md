@@ -158,6 +158,13 @@ because every brush stroke is stored.
 the next save is a new run with `parent_run_id` set, and later saves in the session chain from the previous one. A run made by
 another engine version opens with a note, and still branches.
 
+**V6. The Shape helper's model runs in the server, behind one route.** The browser never holds a key and never talks to OpenRouter.
+`POST /api/helper` takes a prompt and a small picture copy and streams events (NDJSON). Only vision models; a text-only model is refused
+with a sentence that points at "Cut out this object". No local model. The first-use notice shows once per device and Settings can show it again.
+
+**V7. The model proposes, the engine decides.** The model chooses among regions the tools listed; it cannot supply a coordinate or an
+outline. The page cuts the shape out itself and nothing enters the shape library until "Use it".
+
 ## Process
 
 **P1.** One branch per phase (`build/phase-N`), one commit per task, no pushing by the build agent. Review
