@@ -7,7 +7,8 @@ import { BUILTIN, diff, mulberry32, roll, type Preset, type Recipe } from './pre
 import { engineErrorCode } from './errors';
 import { clean, suggest } from './naming';
 import { Autosaver } from './autosave';
-import { ServerBackend, sha256Hex } from './api';
+import { ServerBackend, sha256Hex, type ApiRun } from './api';
+import { packRecipe, unpackRecipe } from './run-recipe';
 import { settings } from './settings.svelte';
 import { autoSaveAllowed, saveFailureReason, type SaveState } from './save-policy';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
@@ -27,6 +28,9 @@ function startingCards(): Record<number, RegionCard> {
 	for (let k = 4; k <= 8; k++) cards[k] = newCard(`Kind ${k}`);
 	return cards;
 }
+
+/** The engine's version, stored with every run. A run made by another version may sort differently. */
+export const ENGINE_VERSION = '1';
 
 export type RunState = 'idle' | 'preparing' | 'animating' | 'paused' | 'done' | 'error';
 
@@ -163,6 +167,13 @@ class Studio {
 	private originalId = $state('');
 	/** Bumps whenever the cells or the protected areas change: they are part of the look, but too big to compare each time. */
 	private rev = $state(0);
+	/** The run this look was opened from (or last saved as), so the next save is recorded as its child. The opened run is never changed. */
+	parentRunId = $state<number | null>(null);
+	/** Set when the opened run was made by another engine version: the page says it may look different. */
+	engineNote = $state<string | null>(null);
+	/** A knob moved and the re-sort has not finished: what is on screen is not yet the look the knobs describe. */
+	pendingChange = $state(false);
+	private changeSeq = 0;
 	/** True while the picture is the bundled demo and nobody has touched anything: the demo is never stored by itself. */
 	isSample = $state(false);
 	private server = new ServerBackend();
@@ -250,11 +261,15 @@ class Studio {
 		this.errorCode = null;
 		const name = this.customName;
 		const sample = this.isSample;
+		const parent = this.parentRunId;
+		const note = this.engineNote;
 		this.stop();
 		const img =
 			this.original && this.size ? { w: this.size.w, h: this.size.h, rgba: this.original } : await defaultImage();
 		await this.load(img, { sample });
 		this.customName = name;
+		this.parentRunId = parent;
+		this.engineNote = note;
 	}
 
 	async load(img: { w: number; h: number; rgba: Uint8ClampedArray }, opts: { sample?: boolean } = {}): Promise<void> {
@@ -267,6 +282,8 @@ class Studio {
 		this.sorted = img.rgba;
 		this.isSample = opts.sample === true;
 		this.originalId = id;
+		this.parentRunId = null;
+		this.engineNote = null;
 		this.customName = null;
 		try {
 			await this.client!.init(img.w, img.h);
@@ -324,11 +341,16 @@ class Studio {
 	/** Called whenever a knob changes: coalesce, then re-sort (or restart the animation if one is running). */
 	changed(): void {
 		this.isSample = false;
+		// From the change until its re-sort has finished, the picture on screen is the old sort of the old recipe: Save waits.
+		this.pendingChange = true;
+		const seq = ++this.changeSeq;
 		clearTimeout(this.timer);
-		this.timer = setTimeout(
-			() => void (this.run === 'animating' || this.run === 'paused' ? this.play() : this.instant()),
-			80
-		);
+		this.timer = setTimeout(() => {
+			const again = this.run === 'animating' || this.run === 'paused' ? this.play() : this.instant();
+			void again.finally(() => {
+				if (seq === this.changeSeq) this.pendingChange = false; // a newer change keeps it set
+			});
+		}, 80);
 	}
 
 	async instant(): Promise<void> {
@@ -609,40 +631,71 @@ class Studio {
 			encode(this.sorted, w, h, 'image/png'),
 			encode(this.sorted, Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)), 'image/webp', 0.8)
 		]);
-		await this.server.saveRun({
-			settings: { ...this.params },
+		const saved = await this.server.saveRun({
+			settings: packRecipe({
+				params: { ...this.params },
+				tiling: this.tiling,
+				cards: this.cards,
+				mask: this.hasMask()
+					? { objects: this.maskObjects, strokes: this.maskStrokes, invert: this.maskInvert, feather: this.maskFeather }
+					: null
+			}),
 			seed: this.params.seed,
-			engineVersion: '1',
+			engineVersion: ENGINE_VERSION,
 			durationMs: (this.timings?.prepareMs ?? 0) + (this.timings?.sortMs ?? 0),
 			original,
 			result,
 			thumb,
 			w,
 			h,
-			title: this.customName
+			title: this.customName,
+			parentRunId: this.parentRunId
 		});
+		// the next save in this session is a child of this one: a line of versions, each pointing at the one before
+		if (typeof saved?.id === 'number') this.parentRunId = saved.id;
 		this.lastSavedKey = key;
 		this.saveFailed = false;
 	}
 
-	/** Opens a saved run: its original picture, then its recipe and name. */
-	async openRun(run: {
-		original: { sha256: string };
-		settings: Record<string, unknown>;
-		title: string | null;
-	}): Promise<void> {
+	/**
+	 * Opens a saved run in Studio: the stored original at the working size, then the whole look (knobs, cells, region
+	 * cards, protected areas) and the name. The run is never changed: the next save is a new run whose parent is this one.
+	 * An older run without cells or masks opens as just its knobs.
+	 */
+	async openRun(
+		run: Pick<ApiRun, 'id' | 'original' | 'settings' | 'title'> & { engine_version?: string }
+	): Promise<void> {
+		this.errorCode = null;
+		let img: { w: number; h: number; rgba: Uint8ClampedArray };
 		try {
-			const res = await fetch(new ServerBackend().imageUrl(run.original.sha256));
+			const res = await fetch(this.server.imageUrl(run.original.sha256));
 			if (!res.ok) throw new Error('missing');
-			await this.loadFile(Object.assign(await res.blob(), { name: run.title ?? 'run' }));
+			const d = await decodeFile(await res.blob(), defaultLongEdge());
+			img = { w: d.w, h: d.h, rgba: d.rgba };
 		} catch {
 			this.errorCode = 'image-unreadable';
+			this.errorName = run.title ?? 'that run';
 			return;
 		}
-		Object.assign(this.params, run.settings);
-		this.customName = run.title;
+		const look = unpackRecipe(run.settings);
+		Object.assign(this.params, look.params);
+		this.tiling = look.tiling;
+		this.cards = { ...startingCards(), ...(look.cards ?? {}) };
+		this.maskObjects = look.mask?.objects ?? [];
+		this.maskStrokes = look.mask?.strokes ?? [];
+		this.maskInvert = look.mask?.invert ?? false;
+		this.maskFeather = look.mask?.feather ?? 0;
+		this.selectedMask = null;
+		this.suggestion = null;
+		this.customKey = null;
 		this.presetId = null;
-		this.changed();
+		this.applied = null;
+		this.rev++;
+		await this.load(img);
+		this.customName = run.title;
+		this.parentRunId = run.id;
+		this.engineNote = run.engine_version && run.engine_version !== ENGINE_VERSION ? run.engine_version : null;
+		this.lastSavedKey = this.saveKey(); // this is exactly what is stored: nothing to save until something changes
 	}
 
 	applyPreset(p: Preset, seed = Date.now()): void {

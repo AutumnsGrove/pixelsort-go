@@ -15,7 +15,8 @@
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
 	import NameField from '#components/NameField';
-	import { studio, defaultImage } from '#lib/studio.svelte';
+	import { studio, defaultImage, ENGINE_VERSION } from '#lib/studio.svelte';
+	import { ServerBackend } from '#lib/api';
 	import { BUILTIN, chips, rolls } from '#lib/presets';
 	import { keys, modes, algos } from '#lib/engine/params';
 	import { describe } from '#lib/errors';
@@ -57,7 +58,21 @@
 
 	onMount(() => {
 		studio.onFrame = paint;
-		void defaultImage().then((img) => void studio.load(img, { sample: true }));
+		const wanted = new URL(location.href).searchParams.get('run');
+		const sample = (): Promise<void> => defaultImage().then((img) => studio.load(img, { sample: true }));
+		if (wanted && /^\d+$/.test(wanted)) {
+			// "Open in Studio" from the Archive: the whole look comes back, and the next save is a branch of this run
+			void new ServerBackend()
+				.getRun(Number(wanted))
+				.then((run) => studio.openRun(run))
+				.catch(() => {
+					studio.errorCode = 'image-unreadable';
+					studio.errorName = 'that run';
+				})
+				.finally(() => {
+					if (!studio.size) void sample(); // never leave Studio empty
+				});
+		} else void sample();
 	});
 	onDestroy(() => {
 		studio.onFrame = null;
@@ -162,7 +177,7 @@
 			: ''
 	);
 	// ---- saving: nothing is stored until Save (or Export), unless "Auto-save runs" is on ----
-	const sorting = $derived(studio.run === 'preparing' || studio.run === 'animating');
+	const sorting = $derived(studio.run === 'preparing' || studio.run === 'animating' || studio.pendingChange);
 	const sb = $derived(saveButton(studio.saveStatus, sorting));
 	// Said next to the state, not inside it: the state text stays exactly "done" / "paused" / "pass 12".
 	const unsavedNote = $derived(
@@ -343,6 +358,16 @@
 					{/each}
 				</div>
 			</div>
+		</div>
+	{/if}
+
+	{#if studio.engineNote}
+		<div class="enote glass" role="status" data-testid="engine-note">
+			<span
+				>This run was made with engine version {studio.engineNote}; this one is {ENGINE_VERSION}, so it may look
+				different. Saving makes a new run and leaves the original as it is.</span
+			>
+			<button class="btn sm" type="button" onclick={() => (studio.engineNote = null)}>OK</button>
 		</div>
 	{/if}
 
@@ -920,6 +945,19 @@
 	}
 	.save:disabled {
 		opacity: 0.45;
+	}
+	.enote {
+		position: absolute;
+		left: 50%;
+		top: 64px;
+		transform: translateX(-50%);
+		z-index: 26;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		padding: 10px 16px;
+		font-size: 11.5px;
+		max-width: min(92vw, 620px);
 	}
 	.leave {
 		position: absolute;

@@ -11,7 +11,9 @@ import (
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
 )
 
-const maxMetaBytes = 256 << 10
+// maxMetaBytes bounds the JSON meta of a run. A run keeps the whole look in its settings (cells, region cards, protected areas and
+// every brush stroke), which a heavily painted picture can push well past 256 KiB.
+const maxMetaBytes = 1 << 20
 
 // createRun handles POST /api/runs: multipart with a JSON "meta" field and the files "original" (optional when the
 // server already has it), "result" and "thumb".

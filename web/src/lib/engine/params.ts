@@ -120,3 +120,23 @@ export function parseParams(text: string): { ok: true; params: Params } | { ok: 
 	const problem = validateParams(params);
 	return problem ? { ok: false, error: problem } : { ok: true, params };
 }
+
+/**
+ * Reads a recipe from something untrusted (a stored run, which an older version or another tool may have written): keeps what
+ * is valid, clamps numbers into their ranges, and falls back to the default for anything missing, unknown or the wrong type.
+ */
+export function clampParams(raw: unknown): Params {
+	const o = (typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+	const out: Record<string, unknown> = { ...defaultParams };
+	for (const [name, list] of Object.entries(enums)) {
+		if (typeof o[name] === 'string' && list.includes(o[name] as string)) out[name] = o[name];
+	}
+	for (const [name, [lo, hi]] of Object.entries(intRanges)) {
+		const v = o[name];
+		if (typeof v === 'number' && Number.isFinite(v)) out[name] = Math.min(hi, Math.max(lo, Math.round(v)));
+	}
+	if (typeof o.reverse === 'boolean') out.reverse = o.reverse;
+	const p = out as unknown as Params;
+	if (p.lo > p.hi) p.hi = p.lo;
+	return p;
+}

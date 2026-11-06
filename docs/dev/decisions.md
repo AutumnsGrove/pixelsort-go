@@ -148,6 +148,16 @@ that is not a hashed asset is `Cache-Control: no-cache`: the browser keeps it bu
 **V3. The page, not the worker, owns recovery from a failed download.** The worker retries once and reports; the page
 shows "didn't finish downloading" and "Try again" starts a fresh worker and puts the same picture back.
 
+**V4. A run stores the whole look, inside its free-form `settings`.** The sort params stay at the top level exactly as before
+(so old runs and the server's duplicate check on a plain sort are unchanged); a look with cells adds `regions: {tiling, cards}`
+and one with protected areas adds `mask: {objects, strokes, invert, feather}`. No migration. Reading a run back validates and
+clamps everything (`run-recipe.ts`): old runs open as just their knobs. The server's meta limit went from 256 KiB to 1 MiB
+because every brush stroke is stored.
+
+**V5. Opening a run never changes it.** "Open in Studio" loads the stored original and the whole look and sets the parent;
+the next save is a new run with `parent_run_id` set, and later saves in the session chain from the previous one. A run made by
+another engine version opens with a note, and still branches.
+
 ## Process
 
 **P1.** One branch per phase (`build/phase-N`), one commit per task, no pushing by the build agent. Review

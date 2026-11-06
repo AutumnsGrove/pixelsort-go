@@ -16,6 +16,14 @@ Branch `features-and-fixes`. See `decisions.md` V1 to V3.
 - **Save is off while a sort is running.** The picture on screen is then not the finished look. It is on when paused or done.
 - **The dock's Try again / Restart the sorter / Reload buttons did nothing** (the dialog only closed). They now work.
 - **The `instant` (lightning) dock button is removed** at Autumn's request; `Studio.instant()` stays, it is how every knob re-sorts.
+- **#6 rename clears with `""` not `null`.** The server reads `{"title": null}` as "leave it alone" (a `*string`), and `""` as "clear to the
+  automatic name" (stored as NULL). So the client sends `""`; the stored value is still NULL, as the issue asks.
+- **#5 stores more than the knobs.** See V4. The meta limit rose to 1 MiB (a painted mask is a few hundred KB).
+- **A real race found by the e2e run:** between a knob change and the end of its re-sort (80 ms debounce plus the sort) the run still read
+  "done", so Save could store the old picture with the new settings, and a click in that window was lost. Save now waits
+  (`Studio.pendingChange`).
+- **`load()` must set size, original and sorted in one step.** Hashing the picture between them threw `ImageData` errors for one tick.
+- **Playwright can reuse a stale preview server.** `reuseExistingServer` is on; kill port 4173 before a run you need to trust.
 - **Not run:** WebKit (not installed here).
 
 ## Needs Autumn
