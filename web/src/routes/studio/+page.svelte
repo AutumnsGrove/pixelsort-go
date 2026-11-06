@@ -836,6 +836,19 @@
 		width: 0;
 		min-width: 100%;
 		margin-top: 6px;
+		container-type: inline-size;
+	}
+	/* When the picture is small (the Pro sheet is open on a phone) the row has no room for everything: the note, then Compare,
+	   step aside rather than land on the state. The Save button in the dock still says whether the look is stored. */
+	@container (max-width: 230px) {
+		.caption .unsaved {
+			display: none;
+		}
+	}
+	@container (max-width: 130px) {
+		.cmp {
+			display: none;
+		}
 	}
 	.caption {
 		position: absolute;

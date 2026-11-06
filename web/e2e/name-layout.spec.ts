@@ -80,6 +80,31 @@ for (const [label, w, h, touch] of SIZES) {
 			}
 		});
 
+		test('with the Pro panel open (the picture is smaller) nothing in the caption row lands on anything else', async ({
+			page
+		}) => {
+			await open(page);
+			await page.getByTestId('k-angle').click();
+			await page.getByTestId('angle-input').fill('41');
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('save')).toBeEnabled({ timeout: 30_000 });
+			await expect(page.getByTestId('unsaved-note')).toBeVisible();
+			await page.getByTestId('pro-toggle').click();
+			await expect(page.getByTestId('pro')).toBeVisible();
+			await page.waitForTimeout(300); // the sheet and the picture settle
+			const seen: [string, Box][] = [];
+			for (const id of ['name', 'state', 'unsaved-note', 'compare']) {
+				const loc = page.getByTestId(id);
+				if (!(await loc.isVisible())) continue; // a part may step aside when there is no room, but then it is gone, not on top
+				seen.push([id, (await loc.boundingBox())!]);
+			}
+			for (let i = 0; i < seen.length; i++)
+				for (let j = i + 1; j < seen.length; j++)
+					expect(overlaps(seen[i]![1], seen[j]![1]), `${seen[i]![0]} and ${seen[j]![0]}: ${JSON.stringify(seen)}`).toBe(
+						false
+					);
+		});
+
 		test('a tap opens the name field without moving the picture, and the new name sticks', async ({ page }) => {
 			await open(page);
 			const before = await box(page, 'stage');
