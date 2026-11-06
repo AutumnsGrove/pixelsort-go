@@ -1149,29 +1149,10 @@
 		margin-top: 8px;
 	}
 
-	/* Phone: the dock is a full-width bar that scrolls sideways, and popovers become sheets above it. The dock drops
-	   its transform and backdrop blur so position: fixed popovers are placed against the screen, not the dock. */
-	@media (max-width: 700px) {
-		.stage {
-			padding: 64px 10px 106px;
-		}
-		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
-		.stage.sheet {
-			padding-bottom: calc(46dvh + 114px);
-		}
-		.frame {
-			max-width: 100%;
-			max-height: calc(100dvh - 232px);
-		}
-		.stage.sheet .frame {
-			max-height: calc(54dvh - 240px);
-		}
-		canvas {
-			max-height: calc(100dvh - 232px);
-		}
-		.stage.sheet canvas {
-			max-height: calc(54dvh - 240px);
-		}
+	/* Phone and tablet: the dock is a full-width bar that scrolls sideways (its contents are about 1020px wide, so anything narrower
+	   than about 1050px would push the Pro button off screen), and popovers become sheets above it. The dock drops its transform
+	   and backdrop blur so position: fixed popovers are placed against the screen, not the dock. */
+	@media (max-width: 1050px) {
 		.dock {
 			left: 8px;
 			right: 8px;
@@ -1206,6 +1187,30 @@
 			min-width: 0;
 			max-height: 56dvh;
 			overflow: auto;
+		}
+	}
+
+	/* Phone: the picture and the Pro sheet share the screen above the dock. */
+	@media (max-width: 700px) {
+		.stage {
+			padding: 64px 10px 106px;
+		}
+		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
+		.stage.sheet {
+			padding-bottom: calc(46dvh + 114px);
+		}
+		.frame {
+			max-width: 100%;
+			max-height: calc(100dvh - 232px);
+		}
+		.stage.sheet .frame {
+			max-height: calc(54dvh - 240px);
+		}
+		canvas {
+			max-height: calc(100dvh - 232px);
+		}
+		.stage.sheet canvas {
+			max-height: calc(54dvh - 240px);
 		}
 		.er-card {
 			padding: 20px 18px 16px;
