@@ -3,6 +3,7 @@ module github.com/AutumnsGrove/pixelsort-go
 go 1.27
 
 require (
+	github.com/AutumnsGrove/nova v0.3.4
 	github.com/spf13/cobra v1.10.2
 	modernc.org/sqlite v1.61.1
 	pgregory.net/rapid v1.3.0

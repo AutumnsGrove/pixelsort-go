@@ -32,7 +32,7 @@ func (a *API) shareReady(w http.ResponseWriter) bool {
 // features tells the web app which optional parts to show.
 func (a *API) features(w http.ResponseWriter, _ *http.Request) {
 	on := a.d.Share != nil
-	httpx.Write(w, http.StatusOK, map[string]bool{"share": on, "fetch": on})
+	httpx.Write(w, http.StatusOK, map[string]bool{"share": on, "fetch": on, "helper": a.d.Helper})
 }
 
 // failShare maps a share error to the error envelope. The Worker's address and secret are never in a message.

@@ -132,7 +132,7 @@ func TestShareUnconfiguredIsAll503(t *testing.T) {
 	s := newSite(t, nil)
 	res, body := s.do("GET", "/api/features", nil)
 	s.expect(res, body, 200)
-	if strings.TrimSpace(string(body)) != `{"fetch":false,"share":false}` {
+	if strings.TrimSpace(string(body)) != `{"fetch":false,"helper":false,"share":false}` {
 		t.Fatalf("features: %s", body)
 	}
 	for _, c := range [][2]string{{"POST", "/api/shares"}, {"GET", "/api/shares"}, {"DELETE", "/api/shares/x"}, {"POST", "/api/fetch"}} {

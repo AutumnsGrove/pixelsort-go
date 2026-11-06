@@ -63,7 +63,7 @@ These need the share Worker (`PIXELSORT_WORKER_URL` and `PIXELSORT_WORKER_SECRET
 sees it or the Worker's address, and nothing here ever echoes it.
 
 ### `GET /api/features`
-`{"share":true,"fetch":true}`; both are false when the Worker is not configured. The web app hides share and URL-loading
+`{"share":true,"fetch":true,"helper":true}`; share and fetch are false when the Worker is not configured, helper when no OpenRouter key is. The web app hides share, URL-loading and Shape helper
 controls when they are off.
 
 ### `POST /api/shares`
@@ -86,6 +86,21 @@ reached, so it can be tried again. Revoking twice is fine.
 `{"url":"https://example.com/a.png"}`. The Worker loads the picture and the response streams back with the Worker's own
 status, `Content-Type` (sniffed), and `X-Source-URL`. Failures keep the Worker's codes: `link-blocked` (502),
 `link-not-image` (415), `link-too-large` (413), `link-timeout` (504). At most 30 requests a minute (`429 rate_limited`).
+
+## Shape helper
+
+Off unless `PIXELSORT_OPENROUTER_KEY` is set (`PIXELSORT_HELPER_MODEL` picks the model; the default is `deepseek/deepseek-v4.1-flash-1017`, and it
+must accept pictures). When it is off the route does not exist and `GET /api/features` says `"helper": false`. The key stays in the server: it is
+never sent to the browser and never logged, and neither are prompts or pictures.
+
+**`POST /api/helper`** (served by the app itself, not by the gallery API, so it is not in the route list)
+A multipart form: `prompt` (up to 500 characters) and `image` (a PNG or JPEG copy, at most 600 KB and 768 px a side; the page sends a downscaled copy
+with no camera data, and the server re-encodes it again). The answer is `application/x-ndjson`, one event per line, flushed as it happens:
+`start`, `say`, `tool_start`, `tool_end`, `proposal`, then `done` (with a `reason`). The run stops if the caller disconnects, after 8 model steps, or at the deadline.
+The model only proposes: the page re-runs the cut-out itself, so nothing is added until the person presses "Use it".
+
+A request that cannot run gets a plain error envelope instead of a stream: `400` `bad_prompt` / `bad_image`, `413` `image_too_large`,
+`422` `no_vision` (the model does not accept pictures), `429` `busy` (two runs at once, twelve starts a minute, server-wide), `503` `model_unavailable`.
 
 ## Runs
 

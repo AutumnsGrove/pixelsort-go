@@ -12,9 +12,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/AutumnsGrove/nova/provider/openrouter"
+
 	"github.com/AutumnsGrove/pixelsort-go/server/api"
 	"github.com/AutumnsGrove/pixelsort-go/server/blob"
 	"github.com/AutumnsGrove/pixelsort-go/server/db"
+	"github.com/AutumnsGrove/pixelsort-go/server/helper"
 	"github.com/AutumnsGrove/pixelsort-go/server/runs"
 	"github.com/AutumnsGrove/pixelsort-go/server/share"
 	"github.com/AutumnsGrove/pixelsort-go/server/spa"
@@ -70,13 +73,16 @@ func New(ctx context.Context, cfg Config, opts Options) (*App, error) {
 		shares = share.New(d, store, svc, share.NewClient(cfg.WorkerURL, cfg.WorkerSecret))
 	}
 	a := api.New(api.Deps{Runs: svc, Blobs: store, BudgetBytes: cfg.BudgetBytes(), MaxUploadBytes: cfg.MaxUploadBytes(),
-		Deployment: cfg.Deployment, EngineVersion: engineVersion, Update: signals, Share: shares})
+		Deployment: cfg.Deployment, EngineVersion: engineVersion, Update: signals, Share: shares, Helper: cfg.HelperConfigured()})
 	web := opts.WebFS
 	if web == nil {
 		web = spa.FS()
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", a.Handler())
+	if cfg.HelperConfigured() {
+		mux.Handle("/api/helper", helperHandler(cfg))
+	}
 	mux.Handle("/api/", a.Handler())
 	mux.Handle("/", spa.Handler(web))
 	app := &App{cfg: cfg, db: d, svc: svc, api: a}
@@ -126,3 +132,11 @@ func (a *App) Run(ctx context.Context) error {
 
 // Close releases the database (tests that never call Run).
 func (a *App) Close() error { return a.db.Close() }
+
+// helperHandler is the Shape helper's route. The key is read here and goes only to the provider; the page never sees it.
+// At most two runs at once and twelve starts a minute for the whole server, so a stuck page cannot run up a bill.
+func helperHandler(cfg Config) http.Handler {
+	p := openrouter.New(openrouter.Config{APIKey: cfg.HelperKey})
+	svc := helper.New(helper.Options{Provider: p, Model: cfg.HelperModel, Vision: &helper.OpenRouterVision{}})
+	return helper.Handler(svc, helper.NewGuard(2, 12))
+}
