@@ -22,6 +22,8 @@ services:
           denominator: budget_bytes
           decimals: 0
           suffix: "% disk"
+        # How many pictures are in the Archive (not the Bin): GET /api/usage already returns it as "runs".
+        - {kind: json_field, label: archive, url: "http://localhost:8895/api/usage", path: runs}
     control:
       target: pixelsort
       actions: [restart, stop, start, update]

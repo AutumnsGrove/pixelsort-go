@@ -79,6 +79,24 @@ To restore: stop the container, copy a snapshot over `data/pixelsort.db`, delete
 
 Three snippets in `deploy/meridian/` add a target (with an update action), an observed unit, and a health tile. Apply them to Meridian's own config by hand.
 
+The tile shows three vitals:
+
+| Vital | Source | Reads |
+|---|---|---|
+| `build` | `GET /healthz` | the version stamp, for example `r126.28cd968` |
+| `disk` | `GET /api/usage` | `used_bytes` of `budget_bytes`, as a percentage |
+| `archive` | `GET /api/usage` | `runs`: the number of pictures in the Archive (the Bin is counted separately as `trash_runs` and is not shown) |
+
+All three read `http://localhost:8895`, so there is no new endpoint, no network beyond `localhost`, and no credentials. The `archive` number changes after a
+save, a trash and an empty within Meridian's normal poll interval. After applying the snippet, check that Meridian still accepts the tile:
+
+```bash
+sudo cat /etc/meridian/targets.json | docker exec -i meridian /meridian doctor --allowlist -
+```
+
+The Pixelsort tile's vitals should still report `vital_ok`. The homelab repository's `docs/meridian.md` vital table and `docs/pixelsort.md` are not in this
+repository: add the `archive` row to the table there when you apply the snippet.
+
 ## Security, in short
 
 The container makes outside calls only to its own Cloudflare Worker, carrying only what you explicitly share or fetch. It never contacts GHCR (only the watcher
