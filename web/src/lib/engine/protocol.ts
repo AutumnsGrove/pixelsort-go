@@ -43,7 +43,13 @@ export type Response =
 			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable)
 			seek?: { pass: number; progress: number; done: boolean }; // with rgba, for a seek
 	  }
-	| { id: number; ok: false; error: string };
+	| {
+			id: number;
+			ok: false;
+			error: string;
+			/** Set when the engine file itself could not be downloaded (as opposed to the engine failing after it loaded). */
+			download?: { attempts: number; reason: string; url: string };
+	  };
 
 /** Not tied to a request: the worker streams one after each batch of passes, at most one unacknowledged. */
 export type FrameEvent = {
@@ -54,3 +60,10 @@ export type FrameEvent = {
 	done: boolean;
 	stepMs: number;
 };
+
+/**
+ * Not tied to a request: the worker tells the page how the engine download is going, so Studio can say "loading the
+ * engine" instead of sitting silently. `loaded` is the last one, sent once the engine is running.
+ */
+export type LoadingEvent =
+	{ event: 'loading'; loaded: number; total: number | null; attempt: number } | { event: 'loaded' };

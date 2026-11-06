@@ -1,24 +1,39 @@
 /// <reference lib="webworker" />
 import './vendor/wasm_exec.js';
 import { adaptAuto, fixedSteps, type Speed } from './animator';
-import type { FrameEvent, Request, Response } from './protocol';
+import { EngineDownloadFailed, fetchEngine } from './loader';
+import type { FrameEvent, LoadingEvent, Request, Response } from './protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
 
-// The worker loads Go's runtime and engine.wasm once, then answers one request at a time in arrival order.
+// The worker loads Go's runtime and engine.wasm once, then answers one request at a time in arrival order. The download goes
+// through fetchEngine (stall timeout, one retry, progress) so a flaky link ends in a clear message and a retry, not a hang.
 async function load(): Promise<void> {
 	const go = new Go();
 	const url = new URL('/engine.wasm', self.location.origin);
-	const { instance } = await WebAssembly.instantiateStreaming(fetch(url), go.importObject);
+	let last = 0;
+	self.postMessage({ event: 'loading', loaded: 0, total: null, attempt: 1 } satisfies LoadingEvent); // so "loading" shows before the first byte
+	const bytes = await fetchEngine(url.toString(), {
+		onProgress: (p) => {
+			// at most ten updates a second, but never skip the last one
+			const now = performance.now();
+			if (now - last < 100 && p.loaded !== p.total) return;
+			last = now;
+			self.postMessage({ event: 'loading', ...p } satisfies LoadingEvent);
+		}
+	});
+	const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
 	void go.run(instance); // main() parks forever; do not await it
 	for (let i = 0; !globalThis.pixelsortReady; i++) {
 		if (i > 500) throw new Error('engine.wasm did not become ready');
 		await new Promise((r) => setTimeout(r, 10));
 	}
 	goInstance = go;
+	self.postMessage({ event: 'loaded' } satisfies LoadingEvent);
 }
 let goInstance: Go | null = null;
 const ready = load();
+ready.catch(() => {}); // each request below reports it; this keeps an unhandled rejection from also being logged
 
 function fail(id: number, error: string): Response {
 	return { id, ok: false, error };
@@ -250,7 +265,12 @@ self.onmessage = async (e: MessageEvent<Request>) => {
 	try {
 		await ready;
 	} catch (err) {
-		self.postMessage(fail(e.data.id, `engine failed to load: ${(err as Error).message}`));
+		if (err instanceof EngineDownloadFailed) {
+			self.postMessage({
+				...fail(e.data.id, err.message),
+				download: { attempts: err.attempts, reason: err.reason, url: '/engine.wasm' }
+			});
+		} else self.postMessage(fail(e.data.id, `engine failed to load: ${(err as Error).message}`));
 		return;
 	}
 	const { res, transfer } = handle(e.data);

@@ -1,6 +1,7 @@
 import { defaultParams, type Params } from './params';
 import type { Speed } from './animator';
-import type { FrameEvent, Request, Response, Stats, Timings } from './protocol';
+import { EngineDownloadFailed, type LoadProgress } from './loader';
+import type { FrameEvent, LoadingEvent, Request, Response, Stats, Timings } from './protocol';
 
 /** Thrown into every pending promise when the worker dies. The next call starts a fresh worker (without state). */
 export class EngineCrashed extends Error {
@@ -41,6 +42,7 @@ export class EngineClient {
 	private seekInFlight = false;
 	private seekWaiting: SeekWaiting | null = null;
 	private frameListeners = new Set<(f: Frame) => void>();
+	private loadingListeners = new Set<(p: LoadProgress | null) => void>();
 	transfer: 'copy' | 'view' = 'copy';
 
 	constructor(private readonly factory: () => Worker = defaultFactory) {}
@@ -154,6 +156,12 @@ export class EngineClient {
 		return () => this.frameListeners.delete(cb);
 	}
 
+	/** Subscribes to the engine download: progress while it downloads, then `null` once the engine is running. */
+	onLoading(cb: (p: LoadProgress | null) => void): () => void {
+		this.loadingListeners.add(cb);
+		return () => this.loadingListeners.delete(cb);
+	}
+
 	/** Prepares the current recipe and starts streaming frames. A later run() or animate() replaces it. */
 	async animate(speed: Speed): Promise<Stats> {
 		const res = await this.send({ type: 'animate', speed }, []);
@@ -243,19 +251,27 @@ export class EngineClient {
 	private ensureWorker(): Worker {
 		if (this.worker) return this.worker;
 		const w = this.factory();
-		w.onmessage = (e: MessageEvent<Response | FrameEvent>) => {
+		w.onmessage = (e: MessageEvent<Response | FrameEvent | LoadingEvent>) => {
 			if ('event' in e.data) {
-				this.deliverFrame(e.data);
+				if (e.data.event === 'frame') this.deliverFrame(e.data);
+				else this.deliverLoading(e.data);
 				return;
 			}
 			const p = this.pending.get(e.data.id);
 			if (!p) return;
 			this.pending.delete(e.data.id);
-			p.resolve(e.data);
+			const d = !e.data.ok && e.data.download;
+			if (d) p.reject(new EngineDownloadFailed(d.url, d.attempts, d.reason));
+			else p.resolve(e.data);
 		};
 		w.onerror = (e: ErrorEvent) => this.crash(e.message || 'unknown error');
 		this.worker = w;
 		return w;
+	}
+
+	private deliverLoading(e: LoadingEvent): void {
+		const p = e.event === 'loading' ? { loaded: e.loaded, total: e.total, attempt: e.attempt } : null;
+		for (const cb of this.loadingListeners) cb(p);
 	}
 
 	private deliverFrame(f: FrameEvent): void {

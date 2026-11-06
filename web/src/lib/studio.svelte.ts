@@ -84,6 +84,8 @@ class Studio {
 	customName = $state<string | null>(null);
 	comparing = $state(false);
 	errorCode = $state<string | null>(null);
+	/** The engine download while it is under way (null once the engine runs): the page says "loading the engine" with a percentage. */
+	engineLoad = $state<{ loaded: number; total: number | null; attempt: number } | null>(null);
 	timings = $state<{ prepareMs: number; sortMs: number } | null>(null);
 	onFrame: ((rgba: Uint8ClampedArray, w: number, h: number) => void) | null = null;
 
@@ -148,6 +150,7 @@ class Studio {
 	);
 	private client: EngineClient | null = null;
 	private off: (() => void) | null = null;
+	private offLoading: (() => void) | null = null;
 	private timer: ReturnType<typeof setTimeout> | undefined;
 
 	readonly name = $derived(this.customName ?? suggest(this.params, this.params.seed));
@@ -171,6 +174,7 @@ class Studio {
 	start(): void {
 		if (this.client) return;
 		this.client = new EngineClient();
+		this.offLoading = this.client.onLoading((p) => (this.engineLoad = p));
 		this.off = this.client.onFrame((f) => {
 			if (!this.size || this.scrubbed) return;
 			this.sorted = f.rgba;
@@ -189,8 +193,24 @@ class Studio {
 		clearTimeout(this.timer);
 		this.saver.cancel();
 		this.off?.();
+		this.offLoading?.();
+		this.engineLoad = null;
 		this.client?.dispose();
 		this.client = null;
+	}
+
+	/**
+	 * Starts the engine worker over (it downloads the engine again) and puts the picture back, keeping the recipe, the name
+	 * and everything the person set up. This is what "Try again" does after the engine failed to download or crashed.
+	 */
+	async restartEngine(): Promise<void> {
+		this.errorCode = null;
+		const name = this.customName;
+		this.stop();
+		const img =
+			this.original && this.size ? { w: this.size.w, h: this.size.h, rgba: this.original } : await defaultImage();
+		await this.load(img);
+		this.customName = name;
 	}
 
 	async load(img: { w: number; h: number; rgba: Uint8ClampedArray }): Promise<void> {

@@ -163,16 +163,25 @@
 
 	const knob = (id: string) => () => (popover = popover === id ? null : id);
 	const changed = () => studio.changed();
+	const loadingText = $derived(
+		studio.engineLoad
+			? studio.engineLoad.total
+				? `loading the engine… ${Math.min(100, Math.round((studio.engineLoad.loaded / studio.engineLoad.total) * 100))}%`
+				: 'loading the engine…'
+			: ''
+	);
 	const stateText = $derived(
-		studio.run === 'animating'
-			? `pass ${studio.pass}`
-			: studio.run === 'paused'
-				? 'paused'
-				: studio.run === 'preparing'
-					? 'sorting…'
-					: studio.run === 'done'
-						? 'done'
-						: ''
+		loadingText
+			? loadingText + (studio.engineLoad && studio.engineLoad.attempt > 1 ? ' (trying again)' : '')
+			: studio.run === 'animating'
+				? `pass ${studio.pass}`
+				: studio.run === 'paused'
+					? 'paused'
+					: studio.run === 'preparing'
+						? 'sorting…'
+						: studio.run === 'done'
+							? 'done'
+							: ''
 	);
 	const err = $derived(studio.errorCode ? describe(studio.errorCode, { name: studio.errorName }) : null);
 
@@ -341,6 +350,9 @@
 								studio.errorCode = null;
 								if (a.id === 'choose') fileInput?.click();
 								if (a.id === 'retry' && wasLink) linkOpen = true;
+								// engine failures: start the worker over (the picture and recipe stay), or reload the whole page
+								if ((a.id === 'retry' && !wasLink) || a.id === 'restart') void studio.restartEngine();
+								if (a.id === 'reload') location.reload();
 							}}>{a.label}</button
 						>
 					{/each}

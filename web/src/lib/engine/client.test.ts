@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { EngineClient, EngineCrashed } from './client';
+import { EngineDownloadFailed } from './loader';
 import type { Request, Response } from './protocol';
 
 class FakeWorker {
@@ -202,5 +203,63 @@ describe('seek: latest wins', () => {
 		expect(workers[0]!.sent).toHaveLength(2);
 		workers[0]!.reply(seekReply(2, 6));
 		await expect(b).resolves.toMatchObject({ pass: 6 });
+	});
+});
+
+describe('loading the engine', () => {
+	test('download progress from the worker reaches listeners, and stops after unsubscribing', async () => {
+		const seen: { loaded: number; total: number | null; attempt: number }[] = [];
+		const ready: boolean[] = [];
+		const off = client.onLoading((p) => (p ? seen.push(p) : ready.push(true)));
+		client.configure({ angle: 1 }).catch(() => {}); // starts the worker
+		const w = workers[0]!;
+		w.onmessage?.({ data: { event: 'loading', loaded: 10, total: 100, attempt: 1 } } as never);
+		w.onmessage?.({ data: { event: 'loading', loaded: 100, total: 100, attempt: 1 } } as never);
+		w.onmessage?.({ data: { event: 'loaded' } } as never);
+		off();
+		w.onmessage?.({ data: { event: 'loading', loaded: 1, total: 100, attempt: 2 } } as never);
+		expect(seen).toEqual([
+			{ loaded: 10, total: 100, attempt: 1 },
+			{ loaded: 100, total: 100, attempt: 1 }
+		]);
+		expect(ready).toEqual([true]);
+	});
+
+	test('loading events are never mistaken for animation frames', async () => {
+		const frames: number[] = [];
+		client.onFrame((f) => frames.push(f.pass));
+		client.configure({}).catch(() => {});
+		workers[0]!.onmessage?.({ data: { event: 'loading', loaded: 5, total: null, attempt: 1 } } as never);
+		expect(frames).toEqual([]);
+		expect(workers[0]!.sent.map((m) => m.type)).toEqual(['configure']); // no stray ack
+	});
+
+	test('a failed download rejects with EngineDownloadFailed, not a plain Error', async () => {
+		const p = client.init(10, 10);
+		workers[0]!.reply({
+			id: 1,
+			ok: false,
+			error: 'engine download failed',
+			download: { attempts: 2, reason: 'http 503', url: '/engine.wasm' }
+		});
+		const err = await p.catch((e: unknown) => e);
+		expect(err).toBeInstanceOf(EngineDownloadFailed);
+		expect((err as EngineDownloadFailed).reason).toBe('http 503');
+		expect((err as EngineDownloadFailed).attempts).toBe(2);
+	});
+
+	test('after a failed download, dispose starts a fresh worker that downloads again', async () => {
+		const first = client.init(10, 10);
+		workers[0]!.reply({
+			id: 1,
+			ok: false,
+			error: 'x',
+			download: { attempts: 2, reason: 'timeout', url: '/engine.wasm' }
+		});
+		await first.catch(() => {});
+		client.dispose();
+		expect(workers[0]!.terminated).toBe(true);
+		client.init(10, 10).catch(() => {});
+		expect(workers).toHaveLength(2);
 	});
 });
