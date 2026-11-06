@@ -136,6 +136,15 @@ class Studio {
 			return [];
 		}
 	}
+	/** What one cellular rule looks like with the knobs as they are right now; null if the engine cannot say (the panel then says so). */
+	async caPreview(rule: number): Promise<{ mask: Uint8Array; w: number; h: number } | null> {
+		if (!this.client) return null;
+		try {
+			return await this.client.caPreview({ ...this.params }, rule);
+		} catch {
+			return null;
+		}
+	}
 	/** Hold T: veil the pixels the recipe holds still. `movable` is the engine's mask, fetched when the key goes down. */
 	peeking = $state(false);
 	movable = $state<Uint8Array | null>(null);

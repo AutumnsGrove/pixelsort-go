@@ -17,6 +17,7 @@ export type Request =
 	| { id: number; type: 'brightestSpot' }
 	| { id: number; type: 'histogram'; key: string } // counts per 0..255 value of a sort key
 	| { id: number; type: 'caRules' } // the recommended cellular-automaton rules with notes
+	| { id: number; type: 'caPreview'; json: string; rule: number } // what one cellular rule looks like with this recipe
 	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
@@ -40,7 +41,8 @@ export type Response =
 			spot?: { cx: number; cy: number; w: number; h: number };
 			counts?: number[];
 			rules?: { rule: number; note: string }[];
-			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable)
+			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable); or the preview's 0/1 cells (caPreview)
+			preview?: { w: number; h: number }; // the size of the caPreview mask
 			seek?: { pass: number; progress: number; done: boolean }; // with rgba, for a seek
 	  }
 	| {

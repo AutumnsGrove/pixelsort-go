@@ -24,6 +24,12 @@ Branch `features-and-fixes`. See `decisions.md` V1 to V3.
   (`Studio.pendingChange`).
 - **`load()` must set size, original and sorted in one step.** Hashing the picture between them threw `ImageData` errors for one tick.
 - **Playwright can reuse a stale preview server.** `reuseExistingServer` is on; kill port 4173 before a run you need to trust.
+- **#4 the rule preview shows the rule's texture, not the exact mask of the photo.** It runs the sort's own mask code
+  (`engine.CAPreview`, which calls the same `caCache.mask`) on a fixed 320x160 canvas, with the recipe's cell size as the same
+  fraction of the width, so image space and line space (which turns with the sort angle) look as they will. A real photo of another
+  size has a grid of another size, and a grid's first row is drawn from the seed for that width, so the detail differs.
+  The recipe travels with each request (`api.CARulePreview(paramsJSON, rule)`), so it needs no session, no picture, and never
+  disturbs a running sort. At angle 0 line space equals image space; a test pins that.
 - **Not run:** WebKit (not installed here).
 
 ## Needs Autumn

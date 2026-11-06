@@ -7,6 +7,7 @@
 	import RegionCard from '#components/RegionCard';
 	import ShapeLibrary from '#components/ShapeLibrary';
 	import NameField from '#components/NameField';
+	import { previewLabel, previewPixels, previewVersion } from '#lib/rule-preview';
 
 	let { onclose }: { onclose: () => void } = $props();
 
@@ -36,6 +37,42 @@
 	$effect(() => {
 		if ((studio.params.mode === 'ca' || studio.params.mode === 'ca-edges') && caList.length === 0)
 			void studio.caRules().then((r) => (caList = r));
+	});
+
+	// ---- the rule preview: a small picture of the rule being hovered, or else the chosen one, from the engine ----
+	let hoverRule = $state<number | null>(null);
+	const shownRule = $derived(hoverRule ?? studio.params.rule);
+	let pv: HTMLCanvasElement | undefined = $state();
+	let pvFailed = $state(false);
+	let pvSeq = 0;
+	const inRules = $derived(showShapes && (studio.params.mode === 'ca' || studio.params.mode === 'ca-edges'));
+	$effect(() => {
+		// asked again whenever the rule being shown, or anything that shapes the picture, changes; a quick pass over the list
+		// settles on the last rule before a request goes out
+		const version = previewVersion(studio.params, shownRule);
+		if (!inRules || !pv) return;
+		const rule = shownRule;
+		const mine = ++pvSeq;
+		const timer = setTimeout(async () => {
+			const r = await studio.caPreview(rule);
+			if (mine !== pvSeq || !pv) return; // a newer question has been asked since
+			if (!r) {
+				pvFailed = true;
+				return;
+			}
+			try {
+				pv.width = r.w;
+				pv.height = r.h;
+				const g = pv.getContext('2d');
+				if (!g) throw new Error('no canvas');
+				g.putImageData(new ImageData(previewPixels(r.mask, r.w, r.h), r.w, r.h), 0, 0);
+				pv.dataset.version = version;
+				pvFailed = false;
+			} catch {
+				pvFailed = true;
+			}
+		}, 70);
+		return () => clearTimeout(timer);
 	});
 
 	const t = $derived(studio.tiling);
@@ -136,6 +173,23 @@
 	{#if showShapes && (studio.params.mode === 'ca' || studio.params.mode === 'ca-edges')}
 		<section data-testid="rules-section">
 			<h4 class="eyebrow">Cellular rule {studio.params.rule}</h4>
+			<figure class="rulepv" data-testid="rule-preview-box">
+				<canvas
+					bind:this={pv}
+					width="320"
+					height="160"
+					aria-hidden="true"
+					data-testid="rule-preview"
+					class:off={pvFailed}
+				></canvas>
+				{#if pvFailed}<p class="pvnote" data-testid="rule-preview-unavailable">Preview unavailable</p>{/if}
+				<figcaption data-testid="rule-preview-label">
+					{previewLabel(shownRule, studio.params.caSpace, studio.params.angle)}{hoverRule !== null &&
+					hoverRule !== studio.params.rule
+						? ' (hover)'
+						: ''}
+				</figcaption>
+			</figure>
 			<ul class="rules">
 				{#each caList as r (r.rule)}
 					<li>
@@ -146,6 +200,10 @@
 								studio.params.rule = r.rule;
 								studio.changed();
 							}}
+							onpointerenter={() => (hoverRule = r.rule)}
+							onpointerleave={() => (hoverRule = null)}
+							onfocus={() => (hoverRule = r.rule)}
+							onblur={() => (hoverRule = null)}
 							data-testid="rule-{r.rule}"><b>{r.rule}</b> <span>{r.note}</span></button
 						>
 					</li>
@@ -506,6 +564,38 @@
 		border-color: var(--paper);
 	}
 	/* Phone: a bottom sheet above the dock, so the picture stays in view; every target is at least 44 px. */
+	.rulepv {
+		margin: 0 0 6px;
+		display: grid;
+		gap: 6px;
+		position: relative;
+	}
+	.rulepv canvas {
+		display: block;
+		width: 100%;
+		height: auto;
+		aspect-ratio: 2 / 1;
+		image-rendering: pixelated;
+		border: 1px solid var(--faint);
+		border-radius: 10px;
+		background: #14110f;
+	}
+	.rulepv canvas.off {
+		opacity: 0.25;
+	}
+	.rulepv figcaption,
+	.pvnote {
+		margin: 0;
+		font-size: 10.5px;
+		letter-spacing: 0.6px;
+		color: var(--dim);
+	}
+	.pvnote {
+		position: absolute;
+		inset: 0 0 auto 0;
+		padding-top: 40%;
+		text-align: center;
+	}
 	@media (max-width: 700px) {
 		.pro {
 			top: auto;

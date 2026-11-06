@@ -91,6 +91,16 @@ func main() {
 			}
 			return result(map[string]any{"rules": arr}), nil
 		},
+		"caPreview": func(a []js.Value) (any, error) {
+			if len(a) < 2 {
+				return nil, errors.New("caPreview needs the recipe and a rule")
+			}
+			m, w, h, err := api.CARulePreview([]byte(a[0].String()), a[1].Int())
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"mask": newU8(m), "w": w, "h": h}), nil
+		},
 		"brightestSpot": func([]js.Value) (any, error) {
 			cx, cy, w, h, err := s.BrightestSpot()
 			if err != nil {

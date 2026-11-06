@@ -21,6 +21,7 @@ interface PixelsortApi {
 	sortable(): GoResult<{ mask: Uint8Array }>;
 	histogram(key: string): GoResult<{ counts: number[] }>;
 	caRules(): GoResult<{ rules: { rule: number; note: string }[] }>;
+	caPreview(paramsJson: string, rule: number): GoResult<{ mask: Uint8Array; w: number; h: number }>;
 	brightestSpot(): GoResult<{ cx: number; cy: number; w: number; h: number }>;
 	setSoft(radius: number): GoResult;
 	configure(json: string): GoResult;

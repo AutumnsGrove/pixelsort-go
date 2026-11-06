@@ -181,6 +181,12 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const r = api.caRules();
 			return { res: r.ok ? { id: req.id, ok: true, rules: r.rules } : fail(req.id, r.error), transfer: [] };
 		}
+		case 'caPreview': {
+			const r = api.caPreview(req.json, req.rule);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			const mask = r.mask.slice().buffer; // a copy that can be transferred
+			return { res: { id: req.id, ok: true, mask, preview: { w: r.w, h: r.h } }, transfer: [mask] };
+		}
 		case 'sortable': {
 			const prep = api.prepare();
 			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };

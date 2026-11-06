@@ -123,6 +123,18 @@ export class EngineClient {
 		return res.rules;
 	}
 
+	/**
+	 * What one cellular rule looks like with this recipe (space, sort angle, cell size, boundary, seed): a small fixed canvas of
+	 * 0/1 cells, drawn by the engine's own mask code. The recipe travels with the question, so it needs no picture and no
+	 * configure, and it never disturbs a sort that is running.
+	 */
+	async caPreview(params: Params, rule: number): Promise<{ mask: Uint8Array; w: number; h: number }> {
+		const res = await this.send({ type: 'caPreview', json: JSON.stringify(params), rule }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (!res.mask || !res.preview) throw new Error('caPreview answered without a mask');
+		return { mask: new Uint8Array(res.mask), ...res.preview };
+	}
+
 	/** Which pixels the current recipe lets move: 1 where a pixel is in some interval, 0 where it is held. Asked of the engine, never worked out here. */
 	async sortable(): Promise<Uint8Array> {
 		const res = await this.send({ type: 'sortable' }, []);

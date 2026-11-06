@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { EngineClient, EngineCrashed } from './client';
 import { EngineDownloadFailed } from './loader';
+import { defaultParams } from './params';
 import type { Request, Response } from './protocol';
 
 class FakeWorker {
@@ -261,5 +262,32 @@ describe('loading the engine', () => {
 		expect(workers[0]!.terminated).toBe(true);
 		client.init(10, 10).catch(() => {});
 		expect(workers).toHaveLength(2);
+	});
+});
+
+describe('rule previews', () => {
+	test('caPreview asks for one rule and gets back the mask with its size', async () => {
+		const p = client.caPreview({ ...defaultParams, caSpace: 'line', angle: 37 }, 30);
+		const w = workers[0]!;
+		expect(w.sent[0]).toMatchObject({ type: 'caPreview', rule: 30 });
+		// the recipe goes with the question, so the answer never depends on what was configured before
+		expect(JSON.parse((w.sent[0] as { json: string }).json)).toMatchObject({ caSpace: 'line', angle: 37 });
+		w.reply({ id: 1, ok: true, mask: new Uint8Array([0, 1, 1, 0]).buffer, preview: { w: 2, h: 2 } });
+		const r = await p;
+		expect(r.w).toBe(2);
+		expect(r.h).toBe(2);
+		expect([...r.mask]).toEqual([0, 1, 1, 0]);
+	});
+
+	test('a refused preview rejects with the engine\u2019s words', async () => {
+		const p = client.caPreview(defaultParams, 999);
+		workers[0]!.reply({ id: 1, ok: false, error: 'rule 999 is outside 0..255' });
+		await expect(p).rejects.toThrow('outside 0..255');
+	});
+
+	test('an answer without a mask is an error, not an empty picture', async () => {
+		const p = client.caPreview(defaultParams, 30);
+		workers[0]!.reply({ id: 1, ok: true });
+		await expect(p).rejects.toThrow();
 	});
 });

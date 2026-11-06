@@ -464,3 +464,29 @@ func CARules() []CARule {
 	}
 	return out
 }
+
+// The size of the rule preview the Pro panel draws: a fixed small canvas, whatever the picture.
+const (
+	CAPreviewW = 320
+	CAPreviewH = 160
+)
+
+// CARulePreview draws what `rule` looks like with the recipe in paramsJSON (space, sort angle, cell size, boundary and seed), as
+// a 0/1 mask CAPreviewW x CAPreviewH. It is stateless: no session, no picture, and it never touches a running sort, so the
+// panel can ask on every hover with whatever the knobs say right now. The rule is a parameter, not the recipe's own, so a rule
+// can be shown before it is chosen.
+func CARulePreview(paramsJSON []byte, rule int) (mask []uint8, w, h int, err error) {
+	if rule < 0 || rule > 255 {
+		return nil, 0, 0, fmt.Errorf("api: ca preview: rule %d is outside 0..255", rule)
+	}
+	p, err := engine.ParseParams(paramsJSON)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("api: ca preview: %w", err)
+	}
+	p.Rule = rule
+	mask, err = engine.CAPreview(CAPreviewW, CAPreviewH, p)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("api: %w", err)
+	}
+	return mask, CAPreviewW, CAPreviewH, nil
+}

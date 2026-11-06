@@ -47,6 +47,39 @@ for (const [label, w, h, touch] of SIZES) {
 			expect(name.height, 'a touch target').toBeGreaterThanOrEqual(44);
 		});
 
+		test('the name, the state, the unsaved note and Compare never run into one another, even with a long name', async ({
+			page
+		}) => {
+			await open(page);
+			await page.getByTestId('name').click();
+			await page.getByTestId('name-input').fill('Rain, cellular 110 over the ridge');
+			await page.getByTestId('name-input').press('Enter');
+			await page.getByTestId('k-angle').click();
+			await page.getByTestId('angle-input').fill('37');
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('state')).toHaveText('done', { timeout: 30_000 });
+			// the state still says "done" for a moment after a knob moves; Save is off until the new sort has finished
+			await expect(page.getByTestId('save')).toBeEnabled({ timeout: 30_000 });
+			await expect(page.getByTestId('unsaved-note')).toBeVisible();
+			const caption = await box(page, 'caption');
+			const compare = await box(page, 'compare');
+			const frame = await box(page, 'stage');
+			expect(overlaps(caption, compare), `the caption row and Compare: ${JSON.stringify({ caption, compare })}`).toBe(
+				false
+			);
+			expect(caption.x + caption.width, 'inside the width of the picture').toBeLessThanOrEqual(
+				frame.x + frame.width + 0.5
+			);
+			for (const id of ['name', 'state', 'unsaved-note']) {
+				const b = (await page.getByTestId(id).boundingBox()) ?? { x: -1, y: -1, width: 0, height: 0 };
+				expect(
+					b.width,
+					`${id} has a size; the caption reads: ${await page.getByTestId('caption').innerText()}`
+				).toBeGreaterThan(0);
+				expect(b.x + b.width, `${id} stays left of Compare`).toBeLessThanOrEqual(compare.x + 0.5);
+			}
+		});
+
 		test('a tap opens the name field without moving the picture, and the new name sticks', async ({ page }) => {
 			await open(page);
 			const before = await box(page, 'stage');

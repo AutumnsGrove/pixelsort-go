@@ -312,18 +312,19 @@
 			<!-- A fixed-height row in the flow: the name, the state, and compare. Renaming opens over the space below it, so
 			     the picture never moves when the field appears. -->
 			<div class="under" data-testid="under">
-				<div class="caption" class:editing={studio.renameFrom === 'caption'}>
+				<div class="caption" data-testid="caption" class:editing={studio.renameFrom === 'caption'}>
 					<NameField from="caption" testid="name" />
 					<span data-testid="state">{stateText}</span>
 					{#if unsavedNote}<span class="unsaved" data-testid="unsaved-note">not saved</span>{/if}
 				</div>
 				<button
 					class="cmp"
+					data-testid="compare"
 					class:on={studio.comparing}
 					type="button"
 					onpointerdown={() => (studio.comparing = true)}
 					onpointerup={() => (studio.comparing = false)}
-					onpointerleave={() => (studio.comparing = false)}>hold to compare</button
+					onpointerleave={() => (studio.comparing = false)}><span class="long">hold to </span>compare</button
 				>
 			</div>
 		</div>
@@ -838,7 +839,7 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		max-width: calc(100% - 118px);
+		max-width: calc(100% - 126px);
 		min-height: 44px;
 		font-family: var(--serif);
 		font-style: italic;
@@ -848,6 +849,28 @@
 		gap: 12px;
 		align-items: center;
 		z-index: 6;
+	}
+	/* The name gives way first (with an ellipsis); the state and the unsaved note keep their words. */
+	.caption {
+		min-width: 0;
+		flex-wrap: nowrap;
+	}
+	.caption :global(.nm-btn) {
+		min-width: 0;
+		flex: 0 1 auto;
+	}
+	.caption .unsaved,
+	.caption span[data-testid='state'] {
+		flex: none;
+	}
+	@media (max-width: 480px) {
+		/* "compare" is enough on a phone, and the caption gets the room */
+		.cmp .long {
+			display: none;
+		}
+		.caption {
+			max-width: calc(100% - 86px);
+		}
 	}
 	.caption.editing {
 		width: 100%;
