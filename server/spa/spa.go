@@ -5,20 +5,19 @@ package spa
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"io"
 	"io/fs"
 	"mime"
 	"net/http"
 	"path"
 	"regexp"
 	"strings"
-	"time"
 )
 
 // Handler serves fsys. Unknown paths that look like pages (no file extension, not under /api or /_app) get
 // index.html so deep links work; missing assets and API paths get a plain 404.
 func Handler(fsys fs.FS) http.Handler {
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
+	files := &assets{fsys: fsys}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := path.Clean("/" + r.URL.Path)
 		if p == "/api" || strings.HasPrefix(p, "/api/") {
@@ -36,35 +35,21 @@ func Handler(fsys fs.FS) http.Handler {
 			}
 			name = "index.html"
 		}
-		f, err := fsys.Open(name)
+		as, err := files.get(name)
 		if err != nil {
 			http.Error(w, "the web app is not built into this binary (run make web and build with -tags embedweb)", http.StatusServiceUnavailable)
 			return
 		}
-		defer f.Close() //nolint:errcheck // read-only file
 		h := w.Header()
-		switch {
-		case strings.HasPrefix(p, "/_app/immutable/"):
+		if strings.HasPrefix(p, "/_app/immutable/") {
 			h.Set("Cache-Control", "public, max-age=31536000, immutable")
-		case name == "index.html":
+		} else {
+			// Everything else (index.html, engine.wasm, the sample photo) is kept by the browser but checked with the
+			// server on each visit: a 304 costs a few hundred bytes, and an update can never leave a stale copy behind.
 			h.Set("Cache-Control", "no-cache")
 		}
-		if ct := mime.TypeByExtension(path.Ext(name)); ct != "" {
-			h.Set("Content-Type", ct)
-		}
-		if rs, ok := f.(io.ReadSeeker); ok {
-			http.ServeContent(w, r, name, modTime(f), rs)
-			return
-		}
-		_, _ = io.Copy(w, f)
+		serveAsset(w, r, name, as)
 	})
-}
-
-func modTime(f fs.File) (t time.Time) {
-	if info, err := f.Stat(); err == nil {
-		return info.ModTime()
-	}
-	return
 }
 
 var inlineScript = regexp.MustCompile(`(?s)<script>(.*?)</script>`)

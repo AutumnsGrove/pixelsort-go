@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { EngineClient, EngineCrashed } from './client';
+import { EngineDownloadFailed } from './loader';
+import { defaultParams } from './params';
 import type { Request, Response } from './protocol';
 
 class FakeWorker {
@@ -202,5 +204,146 @@ describe('seek: latest wins', () => {
 		expect(workers[0]!.sent).toHaveLength(2);
 		workers[0]!.reply(seekReply(2, 6));
 		await expect(b).resolves.toMatchObject({ pass: 6 });
+	});
+});
+
+describe('loading the engine', () => {
+	test('download progress from the worker reaches listeners, and stops after unsubscribing', async () => {
+		const seen: { loaded: number; total: number | null; attempt: number }[] = [];
+		const ready: boolean[] = [];
+		const off = client.onLoading((p) => (p ? seen.push(p) : ready.push(true)));
+		client.configure({ angle: 1 }).catch(() => {}); // starts the worker
+		const w = workers[0]!;
+		w.onmessage?.({ data: { event: 'loading', loaded: 10, total: 100, attempt: 1 } } as never);
+		w.onmessage?.({ data: { event: 'loading', loaded: 100, total: 100, attempt: 1 } } as never);
+		w.onmessage?.({ data: { event: 'loaded' } } as never);
+		off();
+		w.onmessage?.({ data: { event: 'loading', loaded: 1, total: 100, attempt: 2 } } as never);
+		expect(seen).toEqual([
+			{ loaded: 10, total: 100, attempt: 1 },
+			{ loaded: 100, total: 100, attempt: 1 }
+		]);
+		expect(ready).toEqual([true]);
+	});
+
+	test('loading events are never mistaken for animation frames', async () => {
+		const frames: number[] = [];
+		client.onFrame((f) => frames.push(f.pass));
+		client.configure({}).catch(() => {});
+		workers[0]!.onmessage?.({ data: { event: 'loading', loaded: 5, total: null, attempt: 1 } } as never);
+		expect(frames).toEqual([]);
+		expect(workers[0]!.sent.map((m) => m.type)).toEqual(['configure']); // no stray ack
+	});
+
+	test('a failed download rejects with EngineDownloadFailed, not a plain Error', async () => {
+		const p = client.init(10, 10);
+		workers[0]!.reply({
+			id: 1,
+			ok: false,
+			error: 'engine download failed',
+			download: { attempts: 2, reason: 'http 503', url: '/engine.wasm' }
+		});
+		const err = await p.catch((e: unknown) => e);
+		expect(err).toBeInstanceOf(EngineDownloadFailed);
+		expect((err as EngineDownloadFailed).reason).toBe('http 503');
+		expect((err as EngineDownloadFailed).attempts).toBe(2);
+	});
+
+	test('after a failed download, dispose starts a fresh worker that downloads again', async () => {
+		const first = client.init(10, 10);
+		workers[0]!.reply({
+			id: 1,
+			ok: false,
+			error: 'x',
+			download: { attempts: 2, reason: 'timeout', url: '/engine.wasm' }
+		});
+		await first.catch(() => {});
+		client.dispose();
+		expect(workers[0]!.terminated).toBe(true);
+		client.init(10, 10).catch(() => {});
+		expect(workers).toHaveLength(2);
+	});
+});
+
+describe('rule previews', () => {
+	test('caPreview asks for one rule and gets back the mask with its size', async () => {
+		const p = client.caPreview({ ...defaultParams, caSpace: 'line', angle: 37 }, 30);
+		const w = workers[0]!;
+		expect(w.sent[0]).toMatchObject({ type: 'caPreview', rule: 30 });
+		// the recipe goes with the question, so the answer never depends on what was configured before
+		expect(JSON.parse((w.sent[0] as { json: string }).json)).toMatchObject({ caSpace: 'line', angle: 37 });
+		w.reply({ id: 1, ok: true, mask: new Uint8Array([0, 1, 1, 0]).buffer, preview: { w: 2, h: 2 } });
+		const r = await p;
+		expect(r.w).toBe(2);
+		expect(r.h).toBe(2);
+		expect([...r.mask]).toEqual([0, 1, 1, 0]);
+	});
+
+	test('a refused preview rejects with the engine\u2019s words', async () => {
+		const p = client.caPreview(defaultParams, 999);
+		workers[0]!.reply({ id: 1, ok: false, error: 'rule 999 is outside 0..255' });
+		await expect(p).rejects.toThrow('outside 0..255');
+	});
+
+	test('an answer without a mask is an error, not an empty picture', async () => {
+		const p = client.caPreview(defaultParams, 30);
+		workers[0]!.reply({ id: 1, ok: true });
+		await expect(p).rejects.toThrow();
+	});
+});
+
+describe('cut out this object', () => {
+	test('asks for a point as fractions and tolerance, and hands back the outline as pairs', async () => {
+		const p = client.cutOut(0.5, 0.25, 32);
+		const w = workers[0]!;
+		expect(w.sent[0]).toMatchObject({ type: 'cutOut', x: 0.5, y: 0.25, tolerance: 32 });
+		w.reply({
+			id: 1,
+			ok: true,
+			cutout: {
+				points: new Int32Array([10, 10, 20, 10, 20, 20, 10, 20]).buffer,
+				pointsBefore: 80,
+				area: 100,
+				w: 30,
+				bbox: new Int32Array([10, 10, 11, 11]).buffer,
+				mean: new Int32Array([200, 60, 30]).buffer,
+				mask: new Uint8Array(900).buffer
+			}
+		});
+		const r = await p;
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		expect(r.outline).toEqual([
+			[10, 10],
+			[20, 10],
+			[20, 20],
+			[10, 20]
+		]);
+		expect(r.bbox).toEqual([10, 10, 11, 11]);
+		expect(r.mean).toEqual([200, 60, 30]);
+		expect(r.pointsBefore).toBe(80);
+		expect(r.area).toBe(100);
+		expect(r.mask.length).toBe(900);
+	});
+
+	test('a refusal is an answer, not an error: it says why', async () => {
+		for (const reason of ['too-big', 'too-small'] as const) {
+			const p = client.cutOut(0.1, 0.1, 30);
+			const id = workers[workers.length - 1]!.sent.at(-1)!.id;
+			workers[workers.length - 1]!.reply({ id, ok: true, refused: { reason, message: 'm' } });
+			expect(await p).toEqual({ ok: false, reason, message: 'm' });
+		}
+	});
+
+	test('a real failure rejects', async () => {
+		const p = client.cutOut(0.1, 0.1, 30);
+		workers[0]!.reply({ id: 1, ok: false, error: 'not initialised' });
+		await expect(p).rejects.toThrow('not initialised');
+	});
+
+	test('an answer with neither an outline nor a refusal is an error', async () => {
+		const p = client.cutOut(0.1, 0.1, 30);
+		workers[0]!.reply({ id: 1, ok: true });
+		await expect(p).rejects.toThrow();
 	});
 });

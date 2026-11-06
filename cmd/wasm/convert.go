@@ -52,6 +52,15 @@ func newU8(b []byte) js.Value {
 	return a
 }
 
+// newI32 copies Go integers into a fresh Int32Array.
+func newI32(v []int32) js.Value {
+	a := js.Global().Get("Int32Array").New(len(v))
+	for i, x := range v {
+		a.SetIndex(i, x)
+	}
+	return a
+}
+
 // labelAddr is the byte address of the first region label in Go's linear memory (stable until the next SetTiling).
 func labelAddr(l []uint16) uintptr {
 	if len(l) == 0 {

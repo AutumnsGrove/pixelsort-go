@@ -107,10 +107,16 @@ type created struct {
 
 func (s *site) upload(orig, res, thumb int, seed int, omitOriginal bool) (*http.Response, []byte) {
 	s.t.Helper()
+	return s.uploadLook(orig, res, thumb, seed, omitOriginal, map[string]any{"mode": "random", "angle": 45}, nil)
+}
+
+// uploadLook is upload with the settings object and parent run of the caller's choice.
+func (s *site) uploadLook(orig, res, thumb int, seed int, omitOriginal bool, settings map[string]any, parent *int64) (*http.Response, []byte) {
+	s.t.Helper()
 	ob, osha := tinyPNG(orig)
 	rb, rs := tinyPNG(res)
 	tb, ts := tinyPNG(thumb)
-	meta := map[string]any{"settings": map[string]any{"mode": "random", "angle": 45}, "seed": seed, "engine_version": "1", "duration_ms": 12,
+	meta := map[string]any{"settings": settings, "seed": seed, "engine_version": "1", "duration_ms": 12, "parent_run_id": parent,
 		"original": map[string]any{"sha256": osha, "mime": "image/png", "w": 4, "h": 4},
 		"result":   map[string]any{"sha256": rs, "mime": "image/png", "w": 4, "h": 4},
 		"thumb":    map[string]any{"sha256": ts, "mime": "image/png", "w": 4, "h": 4}}
@@ -480,4 +486,72 @@ func FuzzImageUpload(f *testing.F) {
 			}
 		}
 	})
+}
+
+// A run keeps the whole look (cells, region cards, protected areas and brush strokes) inside its free-form settings, so a
+// heavily painted mask must fit, and a run branched from another names its parent.
+func TestIntegrationRunKeepsTheWholeLook(t *testing.T) {
+	s := newSite(t, nil)
+	res, body := s.upload(1, 2, 3, 7, false)
+	s.expect(res, body, 201)
+	var parent created
+	if err := json.Unmarshal(body, &parent); err != nil {
+		t.Fatal(err)
+	}
+
+	strokes := make([]any, 0, 60)
+	for i := 0; i < 60; i++ {
+		pts := make([]any, 0, 400)
+		for j := 0; j < 400; j++ {
+			pts = append(pts, []float64{float64(j) / 400, float64(i) / 60})
+		}
+		strokes = append(strokes, map[string]any{"radius": 0.02, "points": pts})
+	}
+	settings := map[string]any{"mode": "wave", "angle": 12,
+		"regions": map[string]any{"tiling": map[string]any{"shape": "hexagon", "size": 90, "gap": 6, "rotate": 0, "seed": 7, "pattern": "checker", "kinds": 3}},
+		"mask":    map[string]any{"objects": []any{}, "strokes": strokes, "invert": false, "feather": 3}}
+	if n := len(mustJSON(t, settings)); n < 300<<10 {
+		t.Fatalf("the test's settings are only %d bytes; it must be bigger than the old 256 KiB limit to mean anything", n)
+	}
+	res, body = s.uploadLook(4, 5, 6, 8, false, settings, &parent.ID)
+	s.expect(res, body, 201)
+	var child struct {
+		ID          int64           `json:"id"`
+		ParentRunID *int64          `json:"parent_run_id"`
+		Settings    json.RawMessage `json:"settings"`
+	}
+	if err := json.Unmarshal(body, &child); err != nil {
+		t.Fatal(err)
+	}
+	if child.ParentRunID == nil || *child.ParentRunID != parent.ID {
+		t.Fatalf("parent_run_id = %v, want %d", child.ParentRunID, parent.ID)
+	}
+	var back map[string]json.RawMessage
+	if err := json.Unmarshal(child.Settings, &back); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"regions", "mask", "mode", "angle"} {
+		if _, ok := back[k]; !ok {
+			t.Errorf("settings lost %q on the way back", k)
+		}
+	}
+
+	// the parent is untouched, and a parent that does not exist is refused
+	res, body = s.do("GET", fmt.Sprintf("/api/runs/%d", parent.ID), nil)
+	s.expect(res, body, 200)
+	if strings.Contains(string(body), `"mask"`) {
+		t.Fatal("the opened run must never be changed by a branch")
+	}
+	missing := int64(999999)
+	res, body = s.uploadLook(7, 8, 9, 9, false, map[string]any{"mode": "random"}, &missing)
+	s.expect(res, body, 400)
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

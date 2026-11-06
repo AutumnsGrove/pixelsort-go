@@ -1,6 +1,7 @@
 import { defaultParams, type Params } from './params';
 import type { Speed } from './animator';
-import type { FrameEvent, Request, Response, Stats, Timings } from './protocol';
+import { EngineDownloadFailed, type LoadProgress } from './loader';
+import type { FrameEvent, LoadingEvent, Request, Response, Stats, Timings } from './protocol';
 
 /** Thrown into every pending promise when the worker dies. The next call starts a fresh worker (without state). */
 export class EngineCrashed extends Error {
@@ -9,6 +10,22 @@ export class EngineCrashed extends Error {
 		this.name = 'EngineCrashed';
 	}
 }
+
+export type CutoutResult =
+	| {
+			ok: true;
+			/** The outer edge, in pixels of the working picture, a closed ring. */
+			outline: [number, number][];
+			pointsBefore: number;
+			area: number;
+			/** The picture's width: the row length of `mask`. */
+			w: number;
+			/** x, y, width, height of the region. */
+			bbox: [number, number, number, number];
+			mean: [number, number, number];
+			mask: Uint8Array;
+	  }
+	| { ok: false; reason: 'too-big' | 'too-small'; message: string };
 
 export type Frame = { rgba: Uint8ClampedArray; progress: number; pass: number; done: boolean; stepMs: number };
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
@@ -41,6 +58,7 @@ export class EngineClient {
 	private seekInFlight = false;
 	private seekWaiting: SeekWaiting | null = null;
 	private frameListeners = new Set<(f: Frame) => void>();
+	private loadingListeners = new Set<(p: LoadProgress | null) => void>();
 	transfer: 'copy' | 'view' = 'copy';
 
 	constructor(private readonly factory: () => Worker = defaultFactory) {}
@@ -121,6 +139,46 @@ export class EngineClient {
 		return res.rules;
 	}
 
+	/**
+	 * "Cut out this object": grows a region from a point (fractions of the picture, 0..1) on the picture as loaded, and traces its
+	 * outline. Asked of the engine, never worked out here. A region that spreads over too much of the picture, or is too small or
+	 * thin to be a shape, comes back as `{ ok: false, reason }`: that is an answer, not a failure.
+	 */
+	async cutOut(x: number, y: number, tolerance: number): Promise<CutoutResult> {
+		const res = await this.send({ type: 'cutOut', x, y, tolerance }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (res.refused) return { ok: false, ...res.refused };
+		const c = res.cutout;
+		if (!c) throw new Error('cutOut answered with neither an outline nor a reason');
+		const pts = new Int32Array(c.points);
+		const outline: [number, number][] = [];
+		for (let i = 0; i + 1 < pts.length; i += 2) outline.push([pts[i]!, pts[i + 1]!]);
+		const b = new Int32Array(c.bbox);
+		const m = new Int32Array(c.mean);
+		return {
+			ok: true,
+			outline,
+			pointsBefore: c.pointsBefore,
+			area: c.area,
+			w: c.w,
+			bbox: [b[0]!, b[1]!, b[2]!, b[3]!],
+			mean: [m[0]!, m[1]!, m[2]!],
+			mask: new Uint8Array(c.mask)
+		};
+	}
+
+	/**
+	 * What one cellular rule looks like with this recipe (space, sort angle, cell size, boundary, seed): a small fixed canvas of
+	 * 0/1 cells, drawn by the engine's own mask code. The recipe travels with the question, so it needs no picture and no
+	 * configure, and it never disturbs a sort that is running.
+	 */
+	async caPreview(params: Params, rule: number): Promise<{ mask: Uint8Array; w: number; h: number }> {
+		const res = await this.send({ type: 'caPreview', json: JSON.stringify(params), rule }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (!res.mask || !res.preview) throw new Error('caPreview answered without a mask');
+		return { mask: new Uint8Array(res.mask), ...res.preview };
+	}
+
 	/** Which pixels the current recipe lets move: 1 where a pixel is in some interval, 0 where it is held. Asked of the engine, never worked out here. */
 	async sortable(): Promise<Uint8Array> {
 		const res = await this.send({ type: 'sortable' }, []);
@@ -152,6 +210,12 @@ export class EngineClient {
 	onFrame(cb: (f: Frame) => void): () => void {
 		this.frameListeners.add(cb);
 		return () => this.frameListeners.delete(cb);
+	}
+
+	/** Subscribes to the engine download: progress while it downloads, then `null` once the engine is running. */
+	onLoading(cb: (p: LoadProgress | null) => void): () => void {
+		this.loadingListeners.add(cb);
+		return () => this.loadingListeners.delete(cb);
 	}
 
 	/** Prepares the current recipe and starts streaming frames. A later run() or animate() replaces it. */
@@ -243,19 +307,27 @@ export class EngineClient {
 	private ensureWorker(): Worker {
 		if (this.worker) return this.worker;
 		const w = this.factory();
-		w.onmessage = (e: MessageEvent<Response | FrameEvent>) => {
+		w.onmessage = (e: MessageEvent<Response | FrameEvent | LoadingEvent>) => {
 			if ('event' in e.data) {
-				this.deliverFrame(e.data);
+				if (e.data.event === 'frame') this.deliverFrame(e.data);
+				else this.deliverLoading(e.data);
 				return;
 			}
 			const p = this.pending.get(e.data.id);
 			if (!p) return;
 			this.pending.delete(e.data.id);
-			p.resolve(e.data);
+			const d = !e.data.ok && e.data.download;
+			if (d) p.reject(new EngineDownloadFailed(d.url, d.attempts, d.reason));
+			else p.resolve(e.data);
 		};
 		w.onerror = (e: ErrorEvent) => this.crash(e.message || 'unknown error');
 		this.worker = w;
 		return w;
+	}
+
+	private deliverLoading(e: LoadingEvent): void {
+		const p = e.event === 'loading' ? { loaded: e.loaded, total: e.total, attempt: e.attempt } : null;
+		for (const cb of this.loadingListeners) cb(p);
 	}
 
 	private deliverFrame(f: FrameEvent): void {

@@ -70,7 +70,7 @@ test('create a share, open it with no cookies, see the pictures, revoke it, see 
 	browser
 }) => {
 	const features = await (await request.get('/api/features')).json();
-	expect(features).toEqual({ share: true, fetch: true });
+	expect(features).toEqual({ share: true, fetch: true, helper: false });
 
 	const ids = [await makeRun(request, 1), await makeRun(request, 2)];
 	const created = await request.post('/api/shares', {

@@ -10,6 +10,7 @@ export type ErrorCode =
 	| 'link-too-large'
 	| 'link-timeout'
 	| 'engine-failed'
+	| 'engine-download-failed'
 	| 'engine-crashed'
 	| 'export-oom'
 	| 'save-failed'
@@ -101,6 +102,16 @@ export const CATALOG: Record<ErrorCode, (c: ErrorContext) => Entry> = {
 			{ id: 'reload', label: 'Reload the page' }
 		]
 	}),
+	'engine-download-failed': () => ({
+		tone: 'error',
+		title: 'The sorting engine didn’t finish downloading.',
+		body: 'It is a few megabytes and the connection dropped or went too quiet while it came down, even after trying again.',
+		safe: 'Your picture, runs and settings are fine — only the sorter is missing, and Try again keeps your picture.',
+		actions: [
+			{ id: 'retry', label: 'Try again', primary: true },
+			{ id: 'reload', label: 'Reload the page' }
+		]
+	}),
 	'engine-crashed': () => ({
 		tone: 'error',
 		title: 'The sorter stopped unexpectedly.',
@@ -131,7 +142,7 @@ export const CATALOG: Record<ErrorCode, (c: ErrorContext) => Entry> = {
 			c.reason === 'disk'
 				? 'The server says its disk is full.'
 				: `The server didn’t accept it${c.reason === 'timeout' ? ' in time.' : '.'}`,
-		safe: 'Keep working — the run is kept here and will be sent again. Exporting still works.',
+		safe: 'Your picture and settings are still here. Try again whenever you like. Exporting still works.',
 		actions: [{ id: 'retry', label: 'Retry now', primary: true }, close('Dismiss')]
 	}),
 	'share-failed': (c) => ({
@@ -160,6 +171,8 @@ export function describe(code: string, ctx: ErrorContext = {}): ErrorView {
 }
 
 /** Map an engine failure to a catalog code: the UI never shows a raw string (it goes behind "Details"). */
-export function engineErrorCode(err: unknown): 'engine-failed' | 'engine-crashed' {
-	return err instanceof Error && err.name === 'EngineCrashed' ? 'engine-crashed' : 'engine-failed';
+export function engineErrorCode(err: unknown): 'engine-failed' | 'engine-crashed' | 'engine-download-failed' {
+	if (err instanceof Error && err.name === 'EngineCrashed') return 'engine-crashed';
+	if (err instanceof Error && err.name === 'EngineDownloadFailed') return 'engine-download-failed';
+	return 'engine-failed';
 }

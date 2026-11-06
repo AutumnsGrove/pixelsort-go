@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -21,7 +22,17 @@ type Config struct {
 	// WorkerURL and WorkerSecret point at the Cloudflare share Worker. Both empty = sharing and URL loading are off.
 	WorkerURL    string // PIXELSORT_WORKER_URL: https, no trailing slash (http is allowed for localhost, for wrangler dev)
 	WorkerSecret string // PIXELSORT_WORKER_SECRET: signs every request; never leaves this process
+	// HelperKey is the OpenRouter key the Shape helper uses; empty = the helper is off. It stays on the server: it is never sent to
+	// a browser, never logged, and the Settings page only learns whether one is configured.
+	HelperKey   string // PIXELSORT_OPENROUTER_KEY
+	HelperModel string // PIXELSORT_HELPER_MODEL: a vision model on OpenRouter, "vendor/name"
 }
+
+// DefaultHelperModel is the vision model the Shape helper asks unless PIXELSORT_HELPER_MODEL says otherwise.
+const DefaultHelperModel = "deepseek/deepseek-v4.1-flash-1017"
+
+// HelperConfigured reports whether the Shape helper can ask a model.
+func (c Config) HelperConfigured() bool { return c.HelperKey != "" }
 
 // WorkerConfigured reports whether the share Worker can be used.
 func (c Config) WorkerConfigured() bool { return c.WorkerURL != "" && c.WorkerSecret != "" }
@@ -44,6 +55,9 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 	c.UpdateDir = getenv("PIXELSORT_UPDATE_DIR")
 	if err := loadWorker(getenv, &c); err != nil {
+		return Config{}, err
+	}
+	if err := loadHelper(getenv, &c); err != nil {
 		return Config{}, err
 	}
 	if v := getenv("PIXELSORT_BUDGET_GB"); v != "" {
@@ -103,3 +117,25 @@ func loadWorker(getenv func(string) string, c *Config) error {
 	c.WorkerSecret = secret
 	return nil
 }
+
+// loadHelper reads the Shape helper's key and model. Errors name the variable and never repeat the key.
+func loadHelper(getenv func(string) string, c *Config) error {
+	c.HelperModel = DefaultHelperModel
+	if m := strings.TrimSpace(getenv("PIXELSORT_HELPER_MODEL")); m != "" {
+		if !modelName.MatchString(m) {
+			return fmt.Errorf("PIXELSORT_HELPER_MODEL=%q: want a model name like vendor/model-name", m)
+		}
+		c.HelperModel = m
+	}
+	key := strings.TrimSpace(getenv("PIXELSORT_OPENROUTER_KEY"))
+	if key == "" {
+		return nil
+	}
+	if strings.ContainsAny(key, "\r\n \t") {
+		return errors.New("PIXELSORT_OPENROUTER_KEY: the key has a space or a line break in it (a pasted key usually has a stray one)")
+	}
+	c.HelperKey = key
+	return nil
+}
+
+var modelName = regexp.MustCompile(`^[A-Za-z0-9._~:-]+/[A-Za-z0-9._~:-]+$`)

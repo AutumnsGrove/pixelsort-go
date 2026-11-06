@@ -5,11 +5,15 @@
 	import TopBar from '#components/TopBar';
 	import Albums from '#components/Albums';
 	import ShareDialog from '#components/ShareDialog';
+	import RunName from '#components/RunName';
+	import RunViewer from '#components/RunViewer';
 	import { ShareBackend, type Features } from '#lib/share';
 	import { ServerBackend, type ApiRun, type Usage } from '#lib/api';
 	import { agoText, ageInDays, filter, groupLabel, type RunItem } from '#lib/runs-data';
 	import { status, usage as usageLevel } from '#lib/states';
 	import { suggest } from '#lib/naming';
+	import { describe } from '#lib/errors';
+	import { saveFailureReason } from '#lib/save-policy';
 
 	const api = new ServerBackend();
 	let tab = $state<'all' | 'starred' | 'trash' | 'albums'>('all');
@@ -63,6 +67,34 @@
 		}
 		return out;
 	});
+	// ---- the viewer: a card opens the run full size; Esc or Close puts focus back on the card ----
+	let viewing = $state<number | null>(null);
+	let opener: HTMLElement | null = null;
+	const viewed = $derived(runs.find((r) => r.id === viewing) ?? null);
+	function openViewer(id: number, from: HTMLElement): void {
+		opener = from;
+		viewing = id;
+	}
+	function closeViewer(): void {
+		viewing = null;
+		queueMicrotask(() => opener?.focus());
+	}
+
+	// ---- renaming: the new name shows at once; if the server refuses, the old one comes back and the person is told ----
+	let failure = $state<ReturnType<typeof describe> | null>(null);
+	let retry: (() => void) | null = null;
+	async function rename(id: number, title: string): Promise<void> {
+		const before = runs.find((r) => r.id === id)?.title ?? null;
+		runs = runs.map((r) => (r.id === id ? { ...r, title: title || null } : r));
+		try {
+			const saved = await api.patchRun(id, { title }); // an empty title clears it: the automatic name comes back
+			if (saved && 'title' in saved) runs = runs.map((r) => (r.id === id ? { ...r, title: saved.title } : r));
+		} catch (e) {
+			runs = runs.map((r) => (r.id === id ? { ...r, title: before } : r));
+			failure = describe('save-failed', { reason: saveFailureReason(e) });
+			retry = () => void rename(id, title);
+		}
+	}
 	const thumb = (id: number) => api.imageUrl(runs.find((r) => r.id === id)?.thumb.sha256 ?? '');
 
 	async function star(it: RunItem): Promise<void> {
@@ -190,8 +222,18 @@
 							>
 						{/if}
 					</div>
-					<img src={thumb(it.id)} alt={it.name} loading="lazy" />
-					<figcaption><b>{it.name}</b><small>{agoText(it.age)}</small></figcaption>
+					<button
+						class="open"
+						type="button"
+						onclick={(e) => openViewer(it.id, e.currentTarget)}
+						aria-label="Open {it.name}"
+						data-testid="run-open"
+					>
+						<img src={thumb(it.id)} alt="" loading="lazy" />
+					</button>
+					<figcaption>
+						<b><RunName name={it.name} onsave={(t) => void rename(it.id, t)} /></b><small>{agoText(it.age)}</small>
+					</figcaption>
 				</figure>
 			{/each}
 		</div>
@@ -210,6 +252,48 @@
 
 {#if sharing}
 	<ShareDialog run={sharing} name={nameOf(sharing)} onclose={() => (sharing = null)} />
+{/if}
+
+{#if viewed}
+	{@const it = items.find((i) => i.id === viewed.id)}
+	<RunViewer
+		run={viewed}
+		name={nameOf(viewed)}
+		inBin={tab === 'trash'}
+		canShare={features.share}
+		parentName={viewed.parent_run_id
+			? runs.find((r) => r.id === viewed.parent_run_id)
+				? nameOf(runs.find((r) => r.id === viewed.parent_run_id)!)
+				: null
+			: null}
+		onclose={closeViewer}
+		onrename={(t) => void rename(viewed.id, t)}
+		onstar={() => it && void star(it)}
+		ontrash={() => {
+			if (it) void trash(it);
+			closeViewer();
+		}}
+		onrestore={() => {
+			if (it) void restore(it);
+			closeViewer();
+		}}
+		onshare={() => (sharing = viewed)}
+	/>
+{/if}
+
+{#if failure}
+	<div class="warn glass" role="alertdialog" aria-label={failure.title} data-testid="archive-error">
+		<p><b>{failure.title}</b> {failure.body} {failure.safe}</p>
+		<button
+			class="btn sm pri"
+			type="button"
+			onclick={() => {
+				failure = null;
+				retry?.();
+			}}>Retry now</button
+		>
+		<button class="btn sm" type="button" onclick={() => (failure = null)}>Dismiss</button>
+	</div>
 {/if}
 
 <style>
@@ -286,11 +370,21 @@
 		overflow: hidden;
 		background: var(--ink2);
 	}
+	.open {
+		display: block;
+		width: 100%;
+		padding: 0;
+		cursor: pointer;
+	}
 	.card img {
 		display: block;
 		width: 100%;
 		aspect-ratio: 8/5;
 		object-fit: cover;
+	}
+	figcaption b {
+		display: block;
+		min-width: 0;
 	}
 	figcaption {
 		padding: 10px 12px;

@@ -133,6 +133,38 @@ catalog mirroring the web error catalog.
 **S4.** The version string is `r<commit count>.<short sha>`, stamped at build time with
 `-ldflags "-X .../version.Version=..."`, and served by `/healthz`.
 
+## Saving and delivery (issue sweep, 2026-11-06)
+
+**V1. Saving is explicit (replaces D8's "auto-save every run").** A run is stored when the person presses Save, or
+exports. The setting `autoSave` (default off) restores the old rule: 2 s after a sort settles, when an animation
+finishes, and on export. The bundled demo photo is never stored by itself. Pressing Save when nothing changed since
+the last save sends nothing. Leaving with an unsaved look warns once and never blocks twice.
+
+**V2. The engine download is compressed and revalidated, not versioned.** `engine.wasm` (and other text assets) are
+gzipped when the client accepts it, with `Vary: Accept-Encoding` and a different strong ETag per encoding. Everything
+that is not a hashed asset is `Cache-Control: no-cache`: the browser keeps it but asks first, and a repeat visit is a
+304. A versioned URL was rejected as more to get wrong. There is no brotli (not in the Go standard library).
+
+**V3. The page, not the worker, owns recovery from a failed download.** The worker retries once and reports; the page
+shows "didn't finish downloading" and "Try again" starts a fresh worker and puts the same picture back.
+
+**V4. A run stores the whole look, inside its free-form `settings`.** The sort params stay at the top level exactly as before
+(so old runs and the server's duplicate check on a plain sort are unchanged); a look with cells adds `regions: {tiling, cards}`
+and one with protected areas adds `mask: {objects, strokes, invert, feather}`. No migration. Reading a run back validates and
+clamps everything (`run-recipe.ts`): old runs open as just their knobs. The server's meta limit went from 256 KiB to 1 MiB
+because every brush stroke is stored.
+
+**V5. Opening a run never changes it.** "Open in Studio" loads the stored original and the whole look and sets the parent;
+the next save is a new run with `parent_run_id` set, and later saves in the session chain from the previous one. A run made by
+another engine version opens with a note, and still branches.
+
+**V6. The Shape helper's model runs in the server, behind one route.** The browser never holds a key and never talks to OpenRouter.
+`POST /api/helper` takes a prompt and a small picture copy and streams events (NDJSON). Only vision models; a text-only model is refused
+with a sentence that points at "Cut out this object". No local model. The first-use notice shows once per device and Settings can show it again.
+
+**V7. The model proposes, the engine decides.** The model chooses among regions the tools listed; it cannot supply a coordinate or an
+outline. The page cuts the shape out itself and nothing enters the shape library until "Use it".
+
 ## Process
 
 **P1.** One branch per phase (`build/phase-N`), one commit per task, no pushing by the build agent. Review

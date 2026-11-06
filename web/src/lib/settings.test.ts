@@ -44,3 +44,11 @@ test('workRes: the chosen value, else the device default', () => {
 	expect(workRes(DEFAULTS, 'phone')).toBe(DEVICE_RES.phone);
 	expect(workRes(DEFAULTS, 'desktop')).toBe(1920);
 });
+
+test('auto-save defaults to off, and only a real boolean changes it', () => {
+	expect(DEFAULTS.autoSave).toBe(false);
+	expect(sanitize({ autoSave: true })).toEqual({ autoSave: true });
+	expect(sanitize({ autoSave: false })).toEqual({ autoSave: false });
+	expect(sanitize({ autoSave: 'yes' })).toEqual({});
+	expect(sanitize({ autoSave: 1 })).toEqual({});
+});

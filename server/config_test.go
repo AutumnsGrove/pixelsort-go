@@ -48,3 +48,46 @@ func TestLoadConfigBadValuesNameTheVariable(t *testing.T) {
 		t.Error("non-numeric trash days accepted")
 	}
 }
+
+func TestHelperIsOffUntilAKeyIsGivenAndHasASaneDefaultModel(t *testing.T) {
+	c, err := LoadConfig(env(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.HelperConfigured() || c.HelperKey != "" {
+		t.Fatalf("no key, no helper: %+v", c)
+	}
+	c, err = LoadConfig(env(map[string]string{"PIXELSORT_OPENROUTER_KEY": "  sk-or-test  "}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.HelperConfigured() || c.HelperKey != "sk-or-test" {
+		t.Fatalf("the key is trimmed and turns the helper on: %+v", c)
+	}
+	if c.HelperModel != "deepseek/deepseek-v4.1-flash-1017" {
+		t.Fatalf("default model %q", c.HelperModel)
+	}
+	c, err = LoadConfig(env(map[string]string{"PIXELSORT_OPENROUTER_KEY": "k", "PIXELSORT_HELPER_MODEL": "acme/vision-1"}))
+	if err != nil || c.HelperModel != "acme/vision-1" {
+		t.Fatalf("model override: %+v %v", c, err)
+	}
+}
+
+func TestHelperSettingsThatCouldNotWorkNameTheVariable(t *testing.T) {
+	for name, vals := range map[string]map[string]string{
+		"PIXELSORT_OPENROUTER_KEY": {"PIXELSORT_OPENROUTER_KEY": "sk-or\nx-evil: 1"},
+		"PIXELSORT_HELPER_MODEL":   {"PIXELSORT_OPENROUTER_KEY": "k", "PIXELSORT_HELPER_MODEL": "no slash here"},
+	} {
+		_, err := LoadConfig(env(vals))
+		if err == nil || !strings.Contains(err.Error(), name) {
+			t.Errorf("%s: error %v should name the variable", name, err)
+		}
+		if err != nil && strings.Contains(err.Error(), "sk-or") {
+			t.Errorf("%s: the error must never repeat the key: %v", name, err)
+		}
+	}
+	// a model with no key is harmless: the helper is simply off
+	if c, err := LoadConfig(env(map[string]string{"PIXELSORT_HELPER_MODEL": "acme/vision-1"})); err != nil || c.HelperConfigured() {
+		t.Fatalf("%+v %v", c, err)
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"syscall/js"
 
+	"github.com/AutumnsGrove/pixelsort-go/engine"
 	"github.com/AutumnsGrove/pixelsort-go/engine/api"
 )
 
@@ -90,6 +91,40 @@ func main() {
 				arr.SetIndex(i, o)
 			}
 			return result(map[string]any{"rules": arr}), nil
+		},
+		"caPreview": func(a []js.Value) (any, error) {
+			if len(a) < 2 {
+				return nil, errors.New("caPreview needs the recipe and a rule")
+			}
+			m, w, h, err := api.CARulePreview([]byte(a[0].String()), a[1].Int())
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"mask": newU8(m), "w": w, "h": h}), nil
+		},
+		"cutOut": func(a []js.Value) (any, error) {
+			if len(a) < 3 {
+				return nil, errors.New("cutOut needs x, y and a tolerance")
+			}
+			c, err := s.CutOut(a[0].Float(), a[1].Float(), a[2].Int())
+			switch {
+			case errors.Is(err, engine.ErrCutoutTooBig):
+				return result(map[string]any{"refused": "too-big", "message": err.Error()}), nil
+			case errors.Is(err, engine.ErrCutoutTooSmall):
+				return result(map[string]any{"refused": "too-small", "message": err.Error()}), nil
+			case err != nil:
+				return nil, err
+			}
+			w, _ := s.Size()
+			pts := make([]int32, 0, 2*len(c.Outline))
+			for _, p := range c.Outline {
+				pts = append(pts, int32(p.X), int32(p.Y))
+			}
+			return result(map[string]any{
+				"points": newI32(pts), "pointsBefore": c.PointsBefore, "area": c.Area, "w": w,
+				"bbox": newI32([]int32{int32(c.BBox[0]), int32(c.BBox[1]), int32(c.BBox[2]), int32(c.BBox[3])}),
+				"mean": newI32([]int32{int32(c.Mean[0]), int32(c.Mean[1]), int32(c.Mean[2])}), "mask": newU8(c.Mask),
+			}), nil
 		},
 		"brightestSpot": func([]js.Value) (any, error) {
 			cx, cy, w, h, err := s.BrightestSpot()

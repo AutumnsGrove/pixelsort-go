@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Zap, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
+	import { Play, Pause, RotateCcw, Save, Check, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
+	import { beforeNavigate } from '$app/navigation';
+	import { saveButton, createLeaveGuard } from '#lib/save-policy';
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
 	import MaskHandles from '#components/MaskHandles';
+	import CutoutLayer from '#components/CutoutLayer';
 	import BrushLayer from '#components/BrushLayer';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
@@ -12,12 +15,14 @@
 	import { holdPixels, overlayPixels } from '#lib/overlay';
 	import { appBusy } from '#lib/updater/state.svelte';
 	import AngleDial from '#components/AngleDial';
-	import { studio, defaultImage } from '#lib/studio.svelte';
+	import NameField from '#components/NameField';
+	import { studio, defaultImage, ENGINE_VERSION } from '#lib/studio.svelte';
+	import { ServerBackend } from '#lib/api';
 	import { BUILTIN, chips, rolls } from '#lib/presets';
 	import { keys, modes, algos } from '#lib/engine/params';
 	import { describe } from '#lib/errors';
 	import { shortcutFor, SHORTCUTS } from '#lib/help';
-	import { clean, fileName } from '#lib/naming';
+	import { fileName } from '#lib/naming';
 	import {
 		DEVICES,
 		FORMATS,
@@ -37,9 +42,6 @@
 	let popover = $state<string | null>(null);
 	let helpOpen = $state(false);
 	let exportOpen = $state(false);
-	let renaming = $state(false);
-	let nameDraft = $state('');
-	let cancelled = false;
 	let exportFormat = $state<FormatId>(settings.exportFormat);
 	let exportQuality = $state(settings.exportQuality);
 	let exportScale = $state(1);
@@ -57,7 +59,21 @@
 
 	onMount(() => {
 		studio.onFrame = paint;
-		void defaultImage().then((img) => void studio.load(img));
+		const wanted = new URL(location.href).searchParams.get('run');
+		const sample = (): Promise<void> => defaultImage().then((img) => studio.load(img, { sample: true }));
+		if (wanted && /^\d+$/.test(wanted)) {
+			// "Open in Studio" from the Archive: the whole look comes back, and the next save is a branch of this run
+			void new ServerBackend()
+				.getRun(Number(wanted))
+				.then((run) => studio.openRun(run))
+				.catch(() => {
+					studio.errorCode = 'image-unreadable';
+					studio.errorName = 'that run';
+				})
+				.finally(() => {
+					if (!studio.size) void sample(); // never leave Studio empty
+				});
+		} else void sample();
 	});
 	onDestroy(() => {
 		studio.onFrame = null;
@@ -107,7 +123,7 @@
 			popover = null;
 			helpOpen = false;
 			exportOpen = false;
-			renaming = false;
+			studio.cancelRename();
 		} else if (id === 'pro') proOpen = !proOpen;
 		else if (id === 'play') void studio.togglePlay();
 		else if (id === 'restart') void studio.restart();
@@ -117,22 +133,13 @@
 		else if (id === 'new') fileInput?.click();
 		else if (id === 'export') exportOpen = true;
 		else if (id === 'help') helpOpen = !helpOpen;
-		else if (id === 'rename') startRename();
+		else if (id === 'rename') studio.startRename('caption');
 		else return;
 		e.preventDefault();
 	}
 	function onKeyUp(e: KeyboardEvent): void {
 		if (e.key.toLowerCase() === 'c') studio.comparing = false;
 		if (e.key.toLowerCase() === 't') void studio.peek(false);
-	}
-	function startRename(): void {
-		cancelled = false;
-		nameDraft = studio.name;
-		renaming = true;
-	}
-	function commitRename(): void {
-		studio.customName = clean(nameDraft) || null;
-		renaming = false;
 	}
 	let features = $state<Features>({ share: false, fetch: false });
 	let linkOpen = $state(false);
@@ -163,18 +170,55 @@
 
 	const knob = (id: string) => () => (popover = popover === id ? null : id);
 	const changed = () => studio.changed();
-	const stateText = $derived(
-		studio.run === 'animating'
-			? `pass ${studio.pass}`
-			: studio.run === 'paused'
-				? 'paused'
-				: studio.run === 'preparing'
-					? 'sorting…'
-					: studio.run === 'done'
-						? 'done'
-						: ''
+	const loadingText = $derived(
+		studio.engineLoad
+			? studio.engineLoad.total
+				? `loading the engine… ${Math.min(100, Math.round((studio.engineLoad.loaded / studio.engineLoad.total) * 100))}%`
+				: 'loading the engine…'
+			: ''
 	);
-	const err = $derived(studio.errorCode ? describe(studio.errorCode, { name: studio.errorName }) : null);
+	// ---- saving: nothing is stored until Save (or Export), unless "Auto-save runs" is on ----
+	const sorting = $derived(studio.run === 'preparing' || studio.run === 'animating' || studio.pendingChange);
+	const sb = $derived(saveButton(studio.saveStatus, sorting));
+	// Said next to the state, not inside it: the state text stays exactly "done" / "paused" / "pass 12".
+	const unsavedNote = $derived(
+		!settings.autoSave && !studio.isSample && studio.run === 'done' && studio.saveStatus !== 'saved'
+	);
+	const stateText = $derived(
+		loadingText
+			? loadingText + (studio.engineLoad && studio.engineLoad.attempt > 1 ? ' (trying again)' : '')
+			: studio.run === 'animating'
+				? `pass ${studio.pass}`
+				: studio.run === 'paused'
+					? 'paused'
+					: studio.run === 'preparing'
+						? 'sorting…'
+						: studio.run === 'done'
+							? 'done'
+							: ''
+	);
+	const err = $derived(
+		studio.errorCode ? describe(studio.errorCode, { name: studio.errorName, reason: studio.saveReason }) : null
+	);
+
+	// Leaving with a look that was never saved warns once (a note here, or the browser's own prompt on closing the tab);
+	// a second attempt goes through. It never blocks twice.
+	const leaveGuard = createLeaveGuard();
+	let leaveWarn = $state(false);
+	let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+	beforeNavigate((nav) => {
+		const dirty = !settings.autoSave && !studio.isSample && studio.dirty;
+		if (leaveGuard.check(dirty, studio.lookKey) !== 'warn') return;
+		nav.cancel();
+		if (nav.type !== 'leave') {
+			leaveWarn = true;
+			clearTimeout(leaveTimer);
+			leaveTimer = setTimeout(() => (leaveWarn = false), 8000);
+		}
+	});
+	$effect(() => {
+		if (studio.saveStatus === 'saved') leaveWarn = false;
+	});
 
 	// ---- export ----
 	const device = $derived(
@@ -184,9 +228,6 @@
 	const exportH = $derived(Math.max(1, Math.round((studio.size?.h ?? 1) * exportScale)));
 	const exportPlan = $derived(plan(exportW, exportH, device));
 	/** The file name the picture will export as, for the name being typed. */
-	const draftFile = $derived(
-		fileName(clean(nameDraft) || studio.name, studio.params.mode, exportFormat, String(studio.params.seed))
-	);
 	const exportName = $derived(fileName(studio.name, studio.params.mode, exportFormat, String(studio.params.seed)));
 
 	async function doExport(): Promise<void> {
@@ -206,6 +247,7 @@
 			a.click();
 			setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 			exportOpen = false;
+			void studio.save(); // an export is deliberate, so the look is kept too, whichever way auto-save is set
 		} finally {
 			appBusy.exporting = false;
 		}
@@ -244,82 +286,49 @@
 
 <main class="workspace">
 	<section class="stage" class:sheet={proOpen}>
-		<div class="frame">
-			<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
-			<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
-			<BrushLayer active={proOpen} />
-			<MaskHandles active={proOpen} />
-			<div class="progress" aria-hidden="true"><i style:width="{studio.progress * 100}%"></i></div>
-			{#if studio.scrubbable}
-				<input
-					class="scrub"
-					type="range"
-					min="0"
-					max={studio.maxPass}
-					step="1"
-					value={studio.pass}
-					oninput={(e) => void studio.scrub(Number(e.currentTarget.value))}
-					aria-label="Scrub through the sort"
-					aria-valuetext="pass {studio.pass} of {studio.maxPass}"
-					data-testid="scrub"
-				/>
-			{/if}
-			<div class="caption">
-				{#if renaming}
-					<div
-						class="nm-edit"
-						role="group"
-						aria-label="Rename"
-						onfocusout={(e) => {
-							// leaving the whole group saves; moving between its field and buttons does not
-							if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-								if (cancelled) cancelled = false;
-								else commitRename();
-							}
-						}}
-					>
-						<input
-							class="field nm"
-							bind:value={nameDraft}
-							onkeydown={(e) => {
-								e.stopPropagation();
-								if (e.key === 'Enter') commitRename();
-								if (e.key === 'Escape') {
-									cancelled = true; // Esc undoes: the old name stays
-									renaming = false;
-								}
-							}}
-							aria-label="Name"
-							data-testid="name-input"
-							maxlength="200"
-						/>
-						<button class="btn sm pri" type="button" onclick={commitRename} data-testid="name-save">Save</button>
-						<button
-							class="btn sm"
-							type="button"
-							onclick={() => {
-								nameDraft = '';
-								commitRename();
-							}}
-							data-testid="name-auto">Auto</button
-						>
-						<small data-testid="name-file">{draftFile}</small>
-					</div>
-				{:else}
-					<button class="nm-btn" type="button" onclick={startRename} data-testid="name" title="Click to rename (F2)"
-						>{studio.name}</button
-					>
+		<div class="col">
+			<div class="frame">
+				<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
+				<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
+				<BrushLayer active={proOpen} />
+				<MaskHandles active={proOpen} />
+				<CutoutLayer />
+				{#if studio.scrubbable}
+					<input
+						class="scrub"
+						type="range"
+						min="0"
+						max={studio.maxPass}
+						step="1"
+						value={studio.pass}
+						oninput={(e) => void studio.scrub(Number(e.currentTarget.value))}
+						aria-label="Scrub through the sort"
+						aria-valuetext="pass {studio.pass} of {studio.maxPass}"
+						data-testid="scrub"
+					/>
 				{/if}
-				<span data-testid="state">{stateText}</span>
 			</div>
-			<button
-				class="cmp"
-				class:on={studio.comparing}
-				type="button"
-				onpointerdown={() => (studio.comparing = true)}
-				onpointerup={() => (studio.comparing = false)}
-				onpointerleave={() => (studio.comparing = false)}>hold to compare</button
-			>
+			<div class="progress" aria-hidden="true" data-testid="progress">
+				<i style:width="{studio.progress * 100}%"></i>
+			</div>
+			<!-- A fixed-height row in the flow: the name, the state, and compare. Renaming opens over the space below it, so
+			     the picture never moves when the field appears. -->
+			<div class="under" data-testid="under">
+				<div class="caption" data-testid="caption" class:editing={studio.renameFrom === 'caption'}>
+					<NameField from="caption" testid="name" />
+					<span data-testid="state">{stateText}</span>
+					{#if unsavedNote}<span class="unsaved" data-testid="unsaved-note">not saved</span>{/if}
+				</div>
+				<button
+					class="cmp"
+					data-testid="compare"
+					class:on={studio.comparing}
+					type="button"
+					onpointerdown={() => (studio.comparing = true)}
+					onpointerup={() => (studio.comparing = false)}
+					onpointerleave={() => (studio.comparing = false)}><span class="long">hold to</span> compare</button
+				>
+			</div>
 		</div>
 	</section>
 
@@ -337,10 +346,16 @@
 							class:pri={a.primary}
 							type="button"
 							onclick={() => {
-								const wasLink = err?.code.startsWith('link-');
+								const code = err?.code ?? ''; // read it before clearing: the dialog's own state is derived from it
 								studio.errorCode = null;
 								if (a.id === 'choose') fileInput?.click();
-								if (a.id === 'retry' && wasLink) linkOpen = true;
+								if (a.id === 'retry' && code.startsWith('link-')) linkOpen = true;
+								// a failed save: the same save again
+								else if (a.id === 'retry' && code === 'save-failed') void studio.save(true);
+								// engine failures: start the worker over (the picture and recipe stay), or reload the whole page
+								else if ((a.id === 'retry' || a.id === 'restart') && code.startsWith('engine-'))
+									void studio.restartEngine();
+								if (a.id === 'reload') location.reload();
 							}}>{a.label}</button
 						>
 					{/each}
@@ -349,26 +364,49 @@
 		</div>
 	{/if}
 
+	{#if studio.engineNote}
+		<div class="enote glass" role="status" data-testid="engine-note">
+			<span
+				>This run was made with engine version {studio.engineNote}; this one is {ENGINE_VERSION}, so it may look
+				different. Saving makes a new run and leaves the original as it is.</span
+			>
+			<button class="btn sm" type="button" onclick={() => (studio.engineNote = null)}>OK</button>
+		</div>
+	{/if}
+
+	{#if leaveWarn}
+		<div class="leave glass" role="status" data-testid="leave-warn">
+			<span>This look isn’t saved yet. Press Save to keep it, or leave again to let it go.</span>
+			<button class="btn sm pri" type="button" onclick={() => void studio.save(true)}>Save</button>
+		</div>
+	{/if}
+
 	<div class="dock" role="toolbar" aria-label="Controls">
-		<button
-			class="play"
-			type="button"
-			onclick={() => studio.togglePlay()}
-			aria-label={studio.run === 'animating' ? 'Pause' : 'Play'}
-			data-testid="play"
-		>
-			{#if studio.run === 'animating'}<Pause size={22} />{:else}<Play size={22} />{/if}
-		</button>
-		<button class="round" type="button" onclick={() => studio.restart()} aria-label="Start over"
-			><RotateCcw size={17} /></button
-		>
-		<button
-			class="round"
-			type="button"
-			onclick={() => studio.instant()}
-			aria-label="Sort instantly"
-			data-testid="instant"><Zap size={17} /></button
-		>
+		<div class="lead">
+			<button
+				class="play"
+				type="button"
+				onclick={() => studio.togglePlay()}
+				aria-label={studio.run === 'animating' ? 'Pause' : 'Play'}
+				data-testid="play"
+			>
+				{#if studio.run === 'animating'}<Pause size={22} />{:else}<Play size={22} />{/if}
+			</button>
+			<button class="round" type="button" onclick={() => studio.restart()} aria-label="Start over"
+				><RotateCcw size={17} /></button
+			>
+			<button
+				class="save"
+				type="button"
+				onclick={() => void studio.save(true)}
+				disabled={sb.disabled || !studio.size}
+				title={sb.title}
+				data-testid="save"
+				data-state={studio.saveStatus}
+				>{#if studio.saveStatus === 'saved'}<Check size={16} />{:else}<Save size={16} />{/if}<span>{sb.label}</span
+				></button
+			>
+		</div>
 		<span class="sep"></span>
 
 		<div class="kn">
@@ -731,7 +769,7 @@
 		inset: 0;
 		display: grid;
 		place-items: center;
-		padding: 70px 20px 170px;
+		padding: 70px 20px 116px;
 	}
 	.frame {
 		position: relative;
@@ -740,13 +778,13 @@
 			0 40px 120px rgba(255, 90, 40, 0.18),
 			0 20px 60px rgba(0, 0, 0, 0.7);
 		max-width: min(88vw, 1100px);
-		max-height: calc(100vh - 250px);
+		max-height: calc(100vh - 246px);
 		display: grid;
 	}
 	canvas {
 		display: block;
 		max-width: 100%;
-		max-height: calc(100vh - 250px);
+		max-height: calc(100vh - 246px);
 		width: auto;
 		height: auto;
 	}
@@ -776,12 +814,13 @@
 			bottom: 0;
 		}
 	}
+	.col {
+		display: grid;
+		max-width: min(88vw, 1100px);
+	}
 	.progress {
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: -6px;
 		height: 2px;
+		margin-top: 8px;
 		background: var(--faint);
 	}
 	.progress i {
@@ -790,52 +829,101 @@
 		background: var(--ver);
 		box-shadow: 0 0 10px var(--ver);
 	}
+	/* Fixed height, and no width of its own: it never makes the picture's column wider or taller. */
+	.under {
+		position: relative;
+		height: 44px;
+		width: 0;
+		min-width: 100%;
+		margin-top: 6px;
+		container-type: inline-size;
+	}
+	/* When the picture is small (the Pro sheet is open on a phone) the row has no room for everything: the note, then Compare,
+	   step aside rather than land on the state. The Save button in the dock still says whether the look is stored. */
+	@container (max-width: 230px) {
+		.caption .unsaved {
+			display: none;
+		}
+	}
+	@container (max-width: 130px) {
+		.cmp {
+			display: none;
+		}
+	}
 	.caption {
 		position: absolute;
 		left: 0;
-		bottom: -34px;
+		top: 0;
+		max-width: calc(100% - 138px);
+		min-height: 44px;
 		font-family: var(--serif);
 		font-style: italic;
 		font-size: 16px;
 		color: var(--dim);
 		display: flex;
 		gap: 12px;
-		align-items: baseline;
+		align-items: center;
+		z-index: 6;
 	}
-	.caption span {
+	/* The name gives way first (with an ellipsis); the state and the unsaved note keep their words. */
+	.caption {
+		min-width: 0;
+		flex-wrap: nowrap;
+	}
+	.caption :global(.nm-btn) {
+		min-width: 0;
+		flex: 0 1 auto;
+	}
+	.caption .unsaved,
+	.caption span[data-testid='state'] {
+		flex: none;
+	}
+	@media (max-width: 480px) {
+		/* "compare" is enough on a phone, and the caption gets the room */
+		.cmp .long {
+			display: none;
+		}
+		.caption {
+			max-width: calc(100% - 86px);
+		}
+	}
+	.caption.editing {
+		width: 100%;
+		max-width: 100%;
+		align-items: flex-start;
+		padding: 0 10px 8px 0;
+		background: #0c0a09;
+		border-radius: 12px;
+		z-index: 30;
+	}
+	/* While the field is open it has the whole row: the state and the unsaved note step aside. */
+	.caption.editing > span {
+		display: none;
+	}
+	.caption .unsaved {
 		font-family: var(--mono);
 		font-style: normal;
 		font-size: 10px;
 		letter-spacing: 1.2px;
+		color: var(--ver);
+		white-space: nowrap;
 	}
-	.nm-btn {
-		font: inherit;
-		color: var(--paper);
-		min-height: 32px;
-	}
-	.nm-edit {
-		display: flex;
-		gap: 6px;
-		align-items: center;
-		flex-wrap: wrap;
-	}
-	.nm-edit small {
-		color: var(--dim);
+	.caption span[data-testid='state'] {
+		font-family: var(--mono);
+		font-style: normal;
 		font-size: 10px;
-	}
-	.nm {
-		width: 30ch;
-		font-style: italic;
+		letter-spacing: 1.2px;
+		white-space: nowrap;
 	}
 	.cmp {
 		position: absolute;
 		right: 0;
-		bottom: -34px;
+		top: 0;
 		font-size: 10px;
 		letter-spacing: 1.6px;
 		text-transform: uppercase;
 		color: var(--dim);
-		min-height: 32px;
+		min-height: 44px;
 		user-select: none;
 	}
 	.cmp.on {
@@ -857,6 +945,70 @@
 		border: 1px solid var(--faint);
 		border-radius: 999px;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+	}
+	/* The transport stays put when a phone's dock scrolls sideways, so Save is never out of reach. */
+	.lead {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex: none;
+		position: sticky;
+		left: 0;
+		z-index: 3;
+	}
+	.save {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		height: 44px;
+		padding: 0 15px;
+		border-radius: 22px;
+		border: 1px solid var(--faint);
+		font-size: 11px;
+		letter-spacing: 1.2px;
+		text-transform: uppercase;
+		color: var(--paper);
+		flex: none;
+	}
+	.save[data-state='unsaved'] {
+		border-color: var(--ver);
+		color: var(--ver);
+	}
+	.save[data-state='saved'] {
+		color: var(--dim);
+	}
+	.save[data-state='failed'] {
+		border-color: #ff8a6e;
+		color: #ff8a6e;
+	}
+	.save:disabled {
+		opacity: 0.45;
+	}
+	.enote {
+		position: absolute;
+		left: 50%;
+		top: 64px;
+		transform: translateX(-50%);
+		z-index: 26;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		padding: 10px 16px;
+		font-size: 11.5px;
+		max-width: min(92vw, 620px);
+	}
+	.leave {
+		position: absolute;
+		left: 50%;
+		bottom: 118px;
+		transform: translateX(-50%);
+		z-index: 26;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		padding: 10px 16px;
+		font-size: 11.5px;
+		max-width: min(92vw, 560px);
 	}
 	.play {
 		width: 56px;
@@ -1010,29 +1162,10 @@
 		margin-top: 8px;
 	}
 
-	/* Phone: the dock is a full-width bar that scrolls sideways, and popovers become sheets above it. The dock drops
-	   its transform and backdrop blur so position: fixed popovers are placed against the screen, not the dock. */
-	@media (max-width: 700px) {
-		.stage {
-			padding: 64px 10px 150px;
-		}
-		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
-		.stage.sheet {
-			padding-bottom: calc(46dvh + 114px);
-		}
-		.frame {
-			max-width: 100%;
-			max-height: calc(100dvh - 230px);
-		}
-		.stage.sheet .frame {
-			max-height: calc(54dvh - 190px);
-		}
-		canvas {
-			max-height: calc(100dvh - 230px);
-		}
-		.stage.sheet canvas {
-			max-height: calc(54dvh - 190px);
-		}
+	/* Phone and tablet: the dock is a full-width bar that scrolls sideways (its contents are about 1020px wide, so anything narrower
+	   than about 1050px would push the Pro button off screen), and popovers become sheets above it. The dock drops its transform
+	   and backdrop blur so position: fixed popovers are placed against the screen, not the dock. */
+	@media (max-width: 1050px) {
 		.dock {
 			left: 8px;
 			right: 8px;
@@ -1047,6 +1180,11 @@
 			padding: 8px 10px;
 		}
 		.knob,
+		.lead {
+			background: rgba(24, 20, 18, 0.96);
+			border-radius: 28px;
+			padding-right: 4px;
+		}
 		.dock .round {
 			min-height: 44px;
 			min-width: 44px;
@@ -1063,12 +1201,32 @@
 			max-height: 56dvh;
 			overflow: auto;
 		}
+	}
+
+	/* Phone: the picture and the Pro sheet share the screen above the dock. */
+	@media (max-width: 700px) {
+		.stage {
+			padding: 64px 10px 106px;
+		}
+		/* The Pro panel is a bottom sheet (46vh, above the dock): the picture moves up and shrinks to stay in view. */
+		.stage.sheet {
+			padding-bottom: calc(46dvh + 114px);
+		}
+		.frame {
+			max-width: 100%;
+			max-height: calc(100dvh - 232px);
+		}
+		.stage.sheet .frame {
+			max-height: calc(54dvh - 240px);
+		}
+		canvas {
+			max-height: calc(100dvh - 232px);
+		}
+		.stage.sheet canvas {
+			max-height: calc(54dvh - 240px);
+		}
 		.er-card {
 			padding: 20px 18px 16px;
-		}
-		.caption,
-		.cmp {
-			bottom: -38px;
 		}
 	}
 </style>

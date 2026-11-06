@@ -1,24 +1,39 @@
 /// <reference lib="webworker" />
 import './vendor/wasm_exec.js';
 import { adaptAuto, fixedSteps, type Speed } from './animator';
-import type { FrameEvent, Request, Response } from './protocol';
+import { EngineDownloadFailed, fetchEngine } from './loader';
+import type { FrameEvent, LoadingEvent, Request, Response } from './protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
 
-// The worker loads Go's runtime and engine.wasm once, then answers one request at a time in arrival order.
+// The worker loads Go's runtime and engine.wasm once, then answers one request at a time in arrival order. The download goes
+// through fetchEngine (stall timeout, one retry, progress) so a flaky link ends in a clear message and a retry, not a hang.
 async function load(): Promise<void> {
 	const go = new Go();
 	const url = new URL('/engine.wasm', self.location.origin);
-	const { instance } = await WebAssembly.instantiateStreaming(fetch(url), go.importObject);
+	let last = 0;
+	self.postMessage({ event: 'loading', loaded: 0, total: null, attempt: 1 } satisfies LoadingEvent); // so "loading" shows before the first byte
+	const bytes = await fetchEngine(url.toString(), {
+		onProgress: (p) => {
+			// at most ten updates a second, but never skip the last one
+			const now = performance.now();
+			if (now - last < 100 && p.loaded !== p.total) return;
+			last = now;
+			self.postMessage({ event: 'loading', ...p } satisfies LoadingEvent);
+		}
+	});
+	const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
 	void go.run(instance); // main() parks forever; do not await it
 	for (let i = 0; !globalThis.pixelsortReady; i++) {
 		if (i > 500) throw new Error('engine.wasm did not become ready');
 		await new Promise((r) => setTimeout(r, 10));
 	}
 	goInstance = go;
+	self.postMessage({ event: 'loaded' } satisfies LoadingEvent);
 }
 let goInstance: Go | null = null;
 const ready = load();
+ready.catch(() => {}); // each request below reports it; this keeps an unhandled rejection from also being logged
 
 function fail(id: number, error: string): Response {
 	return { id, ok: false, error };
@@ -166,6 +181,32 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const r = api.caRules();
 			return { res: r.ok ? { id: req.id, ok: true, rules: r.rules } : fail(req.id, r.error), transfer: [] };
 		}
+		case 'cutOut': {
+			const r = api.cutOut(req.x, req.y, req.tolerance);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			if (r.refused)
+				return { res: { id: req.id, ok: true, refused: { reason: r.refused, message: r.message } }, transfer: [] };
+			const buf = (a: Int32Array | Uint8Array): ArrayBuffer => a.slice().buffer as ArrayBuffer;
+			const cutout = {
+				points: buf(r.points),
+				pointsBefore: r.pointsBefore,
+				area: r.area,
+				w: r.w,
+				bbox: buf(r.bbox),
+				mean: buf(r.mean),
+				mask: buf(r.mask)
+			};
+			return {
+				res: { id: req.id, ok: true, cutout },
+				transfer: [cutout.points, cutout.bbox, cutout.mean, cutout.mask]
+			};
+		}
+		case 'caPreview': {
+			const r = api.caPreview(req.json, req.rule);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			const mask = r.mask.slice().buffer; // a copy that can be transferred
+			return { res: { id: req.id, ok: true, mask, preview: { w: r.w, h: r.h } }, transfer: [mask] };
+		}
 		case 'sortable': {
 			const prep = api.prepare();
 			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
@@ -250,7 +291,12 @@ self.onmessage = async (e: MessageEvent<Request>) => {
 	try {
 		await ready;
 	} catch (err) {
-		self.postMessage(fail(e.data.id, `engine failed to load: ${(err as Error).message}`));
+		if (err instanceof EngineDownloadFailed) {
+			self.postMessage({
+				...fail(e.data.id, err.message),
+				download: { attempts: err.attempts, reason: err.reason, url: '/engine.wasm' }
+			});
+		} else self.postMessage(fail(e.data.id, `engine failed to load: ${(err as Error).message}`));
 		return;
 	}
 	const { res, transfer } = handle(e.data);

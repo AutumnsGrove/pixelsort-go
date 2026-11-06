@@ -74,3 +74,44 @@ test('204 answers resolve to undefined', async () => {
 	const { backend } = fake([new Response(null, { status: 200 })]);
 	expect(backend.imageUrl('a'.repeat(64))).toBe(`/api/images/${'a'.repeat(64)}`);
 });
+
+test('saveRun names the run it was branched from, and sends nothing when it was not', async () => {
+	const png = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
+	const send = async (parentRunId?: number | null) => {
+		const { backend, calls } = fake([json({ exists: true }), json({ id: 9 }, 201)]);
+		await backend.saveRun({
+			settings: {},
+			seed: 1,
+			engineVersion: '1',
+			durationMs: 5,
+			original: png,
+			result: png,
+			thumb: png,
+			w: 1,
+			h: 1,
+			parentRunId
+		});
+		return JSON.parse((calls[1]!.init!.body as FormData).get('meta') as string);
+	};
+	expect((await send(41)).parent_run_id).toBe(41);
+	expect((await send(null)).parent_run_id).toBeNull();
+	expect((await send()).parent_run_id).toBeNull(); // the server reads null as "no parent"
+});
+
+test('saveRun returns the run, so the caller learns its id (and whether it was new)', async () => {
+	const png = new Blob([new Uint8Array([1])], { type: 'image/png' });
+	const { backend } = fake([json({ exists: true }), json({ id: 12, parent_run_id: 5 }, 201)]);
+	const run = await backend.saveRun({
+		settings: {},
+		seed: 1,
+		engineVersion: '1',
+		durationMs: 1,
+		original: png,
+		result: png,
+		thumb: png,
+		w: 1,
+		h: 1,
+		parentRunId: 5
+	});
+	expect(run).toMatchObject({ id: 12, parent_run_id: 5 });
+});

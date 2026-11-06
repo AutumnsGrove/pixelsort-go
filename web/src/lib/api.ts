@@ -147,6 +147,8 @@ export class ServerBackend {
 		w: number;
 		h: number;
 		title?: string | null;
+		/** The run this look was opened from, so the Archive can show where it branched. */
+		parentRunId?: number | null;
 	}): Promise<ApiRun> {
 		const hash = async (b: Blob) => sha256Hex(await b.arrayBuffer());
 		const [os, rs, ts] = await Promise.all([hash(r.original), hash(r.result), hash(r.thumb)]);
@@ -157,6 +159,7 @@ export class ServerBackend {
 			engine_version: r.engineVersion,
 			duration_ms: Math.round(r.durationMs),
 			title: r.title ?? null,
+			parent_run_id: r.parentRunId ?? null,
 			original: { sha256: os, mime: r.original.type, w: r.w, h: r.h },
 			result: { sha256: rs, mime: r.result.type, w: r.w, h: r.h },
 			thumb: { sha256: ts, mime: r.thumb.type, w: 0, h: 0 }

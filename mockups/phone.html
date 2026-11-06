@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/theater.css">
+<link rel="stylesheet" href="shared/assistant.css">
 <script src="shared/settings.js"></script>
 <style>
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;gap:70px;padding:24px;overflow:auto}
@@ -191,7 +192,7 @@
   <div class="sheet" id="sheet">
     <button class="fab" id="fab"><svg id="fIco" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></button>
     <div class="grab" id="grab"><i></i></div>
-    <div class="tabs" id="tabs"><button data-t="cut" class="on">Cut</button><button data-t="sort">Sort</button><button data-t="dir">Direction</button><button data-t="protect">Protect</button><button data-t="shapes">Shapes</button><button data-t="runs">Runs</button></div>
+    <div class="tabs" id="tabs"><button data-t="cut" class="on">Cut</button><button data-t="sort">Sort</button><button data-t="dir">Direction</button><button data-t="protect">Protect</button><button data-t="shapes">Shapes</button><button data-t="assist">Helper</button><button data-t="runs">Runs</button></div>
 
     <div class="pane on" id="p-cut">
       <div class="lbl">Where to cut <em id="vMode">random</em></div>
@@ -257,6 +258,11 @@
       </div>
     </div>
 
+    <div class="pane" id="p-assist">
+      <div class="tip">Make a shape from something in the picture. Tap <b>Click the picture</b>, then tap an object.</div>
+      <div id="asst"></div>
+    </div>
+
     <div class="pane" id="p-runs">
       <div class="lbl">Archive <em id="phUsed">38.2 / 50 GB</em></div>
       <div class="meter"><i></i></div>
@@ -303,6 +309,8 @@
 <script src="shared/regions.js"></script>
 <script src="shared/mask-editor.js"></script>
 <script src="shared/region-cards.js"></script>
+<script src="shared/assistant.js"></script>
+<script src="shared/assistant-ui.js"></script>
 <script>
 (function(){
   var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
@@ -548,6 +556,10 @@
   var tm=q.match(/tab=(\w+)/);if(tm){var b=$('#tabs [data-t="'+tm[1]+'"]');if(b)b.click();setSheet(tm[1]==='cut'?0:1)}
   if(q.indexOf('big')>-1)setSheet(2);
   var sm=q.match(/shape=(\w+)/);if(sm){rs.shape=sm[1];$$('#tiles .tile').forEach(function(x){x.classList.toggle('on',x.dataset.v===rs.shape)});applyRegions();renderClasses()}
+  Assistant.mount({host:'#asst',frame:'#card',d:d,phone:true,toast:toast,beforePick:function(){setSheet(0)},use:function(name,svg){
+    var raw=Regions.parseSVGRaw(svg);if(raw.error){toast(raw.error);return}var r=Regions.buildShape(raw,{});
+    rs.custom={key:'ai',poly:r.poly,more:r.more||[]};rs.shape='custom';$$('#tiles .tile').forEach(function(x){x.classList.toggle('on',x.dataset.v==='custom')});
+    if(!rs.size64){rs.size64=1;rs.size=100;$('#rs').value=100;$('#rsV').textContent='100 px'}applyRegions();renderStarters();renderClasses();commit();return 'Added “'+name+'” and cut the picture with it';}});
   setTimeout(function(){d.play()},500);
 })();
 </script>

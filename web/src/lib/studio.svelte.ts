@@ -5,9 +5,15 @@ import { defaultParams, type Params } from './engine/params';
 import { decodeFile, defaultLongEdge } from './engine/image-intake';
 import { BUILTIN, diff, mulberry32, roll, type Preset, type Recipe } from './presets';
 import { engineErrorCode } from './errors';
-import { suggest } from './naming';
+import { clean, suggest } from './naming';
 import { Autosaver } from './autosave';
-import { ServerBackend } from './api';
+import { ServerBackend, sha256Hex, type ApiRun } from './api';
+import { packRecipe, unpackRecipe } from './run-recipe';
+import { askHelper, helperCopy, helperErrorText, stepLabel, type HelperEvent, type HelperProposal } from './helper';
+import { cutoutName, outlineSvg, refusalText, TOLERANCE } from './cutout-shape';
+import type { CutoutResult } from './engine/client';
+import { settings } from './settings.svelte';
+import { autoSaveAllowed, saveFailureReason, type SaveState } from './save-policy';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
 import { classCount, defaultTiling, type MaskObject, type Stroke, type Tiling } from './regions';
@@ -25,6 +31,9 @@ function startingCards(): Record<number, RegionCard> {
 	for (let k = 4; k <= 8; k++) cards[k] = newCard(`Kind ${k}`);
 	return cards;
 }
+
+/** The engine's version, stored with every run. A run made by another version may sort differently. */
+export const ENGINE_VERSION = '1';
 
 export type RunState = 'idle' | 'preparing' | 'animating' | 'paused' | 'done' | 'error';
 
@@ -70,6 +79,15 @@ export async function defaultImage(
 	}
 }
 
+/** SHA-256 of the pixels, so the save key knows which picture it is, not just how big it is. */
+async function fingerprint(rgba: Uint8ClampedArray): Promise<string> {
+	const whole = rgba.byteOffset === 0 && rgba.byteLength === rgba.buffer.byteLength;
+	const buf = whole
+		? (rgba.buffer as ArrayBuffer)
+		: (rgba.buffer.slice(rgba.byteOffset, rgba.byteOffset + rgba.byteLength) as ArrayBuffer);
+	return (await sha256Hex(buf)).slice(0, 16);
+}
+
 class Studio {
 	params = $state<Params>({ ...defaultParams, algo: 'oddeven', mode: 'random', length: 83, randomness: 10 });
 	size = $state<{ w: number; h: number } | null>(null);
@@ -84,6 +102,8 @@ class Studio {
 	customName = $state<string | null>(null);
 	comparing = $state(false);
 	errorCode = $state<string | null>(null);
+	/** The engine download while it is under way (null once the engine runs): the page says "loading the engine" with a percentage. */
+	engineLoad = $state<{ loaded: number; total: number | null; attempt: number } | null>(null);
 	timings = $state<{ prepareMs: number; sortMs: number } | null>(null);
 	onFrame: ((rgba: Uint8ClampedArray, w: number, h: number) => void) | null = null;
 
@@ -119,6 +139,15 @@ class Studio {
 			return [];
 		}
 	}
+	/** What one cellular rule looks like with the knobs as they are right now; null if the engine cannot say (the panel then says so). */
+	async caPreview(rule: number): Promise<{ mask: Uint8Array; w: number; h: number } | null> {
+		if (!this.client) return null;
+		try {
+			return await this.client.caPreview({ ...this.params }, rule);
+		} catch {
+			return null;
+		}
+	}
 	/** Hold T: veil the pixels the recipe holds still. `movable` is the engine's mask, fetched when the key goes down. */
 	peeking = $state(false);
 	movable = $state<Uint8Array | null>(null);
@@ -141,6 +170,24 @@ class Studio {
 	maskInvert = $state(false);
 	maskFeather = $state(0);
 	saveFailed = $state(false);
+	/** Why the last save failed, for the error catalog ('disk', 'timeout', or unsaid). */
+	saveReason = $state<'disk' | 'timeout' | undefined>(undefined);
+	private saving = $state(false);
+	/** The look that was last stored, so Save knows whether pressing it again would change anything. */
+	private lastSavedKey = $state<string | null>(null);
+	/** Fingerprint of the original pixels: two pictures with the same corners are not the same picture. */
+	private originalId = $state('');
+	/** Bumps whenever the cells or the protected areas change: they are part of the look, but too big to compare each time. */
+	private rev = $state(0);
+	/** The run this look was opened from (or last saved as), so the next save is recorded as its child. The opened run is never changed. */
+	parentRunId = $state<number | null>(null);
+	/** Set when the opened run was made by another engine version: the page says it may look different. */
+	engineNote = $state<string | null>(null);
+	/** A knob moved and the re-sort has not finished: what is on screen is not yet the look the knobs describe. */
+	pendingChange = $state(false);
+	private changeSeq = 0;
+	/** True while the picture is the bundled demo and nobody has touched anything: the demo is never stored by itself. */
+	isSample = $state(false);
 	private server = new ServerBackend();
 	private saver = new Autosaver(
 		() => this.saveRun(),
@@ -148,9 +195,31 @@ class Studio {
 	);
 	private client: EngineClient | null = null;
 	private off: (() => void) | null = null;
+	private offLoading: (() => void) | null = null;
 	private timer: ReturnType<typeof setTimeout> | undefined;
 
 	readonly name = $derived(this.customName ?? suggest(this.params, this.params.seed));
+
+	// ---- renaming: one draft, shown by whichever name control started it (the caption, or the phone sheet's header) ----
+	renameFrom = $state<'caption' | 'sheet' | null>(null);
+	nameDraft = $state('');
+	startRename(from: 'caption' | 'sheet' = 'caption'): void {
+		this.nameDraft = this.name;
+		this.renameFrom = from;
+	}
+	/** Saves the draft (tidied like the server does); an empty draft goes back to the automatic name. */
+	commitRename(): void {
+		this.customName = clean(this.nameDraft) || null;
+		this.renameFrom = null;
+	}
+	cancelRename(): void {
+		this.renameFrom = null;
+	}
+	/** This exact look (picture, recipe, cells, protected areas) is not in the Archive yet. */
+	readonly dirty = $derived(this.size !== null && this.saveKey() !== this.lastSavedKey);
+	readonly saveStatus = $derived<SaveState>(
+		this.saving ? 'saving' : this.dirty ? (this.saveFailed ? 'failed' : 'unsaved') : 'saved'
+	);
 	readonly edited = $derived(this.applied ? diff(this.applied, this.recipe()).length > 0 : false);
 
 	recipe(): Recipe {
@@ -171,6 +240,7 @@ class Studio {
 	start(): void {
 		if (this.client) return;
 		this.client = new EngineClient();
+		this.offLoading = this.client.onLoading((p) => (this.engineLoad = p));
 		this.off = this.client.onFrame((f) => {
 			if (!this.size || this.scrubbed) return;
 			this.sorted = f.rgba;
@@ -180,7 +250,7 @@ class Studio {
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
-				this.saver.schedule(this.saveKey(), true);
+				if (this.autoSaving()) this.saver.schedule(this.saveKey(), true);
 			}
 		});
 	}
@@ -189,15 +259,46 @@ class Studio {
 		clearTimeout(this.timer);
 		this.saver.cancel();
 		this.off?.();
+		this.offLoading?.();
+		this.engineLoad = null;
 		this.client?.dispose();
 		this.client = null;
 	}
 
-	async load(img: { w: number; h: number; rgba: Uint8ClampedArray }): Promise<void> {
+	/**
+	 * Starts the engine worker over (it downloads the engine again) and puts the picture back, keeping the recipe, the name
+	 * and everything the person set up. This is what "Try again" does after the engine failed to download or crashed.
+	 */
+	async restartEngine(): Promise<void> {
+		this.errorCode = null;
+		const name = this.customName;
+		const sample = this.isSample;
+		const parent = this.parentRunId;
+		const note = this.engineNote;
+		this.stop();
+		const img =
+			this.original && this.size ? { w: this.size.w, h: this.size.h, rgba: this.original } : await defaultImage();
+		await this.load(img, { sample });
+		this.customName = name;
+		this.parentRunId = parent;
+		this.engineNote = note;
+	}
+
+	async load(img: { w: number; h: number; rgba: Uint8ClampedArray }, opts: { sample?: boolean } = {}): Promise<void> {
 		this.start();
+		// Hash first: the size, the original and the sorted pixels must change in one step, or for a moment the page holds
+		// the new size with the old pixels and drawing them throws.
+		const id = await fingerprint(img.rgba);
 		this.size = { w: img.w, h: img.h };
 		this.original = img.rgba;
 		this.sorted = img.rgba;
+		this.isSample = opts.sample === true;
+		this.originalId = id;
+		this.parentRunId = null;
+		this.engineNote = null;
+		this.clearCutout(); // a region belongs to the picture it was cut from
+		this.stopHelper();
+		this.helper = { status: 'idle', steps: [], say: '', note: null };
 		this.customName = null;
 		try {
 			await this.client!.init(img.w, img.h);
@@ -254,11 +355,17 @@ class Studio {
 
 	/** Called whenever a knob changes: coalesce, then re-sort (or restart the animation if one is running). */
 	changed(): void {
+		this.isSample = false;
+		// From the change until its re-sort has finished, the picture on screen is the old sort of the old recipe: Save waits.
+		this.pendingChange = true;
+		const seq = ++this.changeSeq;
 		clearTimeout(this.timer);
-		this.timer = setTimeout(
-			() => void (this.run === 'animating' || this.run === 'paused' ? this.play() : this.instant()),
-			80
-		);
+		this.timer = setTimeout(() => {
+			const again = this.run === 'animating' || this.run === 'paused' ? this.play() : this.instant();
+			void again.finally(() => {
+				if (seq === this.changeSeq) this.pendingChange = false; // a newer change keeps it set
+			});
+		}, 80);
 	}
 
 	async instant(): Promise<void> {
@@ -274,7 +381,7 @@ class Studio {
 			this.progress = 1;
 			this.run = 'done';
 			this.onFrame?.(r.rgba, this.size.w, this.size.h);
-			this.saver.schedule(this.saveKey());
+			if (this.autoSaving()) this.saver.schedule(this.saveKey());
 		} catch (e) {
 			this.fail(e);
 		}
@@ -282,6 +389,7 @@ class Studio {
 
 	async play(): Promise<void> {
 		if (!this.client || !this.size) return;
+		this.isSample = false;
 		try {
 			await this.client.configure(this.params);
 			this.progress = 0;
@@ -321,6 +429,7 @@ class Studio {
 	/** Jump to the state after `pass` passes. Pauses the animation; newer calls replace older ones still waiting. */
 	async scrub(pass: number): Promise<void> {
 		if (!this.client || !this.size || !this.stepped) return;
+		this.isSample = false;
 		this.scrubbed = true; // a frame still in flight from before must not overwrite what the slider shows
 		if (this.run === 'animating') this.run = 'paused';
 		try {
@@ -338,6 +447,7 @@ class Studio {
 	}
 
 	async restart(): Promise<void> {
+		this.isSample = false;
 		this.progress = 0;
 		this.pass = 0;
 		this.maxPass = 0;
@@ -354,6 +464,8 @@ class Studio {
 	/** Sends the tiling and its class rules to the engine, then re-sorts. */
 	async applyRegions(): Promise<void> {
 		if (!this.client || !this.size) return;
+		this.isSample = false;
+		this.rev++;
 		try {
 			const t = this.tiling;
 			const r = await this.client.setTiling(t ? { ...t } : null, t ? this.engineDefs() : null);
@@ -373,13 +485,125 @@ class Studio {
 	// ---- the shape library: starters and "your shapes" tile the picture as a custom shape ----
 	private shapeLib = new ShapeLibrary(this.server, new LocalStorageBackend());
 	myShapes = $state<SavedShape[]>([]);
+	// ---- Shape helper, "Cut out this object": a region grown from a click, traced by the engine, offered as a shape ----
+	/** How far a colour may stray from the clicked spot and still be part of the shape. */
+	cutTol = $state<number>(TOLERANCE.start);
+	/** Waiting for a click on the picture. */
+	picking = $state(false);
+	/** The last cut-out: where it was asked for, and either the region or why there is none. */
+	cutout = $state<
+		| { x: number; y: number; found: Extract<CutoutResult, { ok: true }>; name: string }
+		| { x: number; y: number; found: null; refusal: string }
+		| null
+	>(null);
+	/** Cuts out around a point given as fractions of the picture (0..1). Never changes the picture or the recipe. */
+	async cutOutAt(x: number, y: number): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const r = await this.client.cutOut(x, y, this.cutTol);
+			this.cutout = r.ok
+				? { x, y, found: r, name: cutoutName(r.mean) }
+				: { x, y, found: null, refusal: refusalText(r.reason) };
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+	/** Cuts out the brightest blob of the picture (the engine says where it is). */
+	async cutOutBrightest(): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const s = await this.client.brightestSpot();
+			await this.cutOutAt(s.cx, s.cy);
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+	// ---- Shape helper, "Ask": a model on the server picks the object; the page cuts it out itself ----
+	helper = $state<{
+		status: 'idle' | 'running' | 'done' | 'failed';
+		/** What the helper did, one line per tool call, in the order it happened. */
+		steps: { id: string; label: string; ms: number | null; failed: boolean }[];
+		/** What it said, if it said anything (usually why there was no match). */
+		say: string;
+		/** Why a run failed or was stopped, in a sentence. */
+		note: string | null;
+	}>({ status: 'idle', steps: [], say: '', note: null });
+	private helperCtl: AbortController | null = null;
+	/** Asks the helper for a shape. Nothing is added to the library: the result is the same preview "Cut out" gives. */
+	async askHelper(prompt: string): Promise<void> {
+		if (!this.size || !this.original || this.helper.status === 'running') return;
+		this.clearCutout();
+		const ctl = new AbortController();
+		this.helperCtl = ctl;
+		this.helper = { status: 'running', steps: [], say: '', note: null };
+		let proposal: HelperProposal | null = null;
+		const onEvent = (e: HelperEvent): void => {
+			if (e.type === 'tool_start' && e.id)
+				this.helper.steps.push({ id: e.id, label: stepLabel(e.name ?? ''), ms: null, failed: false });
+			else if (e.type === 'tool_end' && e.id) {
+				const st = this.helper.steps.find((x) => x.id === e.id);
+				if (st) {
+					st.ms = e.ms ?? null;
+					st.failed = !!e.is_error;
+				}
+			} else if (e.type === 'say' && e.text) this.helper.say = e.text;
+			else if (e.type === 'proposal' && e.proposal) proposal = e.proposal;
+		};
+		try {
+			const image = await helperCopy(this.original, this.size.w, this.size.h);
+			await askHelper({ prompt, image, signal: ctl.signal, onEvent });
+			if (proposal) {
+				const p: HelperProposal = proposal;
+				this.cutTol = p.tolerance;
+				await this.cutOutAt(p.seed_x, p.seed_y);
+				if (this.cutout?.found) this.cutout = { ...this.cutout, name: p.name };
+				this.helper.status = 'done';
+			} else {
+				this.helper.status = 'done';
+				if (!this.helper.say) this.helper.note = 'The helper did not find a matching shape.';
+			}
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') {
+				this.helper.status = 'idle';
+				this.helper.note = 'Stopped. Nothing was added.';
+			} else {
+				this.helper.status = 'failed';
+				this.helper.note = helperErrorText(e);
+			}
+		} finally {
+			if (this.helperCtl === ctl) this.helperCtl = null;
+		}
+	}
+	/** Stops a run in progress. */
+	stopHelper(): void {
+		this.helperCtl?.abort();
+	}
+	clearCutout(): void {
+		this.cutout = null;
+		this.picking = false;
+	}
+	/** Offers the cut-out to the shape library under `name`: it goes through the same reading, tidying and saving as a pasted SVG. */
+	useCutout(name: string): void {
+		const c = this.cutout?.found;
+		if (!c) return;
+		this.pendingSvgName = name.trim() || null;
+		this.pendingSvg = outlineSvg(c.outline, c.bbox);
+		this.clearCutout();
+	}
 	/** SVG text dropped or pasted anywhere in Studio, waiting for the shape library to read it (never loaded as the picture). */
 	pendingSvg = $state<string | null>(null);
+	/** The name to give the shape in `pendingSvg`, when the maker of the SVG has one (the Shape helper does). */
+	pendingSvgName = $state<string | null>(null);
 	/** The shape (outline and extra rings) the custom tiling currently uses, for highlighting the chosen tile. */
 	customKey = $state<string | null>(null);
 
 	async loadMyShapes(): Promise<void> {
-		this.myShapes = await this.shapeLib.list();
+		const before = this.myShapes;
+		const list = await this.shapeLib.list();
+		// A shape saved while the list was on its way (a dropped SVG opens the library and adds at once) must not be wiped by it.
+		const have = new Set(list.map((s) => s.id));
+		const added = this.myShapes.filter((s) => !before.includes(s) && !have.has(s.id));
+		this.myShapes = [...added, ...list];
 	}
 	/** Tile the picture with this outline (plus holes or extra pieces). `key` names the library tile that is now chosen. */
 	useShape(poly: Ring, more: Ring[], key: string | null): void {
@@ -412,6 +636,8 @@ class Studio {
 	/** Sends the mask objects as a vector spec; the engine rasterises them at whatever size it is working at. */
 	async applyMask(): Promise<void> {
 		if (!this.client || !this.size) return;
+		this.isSample = false;
+		this.rev++;
 		try {
 			await this.client.setMaskSpec(this.hasMask() ? this.maskSpec() : null);
 			await this.instant();
@@ -479,14 +705,45 @@ class Studio {
 		this.addMaskObject('ellipse', { cx: s.cx, cy: s.cy, w: s.w, h: s.h });
 	}
 
-	/** What identifies a run: the picture, the recipe, the seed and the engine version. */
+	/** What identifies a look: the picture, the recipe (seed included), and the cells and protected areas. */
 	private saveKey(): string {
-		const o = this.original;
-		return `${this.size?.w}x${this.size?.h}:${o ? o[0]! + ',' + o[o.length >> 1]! : ''}:${JSON.stringify(this.params)}`;
+		return `${this.originalId}:${this.size?.w}x${this.size?.h}:${this.rev}:${JSON.stringify(this.params)}`;
+	}
+	/** The key the page uses to tell one look from the next (leave warnings). */
+	get lookKey(): string {
+		return this.saveKey();
+	}
+
+	private autoSaving(): boolean {
+		return autoSaveAllowed({ autoSave: settings.autoSave, isSample: this.isSample });
+	}
+
+	/**
+	 * Stores the current look once, now (the Save button, and Export). 'unchanged' means this exact look is already in the
+	 * Archive, so nothing is sent. With `report`, a failure opens the "couldn't save" dialog; without it (Export) the
+	 * download carries on and the Save button turns into "Retry save".
+	 */
+	async save(report = false): Promise<'saved' | 'unchanged' | 'failed' | 'busy'> {
+		if (!this.size || !this.original || !this.sorted || this.saving) return 'busy';
+		if (this.saveKey() === this.lastSavedKey) return 'unchanged';
+		this.isSample = false;
+		this.saving = true;
+		try {
+			await this.saveRun();
+			return 'saved';
+		} catch (e) {
+			this.saveFailed = true;
+			this.saveReason = saveFailureReason(e);
+			if (report) this.errorCode = 'save-failed';
+			return 'failed';
+		} finally {
+			this.saving = false;
+		}
 	}
 
 	private async saveRun(): Promise<void> {
 		if (!this.size || !this.original || !this.sorted) return;
+		const key = this.saveKey(); // changes made while this uploads are a new look, not part of this save
 		const { w, h } = this.size;
 		const encode = async (rgba: Uint8ClampedArray, tw: number, th: number, type: string, quality?: number) => {
 			const src = new OffscreenCanvas(w, h);
@@ -501,39 +758,71 @@ class Studio {
 			encode(this.sorted, w, h, 'image/png'),
 			encode(this.sorted, Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)), 'image/webp', 0.8)
 		]);
-		await this.server.saveRun({
-			settings: { ...this.params },
+		const saved = await this.server.saveRun({
+			settings: packRecipe({
+				params: { ...this.params },
+				tiling: this.tiling,
+				cards: this.cards,
+				mask: this.hasMask()
+					? { objects: this.maskObjects, strokes: this.maskStrokes, invert: this.maskInvert, feather: this.maskFeather }
+					: null
+			}),
 			seed: this.params.seed,
-			engineVersion: '1',
+			engineVersion: ENGINE_VERSION,
 			durationMs: (this.timings?.prepareMs ?? 0) + (this.timings?.sortMs ?? 0),
 			original,
 			result,
 			thumb,
 			w,
 			h,
-			title: this.customName
+			title: this.customName,
+			parentRunId: this.parentRunId
 		});
+		// the next save in this session is a child of this one: a line of versions, each pointing at the one before
+		if (typeof saved?.id === 'number') this.parentRunId = saved.id;
+		this.lastSavedKey = key;
 		this.saveFailed = false;
 	}
 
-	/** Opens a saved run: its original picture, then its recipe and name. */
-	async openRun(run: {
-		original: { sha256: string };
-		settings: Record<string, unknown>;
-		title: string | null;
-	}): Promise<void> {
+	/**
+	 * Opens a saved run in Studio: the stored original at the working size, then the whole look (knobs, cells, region
+	 * cards, protected areas) and the name. The run is never changed: the next save is a new run whose parent is this one.
+	 * An older run without cells or masks opens as just its knobs.
+	 */
+	async openRun(
+		run: Pick<ApiRun, 'id' | 'original' | 'settings' | 'title'> & { engine_version?: string }
+	): Promise<void> {
+		this.errorCode = null;
+		let img: { w: number; h: number; rgba: Uint8ClampedArray };
 		try {
-			const res = await fetch(new ServerBackend().imageUrl(run.original.sha256));
+			const res = await fetch(this.server.imageUrl(run.original.sha256));
 			if (!res.ok) throw new Error('missing');
-			await this.loadFile(Object.assign(await res.blob(), { name: run.title ?? 'run' }));
+			const d = await decodeFile(await res.blob(), defaultLongEdge());
+			img = { w: d.w, h: d.h, rgba: d.rgba };
 		} catch {
 			this.errorCode = 'image-unreadable';
+			this.errorName = run.title ?? 'that run';
 			return;
 		}
-		Object.assign(this.params, run.settings);
-		this.customName = run.title;
+		const look = unpackRecipe(run.settings);
+		Object.assign(this.params, look.params);
+		this.tiling = look.tiling;
+		this.cards = { ...startingCards(), ...(look.cards ?? {}) };
+		this.maskObjects = look.mask?.objects ?? [];
+		this.maskStrokes = look.mask?.strokes ?? [];
+		this.maskInvert = look.mask?.invert ?? false;
+		this.maskFeather = look.mask?.feather ?? 0;
+		this.selectedMask = null;
+		this.suggestion = null;
+		this.customKey = null;
 		this.presetId = null;
-		this.changed();
+		this.applied = null;
+		this.rev++;
+		await this.load(img);
+		this.customName = run.title;
+		this.parentRunId = run.id;
+		this.engineNote = run.engine_version && run.engine_version !== ENGINE_VERSION ? run.engine_version : null;
+		this.lastSavedKey = this.saveKey(); // this is exactly what is stored: nothing to save until something changes
 	}
 
 	applyPreset(p: Preset, seed = Date.now()): void {

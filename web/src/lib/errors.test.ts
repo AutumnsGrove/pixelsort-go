@@ -1,6 +1,7 @@
 import { describe as d, expect, test } from 'vitest';
 import { CATALOG, describe, engineErrorCode, type ErrorContext } from './errors';
 import { EngineCrashed } from './engine/client';
+import { EngineDownloadFailed } from './engine/loader';
 
 const ACTIONS = new Set(['choose', 'close', 'save-and-drop', 'retry', 'reload', 'restart', 'smaller', 'back']);
 const ctxs: ErrorContext[] = [
@@ -49,5 +50,16 @@ d('catalog', () => {
 		expect(engineErrorCode(new EngineCrashed('boom'))).toBe('engine-crashed');
 		expect(engineErrorCode(new Error('wasm failed'))).toBe('engine-failed');
 		expect(engineErrorCode('weird')).toBe('engine-failed');
+	});
+	test('a failed download is told apart from an engine that broke after it loaded', () => {
+		expect(engineErrorCode(new EngineDownloadFailed('/engine.wasm', 2, 'timeout'))).toBe('engine-download-failed');
+		const v = describe('engine-download-failed');
+		expect(v.title).toMatch(/download/i);
+		expect(v.body).toMatch(/connection/i);
+		expect(v.safe).toMatch(/picture/i);
+		expect(v.actions.map((a) => a.id)).toEqual(['retry', 'reload']);
+		expect(v.actions[0]!.primary).toBe(true);
+		// the engine-failed text keeps its own meaning: a browser that cannot run it
+		expect(describe('engine-failed').body).not.toBe(v.body);
 	});
 });

@@ -28,6 +28,7 @@ type Deps struct {
 	EngineVersion  string
 	Update         *update.Signals // nil when no update folder is configured
 	Share          *share.Service  // nil when the share Worker is not configured
+	Helper         bool            // the Shape helper is set up (its route is served by the app, not by this API)
 }
 
 // API holds the handlers and remembers which routes it registered.

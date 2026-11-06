@@ -464,3 +464,52 @@ func CARules() []CARule {
 	}
 	return out
 }
+
+// The size of the rule preview the Pro panel draws: a fixed small canvas, whatever the picture.
+const (
+	CAPreviewW = 320
+	CAPreviewH = 160
+)
+
+// CARulePreview draws what `rule` looks like with the recipe in paramsJSON (space, sort angle, cell size, boundary and seed), as
+// a 0/1 mask CAPreviewW x CAPreviewH. It is stateless: no session, no picture, and it never touches a running sort, so the
+// panel can ask on every hover with whatever the knobs say right now. The rule is a parameter, not the recipe's own, so a rule
+// can be shown before it is chosen.
+func CARulePreview(paramsJSON []byte, rule int) (mask []uint8, w, h int, err error) {
+	if rule < 0 || rule > 255 {
+		return nil, 0, 0, fmt.Errorf("api: ca preview: rule %d is outside 0..255", rule)
+	}
+	p, err := engine.ParseParams(paramsJSON)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("api: ca preview: %w", err)
+	}
+	p.Rule = rule
+	mask, err = engine.CAPreview(CAPreviewW, CAPreviewH, p)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("api: %w", err)
+	}
+	return mask, CAPreviewW, CAPreviewH, nil
+}
+
+// CutoutMaxAreaPct is the most of the picture a cut-out may cover before it is refused as "spreads over too much".
+const CutoutMaxAreaPct = 45
+
+// CutOut grows a region from a point given as fractions of the picture (0..1) and traces its outline, on the picture as it
+// was loaded (never the sorted result). It only reads the picture, so a prepared plan or a running sort is not disturbed.
+func (s *Session) CutOut(xFrac, yFrac float64, tolerance int) (engine.Cutout, error) {
+	if !s.inited || s.image == nil {
+		return engine.Cutout{}, fmt.Errorf("api: cut out needs a picture: %w", ErrState)
+	}
+	for _, f := range [2]float64{xFrac, yFrac} {
+		if math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || f > 1 {
+			return engine.Cutout{}, fmt.Errorf("api: cut out: the point must be within the picture (0..1), got %v", f)
+		}
+	}
+	x := int(xFrac * float64(s.image.W))
+	y := int(yFrac * float64(s.image.H))
+	c, err := engine.CutOut(s.image, x, y, tolerance, CutoutMaxAreaPct)
+	if err != nil {
+		return engine.Cutout{}, fmt.Errorf("api: cut out: %w", err)
+	}
+	return c, nil
+}
