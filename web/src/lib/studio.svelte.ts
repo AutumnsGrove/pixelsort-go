@@ -535,7 +535,12 @@ class Studio {
 	customKey = $state<string | null>(null);
 
 	async loadMyShapes(): Promise<void> {
-		this.myShapes = await this.shapeLib.list();
+		const before = this.myShapes;
+		const list = await this.shapeLib.list();
+		// A shape saved while the list was on its way (a dropped SVG opens the library and adds at once) must not be wiped by it.
+		const have = new Set(list.map((s) => s.id));
+		const added = this.myShapes.filter((s) => !before.includes(s) && !have.has(s.id));
+		this.myShapes = [...added, ...list];
 	}
 	/** Tile the picture with this outline (plus holes or extra pieces). `key` names the library tile that is now chosen. */
 	useShape(poly: Ring, more: Ring[], key: string | null): void {
