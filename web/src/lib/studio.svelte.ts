@@ -9,6 +9,8 @@ import { clean, suggest } from './naming';
 import { Autosaver } from './autosave';
 import { ServerBackend, sha256Hex, type ApiRun } from './api';
 import { packRecipe, unpackRecipe } from './run-recipe';
+import { cutoutName, outlineSvg, refusalText, TOLERANCE } from './cutout-shape';
+import type { CutoutResult } from './engine/client';
 import { settings } from './settings.svelte';
 import { autoSaveAllowed, saveFailureReason, type SaveState } from './save-policy';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
@@ -293,6 +295,7 @@ class Studio {
 		this.originalId = id;
 		this.parentRunId = null;
 		this.engineNote = null;
+		this.clearCutout(); // a region belongs to the picture it was cut from
 		this.customName = null;
 		try {
 			await this.client!.init(img.w, img.h);
@@ -479,8 +482,55 @@ class Studio {
 	// ---- the shape library: starters and "your shapes" tile the picture as a custom shape ----
 	private shapeLib = new ShapeLibrary(this.server, new LocalStorageBackend());
 	myShapes = $state<SavedShape[]>([]);
+	// ---- Shape helper, "Cut out this object": a region grown from a click, traced by the engine, offered as a shape ----
+	/** How far a colour may stray from the clicked spot and still be part of the shape. */
+	cutTol = $state<number>(TOLERANCE.start);
+	/** Waiting for a click on the picture. */
+	picking = $state(false);
+	/** The last cut-out: where it was asked for, and either the region or why there is none. */
+	cutout = $state<
+		| { x: number; y: number; found: Extract<CutoutResult, { ok: true }>; name: string }
+		| { x: number; y: number; found: null; refusal: string }
+		| null
+	>(null);
+	/** Cuts out around a point given as fractions of the picture (0..1). Never changes the picture or the recipe. */
+	async cutOutAt(x: number, y: number): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const r = await this.client.cutOut(x, y, this.cutTol);
+			this.cutout = r.ok
+				? { x, y, found: r, name: cutoutName(r.mean) }
+				: { x, y, found: null, refusal: refusalText(r.reason) };
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+	/** Cuts out the brightest blob of the picture (the engine says where it is). */
+	async cutOutBrightest(): Promise<void> {
+		if (!this.client || !this.size) return;
+		try {
+			const s = await this.client.brightestSpot();
+			await this.cutOutAt(s.cx, s.cy);
+		} catch (e) {
+			this.fail(e);
+		}
+	}
+	clearCutout(): void {
+		this.cutout = null;
+		this.picking = false;
+	}
+	/** Offers the cut-out to the shape library under `name`: it goes through the same reading, tidying and saving as a pasted SVG. */
+	useCutout(name: string): void {
+		const c = this.cutout?.found;
+		if (!c) return;
+		this.pendingSvgName = name.trim() || null;
+		this.pendingSvg = outlineSvg(c.outline, c.bbox);
+		this.clearCutout();
+	}
 	/** SVG text dropped or pasted anywhere in Studio, waiting for the shape library to read it (never loaded as the picture). */
 	pendingSvg = $state<string | null>(null);
+	/** The name to give the shape in `pendingSvg`, when the maker of the SVG has one (the Shape helper does). */
+	pendingSvgName = $state<string | null>(null);
 	/** The shape (outline and extra rings) the custom tiling currently uses, for highlighting the chosen tile. */
 	customKey = $state<string | null>(null);
 

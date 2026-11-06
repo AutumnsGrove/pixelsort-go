@@ -291,3 +291,59 @@ describe('rule previews', () => {
 		await expect(p).rejects.toThrow();
 	});
 });
+
+describe('cut out this object', () => {
+	test('asks for a point as fractions and tolerance, and hands back the outline as pairs', async () => {
+		const p = client.cutOut(0.5, 0.25, 32);
+		const w = workers[0]!;
+		expect(w.sent[0]).toMatchObject({ type: 'cutOut', x: 0.5, y: 0.25, tolerance: 32 });
+		w.reply({
+			id: 1,
+			ok: true,
+			cutout: {
+				points: new Int32Array([10, 10, 20, 10, 20, 20, 10, 20]).buffer,
+				pointsBefore: 80,
+				area: 100,
+				w: 30,
+				bbox: new Int32Array([10, 10, 11, 11]).buffer,
+				mean: new Int32Array([200, 60, 30]).buffer,
+				mask: new Uint8Array(900).buffer
+			}
+		});
+		const r = await p;
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		expect(r.outline).toEqual([
+			[10, 10],
+			[20, 10],
+			[20, 20],
+			[10, 20]
+		]);
+		expect(r.bbox).toEqual([10, 10, 11, 11]);
+		expect(r.mean).toEqual([200, 60, 30]);
+		expect(r.pointsBefore).toBe(80);
+		expect(r.area).toBe(100);
+		expect(r.mask.length).toBe(900);
+	});
+
+	test('a refusal is an answer, not an error: it says why', async () => {
+		for (const reason of ['too-big', 'too-small'] as const) {
+			const p = client.cutOut(0.1, 0.1, 30);
+			const id = workers[workers.length - 1]!.sent.at(-1)!.id;
+			workers[workers.length - 1]!.reply({ id, ok: true, refused: { reason, message: 'm' } });
+			expect(await p).toEqual({ ok: false, reason, message: 'm' });
+		}
+	});
+
+	test('a real failure rejects', async () => {
+		const p = client.cutOut(0.1, 0.1, 30);
+		workers[0]!.reply({ id: 1, ok: false, error: 'not initialised' });
+		await expect(p).rejects.toThrow('not initialised');
+	});
+
+	test('an answer with neither an outline nor a refusal is an error', async () => {
+		const p = client.cutOut(0.1, 0.1, 30);
+		workers[0]!.reply({ id: 1, ok: true });
+		await expect(p).rejects.toThrow();
+	});
+});

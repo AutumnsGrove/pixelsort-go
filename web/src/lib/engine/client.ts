@@ -11,6 +11,22 @@ export class EngineCrashed extends Error {
 	}
 }
 
+export type CutoutResult =
+	| {
+			ok: true;
+			/** The outer edge, in pixels of the working picture, a closed ring. */
+			outline: [number, number][];
+			pointsBefore: number;
+			area: number;
+			/** The picture's width: the row length of `mask`. */
+			w: number;
+			/** x, y, width, height of the region. */
+			bbox: [number, number, number, number];
+			mean: [number, number, number];
+			mask: Uint8Array;
+	  }
+	| { ok: false; reason: 'too-big' | 'too-small'; message: string };
+
 export type Frame = { rgba: Uint8ClampedArray; progress: number; pass: number; done: boolean; stepMs: number };
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
 
@@ -121,6 +137,34 @@ export class EngineClient {
 		const res = await this.send({ type: 'caRules' }, []);
 		if (!res.ok || !res.rules) throw new Error(res.ok ? 'no rules' : res.error);
 		return res.rules;
+	}
+
+	/**
+	 * "Cut out this object": grows a region from a point (fractions of the picture, 0..1) on the picture as loaded, and traces its
+	 * outline. Asked of the engine, never worked out here. A region that spreads over too much of the picture, or is too small or
+	 * thin to be a shape, comes back as `{ ok: false, reason }`: that is an answer, not a failure.
+	 */
+	async cutOut(x: number, y: number, tolerance: number): Promise<CutoutResult> {
+		const res = await this.send({ type: 'cutOut', x, y, tolerance }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (res.refused) return { ok: false, ...res.refused };
+		const c = res.cutout;
+		if (!c) throw new Error('cutOut answered with neither an outline nor a reason');
+		const pts = new Int32Array(c.points);
+		const outline: [number, number][] = [];
+		for (let i = 0; i + 1 < pts.length; i += 2) outline.push([pts[i]!, pts[i + 1]!]);
+		const b = new Int32Array(c.bbox);
+		const m = new Int32Array(c.mean);
+		return {
+			ok: true,
+			outline,
+			pointsBefore: c.pointsBefore,
+			area: c.area,
+			w: c.w,
+			bbox: [b[0]!, b[1]!, b[2]!, b[3]!],
+			mean: [m[0]!, m[1]!, m[2]!],
+			mask: new Uint8Array(c.mask)
+		};
 	}
 
 	/**

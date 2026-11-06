@@ -30,6 +30,12 @@ Branch `features-and-fixes`. See `decisions.md` V1 to V3.
   size has a grid of another size, and a grid's first row is drawn from the seed for that width, so the detail differs.
   The recipe travels with each request (`api.CARulePreview(paramsJSON, rule)`), so it needs no session, no picture, and never
   disturbs a running sort. At angle 0 line space equals image space; a test pins that.
+- **#7 "Cut out this object" is release 1 of the Shape helper and needs no model.** `engine.CutOut` grows a 4-connected region from a point
+  (RGB distance to the seed within tolerance x 2.2), fills holes under 0.3% of the picture, traces the outer edge (Moore) and
+  simplifies it (Douglas-Peucker, at most 200 points). It only reads the loaded picture, so a running sort is never disturbed. The
+  outline goes to the shape library as an SVG through the same reading, tidying and saving as a pasted one (`studio.pendingSvg`), so
+  the hostile-SVG checks apply unchanged. The fuzzer found a real edge: a one-pixel-wide line has no inside and is refused.
+  A refusal (too big, too small or thin) is an answer from the engine, not an error.
 - **Not run:** WebKit (not installed here).
 
 ## Needs Autumn

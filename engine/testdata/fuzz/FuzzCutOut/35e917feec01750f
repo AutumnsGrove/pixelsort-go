@@ -1,0 +1,8 @@
+go test fuzz v1
+byte('S')
+byte('\x02')
+int16(-4)
+int16(300)
+byte('S')
+byte('c')
+int64(68)

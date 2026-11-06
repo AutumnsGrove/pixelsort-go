@@ -7,6 +7,7 @@
 	import ProPanel from '#components/ProPanel';
 	import Strip from '#components/Strip';
 	import MaskHandles from '#components/MaskHandles';
+	import CutoutLayer from '#components/CutoutLayer';
 	import BrushLayer from '#components/BrushLayer';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
@@ -291,6 +292,7 @@
 				<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
 				<BrushLayer active={proOpen} />
 				<MaskHandles active={proOpen} />
+				<CutoutLayer />
 				{#if studio.scrubbable}
 					<input
 						class="scrub"
@@ -324,7 +326,7 @@
 					type="button"
 					onpointerdown={() => (studio.comparing = true)}
 					onpointerup={() => (studio.comparing = false)}
-					onpointerleave={() => (studio.comparing = false)}><span class="long">hold to </span>compare</button
+					onpointerleave={() => (studio.comparing = false)}><span class="long">hold to</span> compare</button
 				>
 			</div>
 		</div>
@@ -839,7 +841,7 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		max-width: calc(100% - 126px);
+		max-width: calc(100% - 138px);
 		min-height: 44px;
 		font-family: var(--serif);
 		font-style: italic;

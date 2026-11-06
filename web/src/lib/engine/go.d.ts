@@ -22,6 +22,24 @@ interface PixelsortApi {
 	histogram(key: string): GoResult<{ counts: number[] }>;
 	caRules(): GoResult<{ rules: { rule: number; note: string }[] }>;
 	caPreview(paramsJson: string, rule: number): GoResult<{ mask: Uint8Array; w: number; h: number }>;
+	/** Grow a region from a point (fractions of the picture) and trace its outline. A refusal is data: `refused` says why. */
+	cutOut(
+		x: number,
+		y: number,
+		tolerance: number
+	): GoResult<
+		| { refused: 'too-big' | 'too-small'; message: string }
+		| {
+				refused?: undefined;
+				points: Int32Array;
+				pointsBefore: number;
+				area: number;
+				w: number;
+				bbox: Int32Array;
+				mean: Int32Array;
+				mask: Uint8Array;
+		  }
+	>;
 	brightestSpot(): GoResult<{ cx: number; cy: number; w: number; h: number }>;
 	setSoft(radius: number): GoResult;
 	configure(json: string): GoResult;

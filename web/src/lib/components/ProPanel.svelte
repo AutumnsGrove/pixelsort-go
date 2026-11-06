@@ -7,6 +7,7 @@
 	import RegionCard from '#components/RegionCard';
 	import ShapeLibrary from '#components/ShapeLibrary';
 	import NameField from '#components/NameField';
+	import ShapeHelper from '#components/ShapeHelper';
 	import { previewLabel, previewPixels, previewVersion } from '#lib/rule-preview';
 
 	let { onclose }: { onclose: () => void } = $props();
@@ -298,6 +299,10 @@
 				</div>
 			{/if}
 		</section>{/if}
+
+	{#if showShapes}
+		<ShapeHelper />
+	{/if}
 
 	{#if showProtect}<section>
 			<h4 class="eyebrow">Protect from sorting</h4>

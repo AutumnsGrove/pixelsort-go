@@ -32,6 +32,8 @@
 		const pending = studio.pendingSvg;
 		if (pending === null) return;
 		studio.pendingSvg = null;
+		if (studio.pendingSvgName) name = studio.pendingSvgName; // the Shape helper names its own cut-outs
+		studio.pendingSvgName = null;
 		text = pending;
 		read();
 	});
@@ -47,7 +49,10 @@
 		if (!needsTidy(r.raw)) {
 			// a plain shape goes straight in
 			const b = buildShape(r.raw);
-			void studio.saveShape(name, b.poly, b.more).then(() => (text = ''));
+			void studio.saveShape(name, b.poly, b.more).then(() => {
+				text = '';
+				name = '';
+			});
 			return;
 		}
 		raw = r.raw;

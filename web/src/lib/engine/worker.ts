@@ -181,6 +181,26 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const r = api.caRules();
 			return { res: r.ok ? { id: req.id, ok: true, rules: r.rules } : fail(req.id, r.error), transfer: [] };
 		}
+		case 'cutOut': {
+			const r = api.cutOut(req.x, req.y, req.tolerance);
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			if (r.refused)
+				return { res: { id: req.id, ok: true, refused: { reason: r.refused, message: r.message } }, transfer: [] };
+			const buf = (a: Int32Array | Uint8Array): ArrayBuffer => a.slice().buffer as ArrayBuffer;
+			const cutout = {
+				points: buf(r.points),
+				pointsBefore: r.pointsBefore,
+				area: r.area,
+				w: r.w,
+				bbox: buf(r.bbox),
+				mean: buf(r.mean),
+				mask: buf(r.mask)
+			};
+			return {
+				res: { id: req.id, ok: true, cutout },
+				transfer: [cutout.points, cutout.bbox, cutout.mean, cutout.mask]
+			};
+		}
 		case 'caPreview': {
 			const r = api.caPreview(req.json, req.rule);
 			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
