@@ -31,7 +31,7 @@
 		<a class="card" href={resolve('/archive')}>
 			<span class="num">02</span>
 			<b>Archive</b>
-			<span>Every run is kept with its recipe: reopen, branch, star, or clear the bin.</span>
+			<span>Save a look and it is kept with its recipe: reopen, branch, star, or clear the bin.</span>
 		</a>
 		<a class="card" href={resolve('/settings')}>
 			<span class="num">03</span>

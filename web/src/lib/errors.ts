@@ -142,7 +142,7 @@ export const CATALOG: Record<ErrorCode, (c: ErrorContext) => Entry> = {
 			c.reason === 'disk'
 				? 'The server says its disk is full.'
 				: `The server didn’t accept it${c.reason === 'timeout' ? ' in time.' : '.'}`,
-		safe: 'Keep working — the run is kept here and will be sent again. Exporting still works.',
+		safe: 'Your picture and settings are still here. Try again whenever you like. Exporting still works.',
 		actions: [{ id: 'retry', label: 'Retry now', primary: true }, close('Dismiss')]
 	}),
 	'share-failed': (c) => ({

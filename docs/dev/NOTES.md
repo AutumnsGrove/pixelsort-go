@@ -2,6 +2,22 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-06 · issue sweep (#8 #11 #9 #12 first) · decisions and what was run
+
+Branch `features-and-fixes`. See `decisions.md` V1 to V3.
+
+- **#12 contradicts D8.** D8 said "auto-save every run"; the issue asked to revisit it. Chose: Save is explicit, auto-save is an
+  opt-in setting (default off). Because: 24 near-identical runs from one session. Alternative: keep auto-save and make the
+  idle window longer (the #9 proposal), rejected because #12 supersedes it.
+- **#9 vs #12 on the idle window.** #9 wanted a calmer idle save (about 10 s); #12 says "with auto-save on, today's behavior returns
+  exactly". Chose #12 (2 s) since a person who turns auto-save on is asking for exactly that.
+- **Export did not actually save before.** `autosave.ts` said "or on export" but nothing scheduled a save on export. Export now saves
+  (without blocking the download); a failure shows on the Save button as "Retry save".
+- **Save is off while a sort is running.** The picture on screen is then not the finished look. It is on when paused or done.
+- **The dock's Try again / Restart the sorter / Reload buttons did nothing** (the dialog only closed). They now work.
+- **The `instant` (lightning) dock button is removed** at Autumn's request; `Studio.instant()` stays, it is how every knob re-sorts.
+- **Not run:** WebKit (not installed here).
+
 ## Needs Autumn
 
 Everything that needed a person's accounts or homelab is done except the update/rollback rehearsal.

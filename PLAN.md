@@ -26,8 +26,8 @@ Both are open source (checked 2026-11-02: `satyarth/pixelsort` is MIT); this pro
    like a filter, not a job.
 3. **Everything runs on the device that loads the page.** The homelab box (Le Potato, quad Cortex-A53,
    ~2 GB) is compute-bound by nature; it serves files and stores results, nothing more.
-4. **A real gallery.** Every run is saved automatically — original, result, settings, seed — and can be
-   reopened, tweaked, branched, downloaded.
+4. **A real gallery.** A look you save (or export) is kept — original, result, settings, seed — and can be
+   reopened, tweaked, branched, downloaded. (Auto-save is an opt-in setting; see D8b.)
 5. **Finish the shapes/drawing project** that was planned in the Python repo and never built: draw masks,
    auto-complete shapes, segment the image into geometric regions.
 6. **A frontend she actually likes.** Gradio was a step; this is the destination. (Design direction is a
@@ -376,7 +376,7 @@ bands, and be honest in the UI when an image is too large for the device.
   - live **threshold overlay** ("focus peaking" showing which pixels will be sorted) — trivial on a canvas
   - angle dial, threshold bar, sort-key gradient preview, CA preview
   - example images
-- **Download** results; **auto-saved gallery** (§6)
+- **Download** results; **gallery** of saved looks (§6)
 - **URL loading** (via the Cloudflare Worker, §6b) alongside upload, drag-drop and paste
 - **Share links** for albums of results (§6b)
 
@@ -467,7 +467,8 @@ uploaded (no re-encode) and deduplicated by SHA-256, so ten runs on one photo st
 
 ### Behavior
 
-- **Auto-save every run**, with delete controls. (Decided.) The browser encodes the result (lossless:
+- **Save is explicit** (D8b): the Save button, and Export, store a run; the "Auto-save runs" setting (off by
+  default) stores one by itself, with delete controls. The browser encodes the result (lossless:
   PNG/WebP) and uploads it; the server never decodes pixels.
 - Reopen a run → controls restore, canvas shows the result; **branch** from a run to try variations
   (`parent_run_id`).
@@ -743,7 +744,8 @@ Settled with Autumn (2026-11-02):
 | D5 | **Bulk delete → Trash with 7-day undo.** Starred runs are excluded from "select all". |
 | D6 | Module path **`github.com/AutumnsGrove/pixelsort-go`**. |
 | D7 | Images are not all backed up to R2; recipes/DB and starred results are the minimum worth backing up. |
-| D8 | Previous decisions: faithful-port is *not* a goal (improve freely); sort along **scanlines** instead of rotating; **downscaled working copy** for animation + full-res export; **standard Go** WASM; **auto-save every run**. |
+| D8 | Previous decisions: faithful-port is *not* a goal (improve freely); sort along **scanlines** instead of rotating; **downscaled working copy** for animation + full-res export; **standard Go** WASM; ~~auto-save every run~~ **superseded 2026-11-06 (see D8b)**. |
+| D8b | **Nothing is stored until the person presses Save (or exports).** An "Auto-save runs" setting, off by default, brings back the old behaviour (a look is stored 2 s after a sort settles, when an animation finishes, and on export). The bundled demo photo is never stored by itself. Reason: one session of turning knobs filled the live Archive with 24 near-identical runs (issues #9 and #12). |
 
 Defaults chosen by the planner (overrule any of these):
 

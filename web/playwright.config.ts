@@ -15,7 +15,20 @@ export default defineConfig({
 		},
 		launchOptions: { executablePath, args: ['--no-sandbox'] }
 	},
-	projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+	// iPad Safari is WebKit. WebKit is opt-in (it must be installed: `pnpm exec playwright install webkit`), and runs the layout
+	// suites, which is where Safari differs from Chromium: PLAYWRIGHT_WEBKIT=1 pnpm e2e.
+	projects: [
+		{ name: 'chromium', use: { browserName: 'chromium' } },
+		...(process.env.PLAYWRIGHT_WEBKIT
+			? [
+					{
+						name: 'webkit',
+						use: { browserName: 'webkit' as const, launchOptions: {} },
+						testMatch: /(layout|name-layout)\.spec\.ts/
+					}
+				]
+			: [])
+	],
 	webServer: {
 		command: 'pnpm build && pnpm preview',
 		url: 'http://127.0.0.1:4173',

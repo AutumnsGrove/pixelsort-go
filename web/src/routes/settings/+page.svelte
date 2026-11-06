@@ -58,6 +58,22 @@
 		>
 	</section>
 	<section class="glass card">
+		<h3>Saving</h3>
+		<label class="tog"
+			><span
+				><b>Auto-save runs</b><small
+					>Off: nothing goes to the Archive until you press Save (or export). On: a look is stored by itself when a sort
+					settles for two seconds, when an animation finishes, and on export.</small
+				></span
+			><input
+				type="checkbox"
+				data-testid="autosave"
+				checked={settings.autoSave}
+				onchange={(e) => updateSettings({ autoSave: e.currentTarget.checked })}
+			/></label
+		>
+	</section>
+	<section class="glass card">
 		<h3>Look and feel</h3>
 		<label class="tog"
 			><span><b>Film grain</b></span><input

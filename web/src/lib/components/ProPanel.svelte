@@ -6,6 +6,7 @@
 	import { MAX_RADIUS, MIN_RADIUS } from '#lib/brush';
 	import RegionCard from '#components/RegionCard';
 	import ShapeLibrary from '#components/ShapeLibrary';
+	import NameField from '#components/NameField';
 
 	let { onclose }: { onclose: () => void } = $props();
 
@@ -15,7 +16,8 @@
 	const showShapes = $derived(!phone || tab === 'shapes');
 	const showProtect = $derived(!phone || tab === 'protect');
 	onMount(() => {
-		const mq = matchMedia('(max-width: 600px)');
+		// the same width at which Studio's page turns this into a bottom sheet (its own rules start at 700 px)
+		const mq = matchMedia('(max-width: 700px)');
 		phone = mq.matches;
 		const on = () => (phone = mq.matches);
 		mq.addEventListener('change', on);
@@ -56,6 +58,14 @@
 		</div>
 		<button class="round" type="button" onclick={onclose} aria-label="Close the Pro panel"><X size={17} /></button>
 	</header>
+
+	{#if phone}
+		<!-- touch has no F2: the name is one tap away from the sheet too -->
+		<div class="sheet-name" data-testid="sheet-name-row">
+			<span class="eyebrow">Name</span>
+			<NameField from="sheet" testid="sheet-name" />
+		</div>
+	{/if}
 
 	{#if phone}
 		<div class="tabs" role="tablist" aria-label="Pro panel sections">
@@ -413,6 +423,17 @@
 		gap: 18px;
 		align-content: start;
 	}
+	.sheet-name {
+		display: grid;
+		gap: 2px;
+		font-family: var(--serif);
+		font-style: italic;
+		font-size: 17px;
+	}
+	.sheet-name .eyebrow {
+		font-family: var(--mono);
+		font-style: normal;
+	}
 	header {
 		display: flex;
 		justify-content: space-between;
@@ -485,7 +506,7 @@
 		border-color: var(--paper);
 	}
 	/* Phone: a bottom sheet above the dock, so the picture stays in view; every target is at least 44 px. */
-	@media (max-width: 600px) {
+	@media (max-width: 700px) {
 		.pro {
 			top: auto;
 			bottom: 104px;

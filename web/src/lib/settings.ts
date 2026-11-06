@@ -14,6 +14,8 @@ export type Settings = {
 	grain: boolean;
 	motion: 'system' | 'reduce';
 	speed: number;
+	/** Store a run by itself when a sort settles (off by default: nothing is stored until Save or Export). */
+	autoSave: boolean;
 };
 
 export const DEFAULTS: Settings = {
@@ -25,7 +27,8 @@ export const DEFAULTS: Settings = {
 	shareExpiry: '30',
 	grain: true,
 	motion: 'system',
-	speed: 24
+	speed: 24,
+	autoSave: false
 };
 
 const num = (v: unknown, lo: number, hi: number): number | null => {
@@ -45,7 +48,8 @@ export function sanitize(input: unknown): Partial<Settings> {
 	if (q !== null) out.exportQuality = q;
 	const sp = 'speed' in o ? num(o.speed, 1, 400) : null;
 	if (sp !== null) out.speed = sp;
-	for (const k of ['stripMeta', 'embedRecipe', 'grain'] as const) if (typeof o[k] === 'boolean') out[k] = o[k];
+	for (const k of ['stripMeta', 'embedRecipe', 'grain', 'autoSave'] as const)
+		if (typeof o[k] === 'boolean') out[k] = o[k];
 	if (o.shareExpiry === 'never' || o.shareExpiry === '30') out.shareExpiry = o.shareExpiry;
 	if (o.motion === 'system' || o.motion === 'reduce') out.motion = o.motion;
 	return out;
