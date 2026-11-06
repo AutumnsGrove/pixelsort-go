@@ -4,6 +4,11 @@
 	import UpdatesBlock from '#components/UpdatesBlock';
 	import { settings, updateSettings, resetSettings } from '#lib/settings.svelte';
 	import { WORK_RES, DEVICE_RES } from '#lib/settings';
+	import { helperEnabled } from '#lib/helper';
+	import { onMount } from 'svelte';
+
+	let helperOn = $state<boolean | null>(null); // null while we ask the server
+	onMount(() => void helperEnabled().then((on) => (helperOn = on)));
 </script>
 
 <svelte:head><title>Settings · pixelsort-go</title></svelte:head>
@@ -56,6 +61,30 @@
 				onchange={(e) => updateSettings({ embedRecipe: e.currentTarget.checked })}
 			/></label
 		>
+	</section>
+	<section class="glass card" data-testid="helper-settings">
+		<h3>Shape helper</h3>
+		<p class="sub" data-testid="helper-status">
+			{#if helperOn === null}Checking this server…
+			{:else if helperOn}“Ask for a shape” is on. It sends a small copy of the picture (at most 512 px, no camera or
+				location data) and your request to an AI model on OpenRouter, through this server. Your original is never sent.
+			{:else}“Ask for a shape” is not set up on this server, so nothing is ever sent. “Cut out this object” always
+				works, on this device.{/if}
+		</p>
+		{#if helperOn}
+			<p class="sub">
+				{settings.helperNoticeSeen
+					? 'You have seen the notice about what is sent on this device.'
+					: 'The notice about what is sent will show before your first request on this device.'}
+			</p>
+			<button
+				type="button"
+				class="btn sm"
+				disabled={!settings.helperNoticeSeen}
+				onclick={() => updateSettings({ helperNoticeSeen: false })}
+				data-testid="helper-notice-again">Show the notice again</button
+			>
+		{/if}
 	</section>
 	<section class="glass card">
 		<h3>Saving</h3>

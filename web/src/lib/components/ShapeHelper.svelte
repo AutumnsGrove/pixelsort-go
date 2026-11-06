@@ -3,6 +3,36 @@
 	// result is a preview you accept with "Use it". Nothing is added to the shape library until then, and nothing is sent anywhere.
 	import { studio } from '#lib/studio.svelte';
 	import { outlinePathD, TOLERANCE } from '#lib/cutout-shape';
+	import { helperEnabled, HELPER_PROMPT_MAX } from '#lib/helper';
+	import { settings, updateSettings } from '#lib/settings.svelte';
+	import { onMount } from 'svelte';
+
+	// ---- Ask: a model on the server picks the object. Off unless the server has it set up. ----
+	let enabled = $state(false);
+	let prompt = $state('');
+	let asking = $state(false); // the first-use notice is showing, waiting for a yes
+	let noticeEl = $state<HTMLElement | undefined>();
+	$effect(() => {
+		// on a phone the notice opens below the fold of the sheet: bring it, and its buttons, into view
+		if (asking) noticeEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+	});
+	onMount(() => void helperEnabled().then((on) => (enabled = on)));
+	const h = $derived(studio.helper);
+	const running = $derived(h.status === 'running');
+	function ask(): void {
+		const text = prompt.trim();
+		if (!text || running) return;
+		if (!settings.helperNoticeSeen) {
+			asking = true;
+			return;
+		}
+		void studio.askHelper(text);
+	}
+	function confirmAsk(): void {
+		updateSettings({ helperNoticeSeen: true });
+		asking = false;
+		void studio.askHelper(prompt.trim());
+	}
 
 	let name = $state('');
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -34,9 +64,81 @@
 
 <section class="helper" data-testid="helper-section" aria-labelledby="helper-h">
 	<h4 class="eyebrow" id="helper-h">Shape helper</h4>
+	{#if enabled}
+		<div class="ask" data-testid="helper-ask">
+			<label class="lbl" for="helper-prompt"><b>Ask for a shape.</b> Say what to cut out.</label>
+			<textarea
+				id="helper-prompt"
+				class="field prompt"
+				rows="2"
+				maxlength={HELPER_PROMPT_MAX}
+				placeholder="the red car on the left"
+				bind:value={prompt}
+				disabled={running}
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && !e.shiftKey) {
+						e.preventDefault();
+						ask();
+					}
+				}}
+				data-testid="helper-prompt"></textarea>
+			<div class="bar">
+				{#if running}
+					<button type="button" class="btn sm" onclick={() => studio.stopHelper()} data-testid="helper-stop"
+						>Stop</button
+					>
+				{:else}
+					<button
+						type="button"
+						class="btn sm pri"
+						disabled={!prompt.trim() || !studio.size}
+						onclick={ask}
+						data-testid="helper-ask-go">Ask</button
+					>
+				{/if}
+			</div>
+			{#if asking}
+				<div
+					class="notice"
+					bind:this={noticeEl}
+					role="group"
+					aria-label="Before the first request"
+					data-testid="helper-notice"
+				>
+					<p>
+						<b>Asking sends something off this device.</b> A small copy of the picture (at most 512 pixels on its long side,
+						with no camera or location data) and your request go through this server to an AI model on OpenRouter. Your original
+						picture is never sent. You will only see this once; Settings can show it again.
+					</p>
+					<div class="bar">
+						<button type="button" class="btn sm pri" onclick={confirmAsk} data-testid="helper-notice-ok"
+							>Send a small copy and ask</button
+						>
+						<button type="button" class="btn sm" onclick={() => (asking = false)} data-testid="helper-notice-no"
+							>Not now</button
+						>
+					</div>
+				</div>
+			{/if}
+			<div aria-live="polite" data-testid="helper-transcript">
+				{#if h.steps.length}
+					<ol class="steps">
+						{#each h.steps as st (st.id)}
+							<li class:bad={st.failed}>
+								<span>{st.label}{st.ms === null && running ? '…' : ''}</span>
+								{#if st.ms !== null}<small>{st.failed ? 'did not work' : st.ms + ' ms'}</small>{/if}
+							</li>
+						{/each}
+					</ol>
+				{/if}
+				{#if h.say}<p class="say" data-testid="helper-say">{h.say}</p>{/if}
+				{#if h.note}<p class="refusal" data-testid="helper-note">{h.note}</p>{/if}
+			</div>
+		</div>
+	{/if}
 	<p class="sub">
-		<b>Cut out this object.</b> Click something in the picture and its outline becomes a shape you can use. Nothing leaves
-		this device.
+		<b>Cut out this object.</b> Click something in the picture and its outline becomes a shape you can use. This part works
+		on this device and sends nothing.
 	</p>
 	<div class="bar">
 		<button
@@ -122,6 +224,57 @@
 		color: var(--dim);
 		line-height: 1.6;
 	}
+	.ask {
+		display: grid;
+		gap: 8px;
+		padding-bottom: 12px;
+		border-bottom: 1px solid var(--faint);
+	}
+	.lbl {
+		font-size: 11px;
+		color: var(--dim);
+	}
+	.prompt {
+		width: 100%;
+		min-height: 56px;
+		resize: vertical;
+	}
+	.notice {
+		display: grid;
+		gap: 8px;
+		padding: 10px 12px;
+		border: 1px solid var(--faint);
+		border-radius: 12px;
+		font-size: 11px;
+		line-height: 1.6;
+	}
+	.notice p,
+	.say {
+		margin: 0;
+	}
+	.say {
+		font-size: 11px;
+		line-height: 1.6;
+	}
+	.steps {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 4px;
+		font-size: 11px;
+	}
+	.steps li {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+	}
+	.steps small {
+		color: var(--dim);
+	}
+	.steps li.bad small {
+		color: var(--ver);
+	}
 	.bar {
 		display: flex;
 		gap: 8px;
@@ -186,5 +339,9 @@
 	}
 	.bar :global(.btn) {
 		min-height: 44px;
+	}
+	.ask .bar :global(.btn.pri),
+	.ask .bar :global(.btn:only-child) {
+		min-width: 96px;
 	}
 </style>

@@ -9,6 +9,7 @@ import { clean, suggest } from './naming';
 import { Autosaver } from './autosave';
 import { ServerBackend, sha256Hex, type ApiRun } from './api';
 import { packRecipe, unpackRecipe } from './run-recipe';
+import { askHelper, helperCopy, helperErrorText, stepLabel, type HelperEvent, type HelperProposal } from './helper';
 import { cutoutName, outlineSvg, refusalText, TOLERANCE } from './cutout-shape';
 import type { CutoutResult } from './engine/client';
 import { settings } from './settings.svelte';
@@ -296,6 +297,8 @@ class Studio {
 		this.parentRunId = null;
 		this.engineNote = null;
 		this.clearCutout(); // a region belongs to the picture it was cut from
+		this.stopHelper();
+		this.helper = { status: 'idle', steps: [], say: '', note: null };
 		this.customName = null;
 		try {
 			await this.client!.init(img.w, img.h);
@@ -514,6 +517,66 @@ class Studio {
 		} catch (e) {
 			this.fail(e);
 		}
+	}
+	// ---- Shape helper, "Ask": a model on the server picks the object; the page cuts it out itself ----
+	helper = $state<{
+		status: 'idle' | 'running' | 'done' | 'failed';
+		/** What the helper did, one line per tool call, in the order it happened. */
+		steps: { id: string; label: string; ms: number | null; failed: boolean }[];
+		/** What it said, if it said anything (usually why there was no match). */
+		say: string;
+		/** Why a run failed or was stopped, in a sentence. */
+		note: string | null;
+	}>({ status: 'idle', steps: [], say: '', note: null });
+	private helperCtl: AbortController | null = null;
+	/** Asks the helper for a shape. Nothing is added to the library: the result is the same preview "Cut out" gives. */
+	async askHelper(prompt: string): Promise<void> {
+		if (!this.size || !this.original || this.helper.status === 'running') return;
+		this.clearCutout();
+		const ctl = new AbortController();
+		this.helperCtl = ctl;
+		this.helper = { status: 'running', steps: [], say: '', note: null };
+		let proposal: HelperProposal | null = null;
+		const onEvent = (e: HelperEvent): void => {
+			if (e.type === 'tool_start' && e.id)
+				this.helper.steps.push({ id: e.id, label: stepLabel(e.name ?? ''), ms: null, failed: false });
+			else if (e.type === 'tool_end' && e.id) {
+				const st = this.helper.steps.find((x) => x.id === e.id);
+				if (st) {
+					st.ms = e.ms ?? null;
+					st.failed = !!e.is_error;
+				}
+			} else if (e.type === 'say' && e.text) this.helper.say = e.text;
+			else if (e.type === 'proposal' && e.proposal) proposal = e.proposal;
+		};
+		try {
+			const image = await helperCopy(this.original, this.size.w, this.size.h);
+			await askHelper({ prompt, image, signal: ctl.signal, onEvent });
+			if (proposal) {
+				const p: HelperProposal = proposal;
+				this.cutTol = p.tolerance;
+				await this.cutOutAt(p.seed_x, p.seed_y);
+				if (this.cutout?.found) this.cutout = { ...this.cutout, name: p.name };
+				this.helper.status = 'done';
+			} else {
+				this.helper.status = 'done';
+				if (!this.helper.say) this.helper.note = 'The helper did not find a matching shape.';
+			}
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') {
+				this.helper.status = 'idle';
+				this.helper.note = 'Stopped. Nothing was added.';
+			} else {
+				this.helper.status = 'failed';
+				this.helper.note = helperErrorText(e);
+			}
+		} finally {
+			if (this.helperCtl === ctl) this.helperCtl = null;
+		}
+	}
+	/** Stops a run in progress. */
+	stopHelper(): void {
+		this.helperCtl?.abort();
 	}
 	clearCutout(): void {
 		this.cutout = null;

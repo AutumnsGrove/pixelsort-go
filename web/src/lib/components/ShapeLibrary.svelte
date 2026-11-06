@@ -32,13 +32,15 @@
 		const pending = studio.pendingSvg;
 		if (pending === null) return;
 		studio.pendingSvg = null;
+		const fromHelper = studio.pendingSvgName !== null;
 		if (studio.pendingSvgName) name = studio.pendingSvgName; // the Shape helper names its own cut-outs
 		studio.pendingSvgName = null;
 		text = pending;
-		read();
+		read(fromHelper);
 	});
 
-	function read(): void {
+	/** `trusted`: the engine traced this outline (one solid piece, already simplified) and the person has just seen it, so it skips the tidy step. */
+	function read(trusted = false): void {
 		error = '';
 		raw = null;
 		const r = readSvg(text);
@@ -46,8 +48,8 @@
 			error = r.error;
 			return;
 		}
-		if (!needsTidy(r.raw)) {
-			// a plain shape goes straight in
+		if (trusted || !needsTidy(r.raw)) {
+			// a plain shape, or one the Shape helper just showed, goes straight in
 			const b = buildShape(r.raw);
 			void studio.saveShape(name, b.poly, b.more).then(() => {
 				text = '';
@@ -135,7 +137,9 @@
 			Drop an .svg file anywhere in Studio, or paste its code here. It becomes a shape, never the picture.
 		</p>
 		<textarea bind:value={text} rows="3" placeholder="<svg …>" aria-label="SVG code" data-testid="svg-text"></textarea>
-		<button type="button" class="mini" onclick={read} disabled={!text.trim()} data-testid="svg-read">Read it</button>
+		<button type="button" class="mini" onclick={() => read()} disabled={!text.trim()} data-testid="svg-read"
+			>Read it</button
+		>
 		{#if error}<p class="err" role="alert" data-testid="svg-error">{error}</p>{/if}
 	</details>
 
