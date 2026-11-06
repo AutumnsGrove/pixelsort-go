@@ -54,52 +54,76 @@ func clampInt(v, lo, hi int) int { return min(hi, max(lo, v)) }
 // avg8 is sum/count for channel values, so the result is always 0..255.
 func avg8(sum, count int) uint8 { return uint8(sum / count) } //nolint:gosec // G115: a mean of values 0..255 is 0..255
 
+// grown is a region just grown from a seed, before any clean-up.
+type grown struct {
+	mask      []uint8
+	area      int
+	sum       [3]int // summed channels, for the mean colour
+	sx, sy    int    // summed positions, for the centroid
+	leaked    bool   // it passed the area limit and was stopped
+	seedColor [3]uint8
+}
+
+// growRegion floods outward from (x, y), 4-connected, over every pixel whose colour is within `reach` (an RGB distance) of the
+// seed's, and stops early, with leaked set, once the region passes `limit` pixels. `skip`, when not nil, marks pixels a
+// region may not enter (ones another region already took).
+func growRegion(im *Image, x, y, reach, limit int, skip []uint8) grown {
+	w, h := im.W, im.H
+	reach2 := int64(reach) * int64(reach)
+	sr, sg, sb, _ := Unpack(im.Pix[y*w+x])
+	g := grown{mask: make([]uint8, w*h), seedColor: [3]uint8{sr, sg, sb}}
+	queue := make([]int32, 0, 1024)
+	queue = append(queue, pos32(y*w+x))
+	g.mask[y*w+x] = 1
+	for head := 0; head < len(queue); head++ {
+		p := int(queue[head])
+		g.area++
+		r, gr, b, _ := Unpack(im.Pix[p])
+		g.sum[0], g.sum[1], g.sum[2] = g.sum[0]+int(r), g.sum[1]+int(gr), g.sum[2]+int(b)
+		px, py := p%w, p/w
+		g.sx, g.sy = g.sx+px, g.sy+py
+		if g.area > limit {
+			g.leaked = true
+			return g
+		}
+		for _, n := range [4]struct {
+			ok bool
+			at int
+		}{{px > 0, p - 1}, {px < w-1, p + 1}, {py > 0, p - w}, {py < h-1, p + w}} {
+			if !n.ok || g.mask[n.at] != 0 || (skip != nil && skip[n.at] != 0) {
+				continue
+			}
+			nr, ng, nb, _ := Unpack(im.Pix[n.at])
+			dr, dg, db := int64(nr)-int64(sr), int64(ng)-int64(sg), int64(nb)-int64(sb)
+			if dr*dr+dg*dg+db*db <= reach2 {
+				g.mask[n.at] = 1
+				queue = append(queue, pos32(n.at))
+			}
+		}
+	}
+	return g
+}
+
 // CutOut grows a region from (x, y): every pixel connected to the seed whose colour is within `tolerance` (1..100) of the
 // seed's. The click is clamped into the picture. maxAreaPct (1..95) is the biggest share of the picture the region may cover.
 func CutOut(im *Image, x, y, tolerance, maxAreaPct int) (Cutout, error) {
 	w, h := im.W, im.H
 	x, y = clampInt(x, 0, w-1), clampInt(y, 0, h-1)
 	reach := clampInt(tolerance, 1, 100) * cutoutReachTenths / 10
-	reach2 := int64(reach) * int64(reach)
 	limit := int(int64(w) * int64(h) * int64(clampInt(maxAreaPct, 1, 95)) / 100)
 
-	sr, sg, sb, _ := Unpack(im.Pix[y*w+x])
-	mask := make([]uint8, w*h)
-	queue := make([]int32, 0, 1024)
-	queue = append(queue, pos32(y*w+x))
-	mask[y*w+x] = 1
-	var area, sumR, sumG, sumB int
-	for head := 0; head < len(queue); head++ {
-		p := int(queue[head])
-		area++
-		r, g, b, _ := Unpack(im.Pix[p])
-		sumR, sumG, sumB = sumR+int(r), sumG+int(g), sumB+int(b)
-		if area > limit {
-			return Cutout{}, ErrCutoutTooBig
-		}
-		px, py := p%w, p/w
-		for _, n := range [4]struct {
-			ok bool
-			at int
-		}{{px > 0, p - 1}, {px < w-1, p + 1}, {py > 0, p - w}, {py < h-1, p + w}} {
-			if !n.ok || mask[n.at] != 0 {
-				continue
-			}
-			nr, ng, nb, _ := Unpack(im.Pix[n.at])
-			dr, dg, db := int64(nr)-int64(sr), int64(ng)-int64(sg), int64(nb)-int64(sb)
-			if dr*dr+dg*dg+db*db <= reach2 {
-				mask[n.at] = 1
-				queue = append(queue, pos32(n.at))
-			}
-		}
+	g := growRegion(im, x, y, reach, limit, nil)
+	if g.leaked {
+		return Cutout{}, ErrCutoutTooBig
 	}
-	if area < CutoutMinArea {
+	if g.area < CutoutMinArea {
 		return Cutout{}, ErrCutoutTooSmall
 	}
-	mean := [3]uint8{avg8(sumR, area), avg8(sumG, area), avg8(sumB, area)}
+	mask := g.mask
+	mean := [3]uint8{avg8(g.sum[0], g.area), avg8(g.sum[1], g.area), avg8(g.sum[2], g.area)}
 
 	fillSmallHoles(mask, w, h)
-	area = 0
+	area := 0
 	x0, y0, x1, y1 := w, h, -1, -1
 	for i, v := range mask {
 		if v == 0 {
