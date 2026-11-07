@@ -114,6 +114,7 @@ test('Archive lists runs from the API, stars and trashes them', async ({ page })
 	await page.getByRole('button', { name: /^Star/ }).click({ force: true });
 	await expect(page.getByRole('button', { name: /^Unstar/ })).toHaveCount(1);
 	await page.getByRole('button', { name: /bin$/ }).click({ force: true });
+	await page.getByTestId('bulk-confirm-yes').click();
 	await expect(page.getByTestId('empty')).toContainText('Nothing sorted yet.');
 });
 

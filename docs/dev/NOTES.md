@@ -2,6 +2,31 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-07 · issue #18 · multi-select in the Archive
+
+Branch `issue-18-archive-multi-select`.
+
+- **Selection is a pure module.** `web/src/lib/selection.ts` holds toggle, range, select-all, drop-hidden and the
+  confirmation counts, with Vitest coverage. The page keeps a `Set` in `$state` and replaces it, so Svelte sees every change.
+  Click, Shift-range, Ctrl/Cmd-click, drag across cards, Space (through the card button), Cmd/Ctrl+A and Escape all work.
+- **A filter change drops hidden selections.** A search or a reload can hide a picked picture; the page prunes the set so a bulk
+  action never touches something the person cannot see. Changing tab clears the selection outright.
+- **Delete forever for a selection needed a server route.** The old API only emptied the whole bin. `POST /api/runs/delete` now
+  deletes only the named runs that are already trashed, reports the rest as `missing`, and reuses the existing re-parent, share-detach
+  and blob-GC path (`runs.DeleteTrashed`). Covered in `server/runs/runs_test.go`, `server/integration_test.go` and `docs/api.md`.
+- **The shared warning comes from one `GET /api/shares`, not one `GET /api/runs/{id}` per picture.** `sharedRunIDs` mirrors the
+  server's live-share predicate (not revoked, not expired), so a large selection costs one request.
+- **The confirm dialog is one per batch.** Moving to the bin always confirms, including a single card; restoring a single card from
+  the bin stays immediate. Bulk restore also confirms. Shared and starred warnings appear once with counts, and `confirm_starred`
+  is sent once after the person has seen it.
+- **Partial failures keep the failed pictures selected** and name them in a notice; a network failure keeps the whole selection and
+  says nothing else changed. Successful items are cleared.
+- **One album link holds at most 200 pictures**, the Worker's existing `MAX_IMAGES`. `ShareDialog` explains the limit and disables
+  Create above it instead of letting the upload fail. Selection, binning and restoring still work with hundreds of pictures.
+- **Tests:** `archive.spec.ts` covers click/Shift/drag/keyboard selection, tab clearing, bulk share, the single trash confirmation
+  with shared and starred warnings, bulk restore, delete forever and partial failure. `share.spec.ts` now drives the new confirmation
+  for a shared picture, and `studio.spec.ts` confirms the single-card bin action.
+
 ## 2026-11-07 · issue #15 · protect tools and the Pro panel
 
 Branch `issue-15-protect-tools`.

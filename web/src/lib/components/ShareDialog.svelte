@@ -2,17 +2,19 @@
 	import { ServerBackend, type ApiRun } from '#lib/api';
 	import { describe } from '#lib/errors';
 	import { settings } from '#lib/settings.svelte';
-	import { expiryDays, ShareBackend, stripMetadata, type Created } from '#lib/share';
+	import { MAX_ALBUM_IMAGES, expiryDays, ShareBackend, stripMetadata, type Created } from '#lib/share';
 
 	let {
-		run,
-		name,
+		runs,
+		names,
 		onclose,
 		onshared
-	}: { run: ApiRun; name: string; onclose: () => void; onshared?: (c: Created) => void } = $props();
+	}: { runs: ApiRun[]; names: string[]; onclose: () => void; onshared?: (c: Created) => void } = $props();
 
 	const share = new ShareBackend();
 	const api = new ServerBackend();
+	const heading = $derived(runs.length === 1 ? (names[0] ?? 'Picture') : `${runs.length} pictures`);
+	const tooMany = $derived(runs.length > MAX_ALBUM_IMAGES);
 
 	let includeRecipe = $state(false);
 	let includeOriginal = $state(false); // off unless asked for
@@ -24,18 +26,27 @@
 	const failure = describe('share-failed');
 
 	async function create(): Promise<void> {
+		if (tooMany) return;
 		busy = true;
 		failed = false;
 		try {
 			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain request payload, not reactive state
 			const originals = new Map<number, Blob>();
 			if (includeOriginal) {
-				// the browser re-encodes the original, which drops EXIF and GPS; the server never sends a stored original as is
-				const res = await fetch(api.imageUrl(run.original.sha256));
-				originals.set(run.id, await stripMetadata(await res.blob()));
+				// the browser re-encodes each original, which drops EXIF and GPS; the server never sends a stored original as is
+				for (const run of runs) {
+					const res = await fetch(api.imageUrl(run.original.sha256));
+					originals.set(run.id, await stripMetadata(await res.blob()));
+				}
 			}
 			created = await share.create(
-				{ runIds: [run.id], includeRecipe, includeOriginal, expiresInDays: expiryDays(expiry), title: name },
+				{
+					runIds: runs.map((r) => r.id),
+					includeRecipe,
+					includeOriginal,
+					expiresInDays: expiryDays(expiry),
+					title: heading
+				},
 				originals
 			);
 			onshared?.(created);
@@ -57,7 +68,7 @@
 <div class="er" role="dialog" aria-modal="true" aria-label="Share" data-testid="share-dialog">
 	<div class="er-card glass">
 		<div class="eyebrow">Share</div>
-		<h3>{name}</h3>
+		<h3>{heading}</h3>
 		{#if created}
 			<p>Your link is ready.</p>
 			<input class="field" readonly value={created.url} aria-label="Share link" data-testid="share-url" />
@@ -66,8 +77,19 @@
 				<button class="btn pri" type="button" onclick={onclose}>Done</button>
 			</div>
 		{:else}
-			<p class="warn">Anyone with the link can see this. It is unlisted, not private.</p>
-			<label class="row"><input type="checkbox" checked disabled /> The picture</label>
+			<p class="warn">
+				{runs.length === 1 ? 'Anyone with the link can see this.' : 'Anyone with the link can see these.'} It is unlisted,
+				not private.
+			</p>
+			{#if tooMany}
+				<p class="fail" role="alert" data-testid="share-too-many">
+					<b>A link holds {MAX_ALBUM_IMAGES} pictures at most.</b>
+					<span>Select fewer, or make more than one link.</span>
+				</p>
+			{/if}
+			<label class="row"
+				><input type="checkbox" checked disabled /> {runs.length === 1 ? 'The picture' : 'The pictures'}</label
+			>
 			<label class="row"><input type="checkbox" bind:checked={includeRecipe} /> The recipe (the settings)</label>
 			<label class="row"
 				><input type="checkbox" bind:checked={includeOriginal} /> The original too (location and camera data are removed)</label
@@ -96,7 +118,7 @@
 			{/if}
 			<div class="foot">
 				<button class="btn" type="button" onclick={onclose}>Cancel</button>
-				<button class="btn pri" type="button" disabled={busy} onclick={create}
+				<button class="btn pri" type="button" disabled={busy || tooMany} onclick={create}
 					>{busy ? 'Making the link…' : 'Create link'}</button
 				>
 			</div>

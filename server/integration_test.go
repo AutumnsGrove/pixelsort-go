@@ -229,6 +229,45 @@ func TestIntegrationRunLifecycle(t *testing.T) {
 	s.expect(res, body, 404) // the file went with the run
 }
 
+func TestDeleteSelectedTrashedRunsOverHTTP(t *testing.T) {
+	s := newSite(t, nil)
+	upload := func(n, seed int) created {
+		t.Helper()
+		res, body := s.upload(n, n+1, n+2, seed, false)
+		s.expect(res, body, 201)
+		var run created
+		if err := json.Unmarshal(body, &run); err != nil || run.ID == 0 {
+			t.Fatalf("%s %v", body, err)
+		}
+		return run
+	}
+	a, b, live := upload(1, 1), upload(4, 2), upload(7, 3)
+	res, body := s.do("POST", "/api/runs/trash", map[string]any{"ids": []int64{a.ID, b.ID}})
+	s.expect(res, body, 200)
+
+	res, body = s.do("POST", "/api/runs/delete", map[string]any{"ids": []int64{a.ID, b.ID, live.ID, 999999}})
+	s.expect(res, body, 200)
+	var got struct {
+		Deleted []int64
+		Missing []int64
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(got.Deleted) != fmt.Sprint([]int64{a.ID, b.ID}) {
+		t.Fatalf("deleted = %v, want %v", got.Deleted, []int64{a.ID, b.ID})
+	}
+	if fmt.Sprint(got.Missing) != fmt.Sprint([]int64{live.ID, 999999}) {
+		t.Fatalf("missing = %v, want %v", got.Missing, []int64{live.ID, 999999})
+	}
+	for _, id := range []int64{a.ID, b.ID} {
+		res, body = s.do("GET", fmt.Sprintf("/api/runs/%d", id), nil)
+		s.expect(res, body, 404)
+	}
+	res, body = s.do("GET", fmt.Sprintf("/api/runs/%d", live.ID), nil)
+	s.expect(res, body, 200)
+}
+
 func TestUploadErrors(t *testing.T) {
 	s := newSite(t, nil)
 	res, body := s.upload(1, 2, 3, 7, true) // original unknown, no part

@@ -108,11 +108,15 @@ export class ServerBackend {
 	patchRun(id: number, patch: { starred?: boolean; title?: string; notes?: string; tags?: string[] }): Promise<ApiRun> {
 		return this.post(`/api/runs/${id}`, patch, 'PATCH');
 	}
-	async trash(ids: number[], confirmStarred = false): Promise<void> {
-		await this.post('/api/runs/trash', { ids, confirm_starred: confirmStarred });
+	async trash(ids: number[], confirmStarred = false): Promise<{ trashed: number[]; missing: number[] }> {
+		return this.post('/api/runs/trash', { ids, confirm_starred: confirmStarred });
 	}
 	async restore(ids: number[]): Promise<void> {
 		await this.post('/api/runs/restore', { ids });
+	}
+	/** Permanently deletes the selected runs that are in the bin; the others come back as missing. */
+	async deleteForever(ids: number[]): Promise<{ deleted: number[]; missing: number[] }> {
+		return this.post('/api/runs/delete', { ids });
 	}
 	async emptyTrash(): Promise<number> {
 		return (await this.post<{ deleted: number }>('/api/trash/empty', {})).deleted;

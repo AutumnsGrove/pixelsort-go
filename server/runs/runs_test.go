@@ -427,6 +427,47 @@ func TestEmptyReparentsChildrenAndKeepsSharedImages(t *testing.T) {
 	}
 }
 
+func TestDeleteTrashedDeletesOnlyTheSelection(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	grand := e.create(t, spec{orig: 1, res: 2, thumb: 3, seed: 1})
+	parent := e.create(t, spec{orig: 4, res: 5, thumb: 6, seed: 2, parent: &grand.ID})
+	child := e.create(t, spec{orig: 7, res: 8, thumb: 9, seed: 3, parent: &parent.ID})
+	sibling := e.create(t, spec{orig: 10, res: 11, thumb: 12, seed: 4, parent: &grand.ID})
+	kept := e.create(t, spec{orig: 13, res: 14, thumb: 15, seed: 5})
+	live := e.create(t, spec{orig: 16, res: 17, thumb: 18, seed: 6})
+	if _, err := e.svc.Trash(ctx, []int64{parent.ID, sibling.ID, kept.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	// The live run and an unknown id are reported, not deleted; the duplicate is said once.
+	res, err := e.svc.DeleteTrashed(ctx, []int64{parent.ID, sibling.ID, live.ID, kept.ID + 1000, sibling.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(res.Deleted) != fmt.Sprint([]int64{parent.ID, sibling.ID}) {
+		t.Fatalf("deleted = %v, want %v", res.Deleted, []int64{parent.ID, sibling.ID})
+	}
+	if fmt.Sprint(res.Missing) != fmt.Sprint([]int64{live.ID, kept.ID + 1000}) {
+		t.Fatalf("missing = %v, want %v", res.Missing, []int64{live.ID, kept.ID + 1000})
+	}
+	for _, id := range []int64{parent.ID, sibling.ID} {
+		if _, err := e.svc.Get(ctx, id); !errors.Is(err, runs.ErrNotFound) {
+			t.Fatalf("run %d should be gone: %v", id, err)
+		}
+	}
+	got, err := e.svc.Get(ctx, child.ID)
+	if err != nil || got.ParentRunID == nil || *got.ParentRunID != grand.ID {
+		t.Fatalf("child not re-parented: %+v %v", got.ParentRunID, err)
+	}
+	if _, err := e.svc.Get(ctx, live.ID); err != nil {
+		t.Fatalf("a live run was deleted: %v", err)
+	}
+	stillTrashed, err := e.svc.Get(ctx, kept.ID)
+	if err != nil || stillTrashed.TrashedAt == nil {
+		t.Fatalf("a trashed run outside the selection was deleted: %+v %v", stillTrashed.TrashedAt, err)
+	}
+}
+
 func TestUsage(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()

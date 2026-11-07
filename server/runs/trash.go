@@ -96,30 +96,74 @@ func (s *Service) Restore(ctx context.Context, ids []int64) error {
 	return nil
 }
 
-// EmptyTrash permanently deletes every trashed run and returns how many.
-func (s *Service) EmptyTrash(ctx context.Context) (int, error) {
-	return s.deleteTrashed(ctx, nil)
+// DeleteResult is what DeleteTrashed did. Missing lists ids that were not found or were not in the bin.
+type DeleteResult struct {
+	Deleted []int64
+	Missing []int64
 }
 
-// deleteTrashed deletes trashed runs (all, or those with trashed_at before cutoff), re-parents their children, and
-// garbage-collects images nothing references. The database changes in one transaction; files are removed after it,
-// so a crash in between leaves orphan files for the janitor, never a run whose image is gone.
-func (s *Service) deleteTrashed(ctx context.Context, cutoff *int64) (int, error) {
-	tx, err := s.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("runs: begin: %w", err)
+// EmptyTrash permanently deletes every trashed run and returns how many.
+func (s *Service) EmptyTrash(ctx context.Context) (int, error) {
+	ids, err := s.deleteTrashed(ctx, nil)
+	return len(ids), err
+}
+
+// DeleteTrashed permanently deletes the trashed runs named in ids. Live or unknown runs are reported in Missing and
+// left alone, so a stale Archive selection never removes something it should not. The rest of the work is the same as
+// EmptyTrash: re-parent children, detach shares, and garbage-collect images nothing references.
+func (s *Service) DeleteTrashed(ctx context.Context, ids []int64) (DeleteResult, error) {
+	var res DeleteResult
+	if len(ids) == 0 {
+		return res, nil
 	}
-	defer func() { _ = tx.Rollback() }()
-	q := "SELECT id, parent_run_id FROM runs WHERE trashed_at IS NOT NULL"
+	if len(ids) > 5000 {
+		return res, invalid("too many ids")
+	}
+	set, args := inClause(ids)
+	deleted, err := s.deleteTrashedWhere(ctx, "trashed_at IS NOT NULL AND id IN "+set, args)
+	if err != nil {
+		return res, err
+	}
+	res.Deleted = deleted
+	gone := make(map[int64]bool, len(deleted))
+	for _, id := range deleted {
+		gone[id] = true
+	}
+	seen := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		if !seen[id] && !gone[id] {
+			res.Missing = append(res.Missing, id)
+		}
+		seen[id] = true
+	}
+	return res, nil
+}
+
+// deleteTrashed deletes every trashed run (all, or those with trashed_at before cutoff) and returns their ids.
+// The database changes in one transaction; files are removed after it, so a crash in between leaves orphan files for
+// the janitor, never a run whose image is gone.
+func (s *Service) deleteTrashed(ctx context.Context, cutoff *int64) ([]int64, error) {
+	where := "trashed_at IS NOT NULL"
 	var args []any
 	if cutoff != nil {
-		q += " AND trashed_at < ?"
+		where += " AND trashed_at < ?"
 		args = append(args, *cutoff)
 	}
-	q += " ORDER BY id"
+	return s.deleteTrashedWhere(ctx, where, args)
+}
+
+// deleteTrashedWhere runs the deletion for the rows matching where, re-parents their children, and garbage-collects
+// images nothing references. where is fixed SQL with placeholders; its values are always bound.
+func (s *Service) deleteTrashedWhere(ctx context.Context, where string, args []any) ([]int64, error) {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("runs: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := "SELECT id, parent_run_id FROM runs WHERE " + where + " ORDER BY id" //nolint:gosec // G202: where is fixed SQL and "?" placeholders; values are bound
 	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
-		return 0, fmt.Errorf("runs: list trashed: %w", err)
+		return nil, fmt.Errorf("runs: list trashed: %w", err)
 	}
 	type victim struct {
 		id     int64
@@ -130,51 +174,52 @@ func (s *Service) deleteTrashed(ctx context.Context, cutoff *int64) (int, error)
 		var v victim
 		if err := rows.Scan(&v.id, &v.parent); err != nil {
 			_ = rows.Close()
-			return 0, fmt.Errorf("runs: scan trashed: %w", err)
+			return nil, fmt.Errorf("runs: scan trashed: %w", err)
 		}
 		victims = append(victims, v)
 	}
 	if err := rows.Close(); err != nil {
-		return 0, fmt.Errorf("runs: list trashed: %w", err)
+		return nil, fmt.Errorf("runs: list trashed: %w", err)
 	}
-	if len(victims) > 0 {
-		// Share items point at runs with no ON DELETE action, so detach the victims from any
-		// share first; the share itself stays (revoking it is a separate, visible action).
-		ids := make([]int64, len(victims))
-		for i, v := range victims {
-			ids[i] = v.id
-		}
-		set, args := inClause(ids)
-		if _, err := tx.ExecContext(ctx, "DELETE FROM share_items WHERE run_id IN "+set, args...); err != nil { //nolint:gosec // G202: set holds only "?" placeholders; values are bound
-			return 0, fmt.Errorf("runs: detach shares: %w", err)
-		}
+	if len(victims) == 0 {
+		return nil, nil
+	}
+	// Share items point at runs with no ON DELETE action, so detach the victims from any
+	// share first; the share itself stays (revoking it is a separate, visible action).
+	ids := make([]int64, len(victims))
+	for i, v := range victims {
+		ids[i] = v.id
+	}
+	set, args := inClause(ids)
+	if _, err := tx.ExecContext(ctx, "DELETE FROM share_items WHERE run_id IN "+set, args...); err != nil { //nolint:gosec // G202: set holds only "?" placeholders; values are bound
+		return nil, fmt.Errorf("runs: detach shares: %w", err)
 	}
 	for _, v := range victims {
 		// Re-read the parent: an earlier deletion in this batch may already have moved it.
 		var parent sql.NullInt64
 		if err := tx.QueryRowContext(ctx, "SELECT parent_run_id FROM runs WHERE id = ?", v.id).Scan(&parent); err != nil {
-			return 0, fmt.Errorf("runs: read parent: %w", err)
+			return nil, fmt.Errorf("runs: read parent: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, "UPDATE runs SET parent_run_id = ? WHERE parent_run_id = ?", parent, v.id); err != nil {
-			return 0, fmt.Errorf("runs: re-parent: %w", err)
+			return nil, fmt.Errorf("runs: re-parent: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, "DELETE FROM runs WHERE id = ?", v.id); err != nil {
-			return 0, fmt.Errorf("runs: delete: %w", err)
+			return nil, fmt.Errorf("runs: delete: %w", err)
 		}
 	}
 	gone, err := collectUnreferenced(ctx, tx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("runs: commit: %w", err)
+		return nil, fmt.Errorf("runs: commit: %w", err)
 	}
 	for _, sha := range gone {
 		if err := s.Blobs.Delete(sha); err != nil {
-			return len(victims), fmt.Errorf("runs: remove file: %w", err)
+			return ids, fmt.Errorf("runs: remove file: %w", err)
 		}
 	}
-	return len(victims), nil
+	return ids, nil
 }
 
 // collectUnreferenced deletes image rows no run points to and returns their hashes.

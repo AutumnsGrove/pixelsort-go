@@ -6,9 +6,11 @@ import {
 	hasMetadata,
 	linkCode,
 	loadFromUrl,
+	sharedRunIDs,
 	LinkError,
 	ShareBackend,
-	type Features
+	type Features,
+	type ShareRow
 } from './share';
 
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
@@ -58,6 +60,38 @@ test('the create request for each option combination', async () => {
 test('the settings choice maps to days', () => {
 	expect(expiryDays('never')).toBeNull();
 	expect(expiryDays('30')).toBe(30);
+});
+
+const shareRow = (over: Partial<ShareRow>): ShareRow => ({
+	id: 'a'.repeat(26),
+	url: 'https://share.example/a/' + 'a'.repeat(26),
+	created_at: 1,
+	expires_at: null,
+	revoked_at: null,
+	title: null,
+	include_recipe: false,
+	include_original: false,
+	items: 0,
+	run_ids: [],
+	...over
+});
+
+test('live shared run ids ignore revoked and expired links', () => {
+	const now = 1_000;
+	expect(
+		[
+			...sharedRunIDs(
+				[
+					shareRow({ run_ids: [1, 2] }),
+					shareRow({ run_ids: [3], revoked_at: 999 }),
+					shareRow({ run_ids: [4], expires_at: 999 }),
+					shareRow({ run_ids: [5, 6], expires_at: 1_001 }),
+					shareRow({ run_ids: [1], expires_at: 2_000 })
+				],
+				now
+			)
+		].sort((a, b) => a - b)
+	).toEqual([1, 2, 5, 6]);
 });
 
 test('features are all off when the server says no or is unreachable', async () => {

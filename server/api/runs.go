@@ -249,6 +249,20 @@ func (a *API) emptyTrash(w http.ResponseWriter, r *http.Request) {
 	httpx.Write(w, http.StatusOK, map[string]int{"deleted": n})
 }
 
+func (a *API) deleteRuns(w http.ResponseWriter, r *http.Request) {
+	var b idsBody
+	if err := httpx.Decode(r, &b, 256<<10); err != nil {
+		httpx.BadJSON(w, err)
+		return
+	}
+	res, err := a.d.Runs.DeleteTrashed(r.Context(), b.IDs)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	httpx.Write(w, http.StatusOK, map[string]any{"deleted": nonNil(res.Deleted), "missing": nonNil(res.Missing)})
+}
+
 func (a *API) usage(w http.ResponseWriter, r *http.Request) {
 	u, err := a.d.Runs.Usage(r.Context(), a.d.BudgetBytes)
 	if err != nil {

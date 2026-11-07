@@ -45,23 +45,50 @@ const RIDGE: Run = {
 };
 /** An older run: only the sort knobs, no title, branched from the ridge. */
 const OLD: Run = { ...base(8), parent_run_id: 7, settings: { mode: 'edges', angle: 12, seed: 3 }, seed: 3 };
+/** A third run, so range and drag selection have somewhere to go. */
+const THIRD: Run = { ...base(9), title: 'Third look', settings: { mode: 'random', angle: 5, seed: 9 }, seed: 9 };
 
 type Fake = {
 	patches: { id: number; title: unknown }[];
 	posts: Record<string, unknown>[];
 	failPatch: (n: number) => void;
 	runs: Run[];
+	trash: { ids: number[]; confirm_starred: boolean }[];
+	restore: number[][];
+	delete: number[][];
+	shares: Record<string, unknown>[];
+	missing: number[];
 };
 
-async function gallery(page: Page, opts: { runs?: Run[]; bin?: Run[] } = {}): Promise<Fake> {
+async function gallery(
+	page: Page,
+	opts: {
+		runs?: Run[];
+		bin?: Run[];
+		features?: { share: boolean; fetch: boolean };
+		shareRows?: Record<string, unknown>[];
+		missing?: number[];
+	} = {}
+): Promise<Fake> {
 	const runs: Run[] = (opts.runs ?? [RIDGE, OLD]).map((r) => structuredClone(r));
 	const bin: Run[] = (opts.bin ?? []).map((r) => structuredClone(r));
-	const f: Fake = { patches: [], posts: [], failPatch: () => {}, runs };
+	const f: Fake = {
+		patches: [],
+		posts: [],
+		failPatch: () => {},
+		runs,
+		trash: [],
+		restore: [],
+		delete: [],
+		shares: [],
+		missing: opts.missing ?? []
+	};
+	const shareRows = opts.shareRows ?? [];
 	let fail = 0;
 	f.failPatch = (n) => (fail = n);
 	let nextId = 100;
 	const png = makePng(1, 8);
-	await page.route('**/api/features', (r) => r.fulfill({ json: { share: false, fetch: false } }));
+	await page.route('**/api/features', (r) => r.fulfill({ json: opts.features ?? { share: false, fetch: false } }));
 	await page.route('**/api/usage', (r) =>
 		r.fulfill({
 			json: { used_bytes: 1000, budget_bytes: 50 * 2 ** 30, trash_bytes: 0, runs: runs.length, trash_runs: bin.length }
@@ -102,6 +129,51 @@ async function gallery(page: Page, opts: { runs?: Run[]; bin?: Run[] } = {}): Pr
 			if ('title' in body) run.title = (body.title ?? '').trim().replace(/\s+/g, ' ') || null;
 		}
 		return r.fulfill({ json: run });
+	});
+	await page.route('**/api/runs/trash', (r) => {
+		const body = r.request().postDataJSON() as { ids: number[]; confirm_starred: boolean };
+		f.trash.push(body);
+		const trashed = body.ids.filter((id) => !f.missing.includes(id));
+		for (const id of trashed) {
+			const i = runs.findIndex((x) => x.id === id);
+			if (i < 0) continue;
+			const [run] = runs.splice(i, 1);
+			if (!run) continue;
+			run.trashed_at = 1700000000;
+			bin.unshift(run);
+		}
+		return r.fulfill({ json: { trashed, missing: f.missing } });
+	});
+	await page.route('**/api/runs/restore', (r) => {
+		const body = r.request().postDataJSON() as { ids: number[] };
+		f.restore.push(body.ids);
+		for (const id of body.ids) {
+			const i = bin.findIndex((x) => x.id === id);
+			if (i < 0) continue;
+			const [run] = bin.splice(i, 1);
+			if (!run) continue;
+			run.trashed_at = null;
+			runs.unshift(run);
+		}
+		return r.fulfill({ json: { restored: body.ids.length } });
+	});
+	await page.route('**/api/runs/delete', (r) => {
+		const body = r.request().postDataJSON() as { ids: number[] };
+		f.delete.push(body.ids);
+		const deleted = body.ids.filter((id) => !f.missing.includes(id));
+		for (const id of deleted) {
+			const i = bin.findIndex((x) => x.id === id);
+			if (i >= 0) bin.splice(i, 1);
+		}
+		return r.fulfill({ json: { deleted, missing: f.missing } });
+	});
+	await page.route('**/api/shares', (r) => {
+		if (r.request().method() === 'POST') {
+			f.shares.push(r.request().postDataJSON() as Record<string, unknown>);
+			const id = 'abcdefghijklmnopqrstuvwxyz';
+			return r.fulfill({ status: 201, json: { id, url: `https://share.example/a/${id}`, expires_at: null } });
+		}
+		return r.fulfill({ json: { shares: shareRows } });
 	});
 	return f;
 }
@@ -300,6 +372,154 @@ test('a run that is gone says so and still leaves a working Studio', async ({ pa
 		.first()
 		.click();
 	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 30_000 });
+});
+
+test('select several pictures with click, Shift-range, drag and Ctrl/Cmd-click; Escape clears', async ({ page }) => {
+	await gallery(page, { runs: [RIDGE, OLD, THIRD] });
+	await page.goto('/archive');
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await expect(page.getByTestId('bulk-bar')).toHaveCount(0);
+
+	await card(page, 0).getByTestId('run-open').click();
+	await expect(page.getByTestId('bulk-count')).toHaveText('1 selected');
+	await card(page, 2)
+		.getByTestId('run-open')
+		.click({ modifiers: ['Shift'] });
+	await expect(page.getByTestId('bulk-count')).toHaveText('3 selected');
+	await card(page, 1)
+		.getByTestId('run-open')
+		.click({ modifiers: ['ControlOrMeta'] });
+	await expect(page.getByTestId('bulk-count')).toHaveText('2 selected');
+
+	// drag from the first card to the third: the whole run of cards between them
+	const first = (await card(page, 0).getByTestId('run-open').boundingBox())!;
+	const third = (await card(page, 2).getByTestId('run-open').boundingBox())!;
+	await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(third.x + third.width / 2, third.y + third.height / 2, { steps: 6 });
+	await page.mouse.up();
+	await expect(page.getByTestId('bulk-count')).toHaveText('3 selected');
+
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('bulk-bar')).toHaveCount(0);
+	await expect(page.getByTestId('select-toggle')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('Cmd/Ctrl+A selects all shown pictures, and changing tab clears the selection', async ({ page }) => {
+	await gallery(page, { runs: [RIDGE, OLD, THIRD] });
+	await page.goto('/archive');
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
+	await expect(page.getByTestId('bulk-count')).toHaveText('3 selected');
+	await page.getByRole('tab', { name: 'starred' }).click();
+	await expect(page.getByTestId('bulk-bar')).toHaveCount(0);
+	await expect(page.getByTestId('select-toggle')).toHaveCount(0); // no pictures in this tab
+});
+
+test('bulk share makes one new album link containing exactly the selected pictures', async ({ page }) => {
+	const api = await gallery(page, {
+		runs: [RIDGE, OLD, THIRD],
+		features: { share: true, fetch: false }
+	});
+	await page.goto('/archive');
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.getByRole('checkbox', { name: 'Select Ridge study' }).check();
+	await card(page, 2)
+		.getByTestId('run-open')
+		.click({ modifiers: ['ControlOrMeta'] });
+	await expect(page.getByTestId('bulk-count')).toHaveText('2 selected');
+	await page.getByTestId('bulk-share').click();
+	const dialog = page.getByTestId('share-dialog');
+	await expect(dialog).toContainText('2 pictures');
+	await dialog.getByRole('button', { name: 'Create link' }).click();
+	await expect(page.getByTestId('share-url')).toHaveValue(/\/a\/abcdefghijklmnopqrstuvwxyz$/);
+	expect(api.shares).toHaveLength(1);
+	expect(api.shares[0]).toMatchObject({ run_ids: [7, 9], title: '2 pictures' });
+});
+
+test('bulk bin says the shared and starred warnings once, then moves only the selected pictures', async ({ page }) => {
+	const api = await gallery(page, {
+		runs: [{ ...RIDGE, starred: true }, OLD, THIRD],
+		features: { share: true, fetch: false },
+		shareRows: [{ id: 'a'.repeat(26), revoked_at: null, expires_at: null, run_ids: [7] }]
+	});
+	await page.goto('/archive');
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.getByRole('checkbox', { name: 'Select Ridge study' }).check();
+	await card(page, 1)
+		.getByTestId('run-open')
+		.click({ modifiers: ['ControlOrMeta'] });
+	await page.getByTestId('bulk-trash').click();
+	const dialog = page.getByTestId('bulk-confirm');
+	await expect(dialog).toContainText('Move 2 pictures to the bin?');
+	await expect(dialog).toContainText('1 picture is in a shared link');
+	await expect(dialog).toContainText('1 picture is starred');
+	const results = await new AxeBuilder({ page }).analyze();
+	expect(
+		results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.help}`)
+	).toEqual([]);
+	await dialog.getByTestId('bulk-confirm-yes').click();
+	await expect(page.getByTestId('bulk-bar')).toHaveCount(0);
+	expect(api.trash).toEqual([{ ids: [7, 8], confirm_starred: true }]);
+	await expect(page.getByTestId('run')).toHaveCount(1);
+});
+
+test('delete forever confirms the count and removes exactly the selected pictures from the bin', async ({ page }) => {
+	const inBin = (r: Run): Run => ({ ...r, trashed_at: 1700000000 });
+	const api = await gallery(page, { runs: [], bin: [inBin(RIDGE), inBin(OLD), inBin(THIRD)] });
+	await page.goto('/archive');
+	await page.getByRole('tab', { name: 'trash' }).click();
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.getByRole('checkbox', { name: 'Select Ridge study' }).check();
+	await card(page, 1)
+		.getByTestId('run-open')
+		.click({ modifiers: ['ControlOrMeta'] });
+	await page.getByTestId('bulk-delete').click();
+	const dialog = page.getByTestId('bulk-confirm');
+	await expect(dialog).toContainText('Delete 2 pictures forever?');
+	await expect(dialog).toContainText('This cannot be undone');
+	await dialog.getByTestId('bulk-confirm-yes').click();
+	expect(api.delete).toEqual([[7, 8]]);
+	await expect(page.getByTestId('run')).toHaveCount(1);
+});
+
+test('bulk restore confirms once and puts exactly the selected pictures back', async ({ page }) => {
+	const inBin = (r: Run): Run => ({ ...r, trashed_at: 1700000000 });
+	const api = await gallery(page, { runs: [], bin: [inBin(RIDGE), inBin(OLD), inBin(THIRD)] });
+	await page.goto('/archive');
+	await page.getByRole('tab', { name: 'trash' }).click();
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.getByRole('checkbox', { name: 'Select Ridge study' }).check();
+	await card(page, 1)
+		.getByTestId('run-open')
+		.click({ modifiers: ['ControlOrMeta'] });
+	await page.getByTestId('bulk-restore').click();
+	const dialog = page.getByTestId('bulk-confirm');
+	await expect(dialog).toContainText('Restore 2 pictures?');
+	await dialog.getByTestId('bulk-confirm-yes').click();
+	expect(api.restore).toEqual([[7, 8]]);
+	await expect(page.getByTestId('run')).toHaveCount(1);
+});
+
+test('a partial trash keeps the failed pictures selected and names them', async ({ page }) => {
+	const api = await gallery(page, { runs: [RIDGE, OLD, THIRD], missing: [9] });
+	await page.goto('/archive');
+	await expect(page.getByTestId('run')).toHaveCount(3);
+	await page.getByTestId('select-toggle').click();
+	await page.getByTestId('select-all').click();
+	await expect(page.getByTestId('bulk-count')).toHaveText('3 selected');
+	await page.getByTestId('bulk-trash').click();
+	await page.getByTestId('bulk-confirm-yes').click();
+	await expect(page.getByTestId('bulk-notice')).toContainText('1 of 3 could not be changed: Third look.');
+	await expect(page.getByTestId('bulk-notice')).toContainText('It is still selected');
+	await expect(page.getByTestId('bulk-count')).toHaveText('1 selected');
+	expect(api.trash).toEqual([{ ids: [7, 8, 9], confirm_starred: true }]);
 });
 
 test('on a phone the viewer fills the screen, actions are 44 px, and nothing scrolls sideways', async ({ browser }) => {

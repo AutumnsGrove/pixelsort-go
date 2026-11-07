@@ -136,6 +136,12 @@ answer is `409 starred_needs_confirm` with the starred `ids`. Otherwise `{"trash
 ### `POST /api/runs/restore`
 `{"ids":[1,2]}` takes runs out of the trash. Returns `{"restored":2}`.
 
+### `POST /api/runs/delete`
+`{"ids":[1,2]}` permanently deletes the selected runs that are in the bin, re-parents their children, detaches them
+from any share, and removes images nothing references anymore. Returns `{"deleted":[…],"missing":[…]}`; an id is
+`missing` when it does not exist or was not in the bin, and is never deleted. Only runs already in the trash can be
+deleted this way.
+
 ### `POST /api/trash/empty`
 Permanently deletes every trashed run, re-parents their children, and removes images nothing references anymore.
 Returns `{"deleted":3}`. (Runs trashed longer than `PIXELSORT_TRASH_DAYS` are removed automatically every ten minutes.)
