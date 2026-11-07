@@ -2,6 +2,24 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-07 · issue #15 · protect tools and the Pro panel
+
+Branch `issue-15-protect-tools`.
+
+- **Chose options 1 and 2 from the issue.** `BrushLayer` and `MaskHandles` now stay live whether or not the Pro panel is open, and a
+  compact bar under the picture holds Move/Paint/Erase, brush size, undo/clear strokes and a way back to the panel. Because editing
+  needs the whole picture and must not depend on panel state; option 4 (shrink the stage on desktop) would contradict the existing
+  `regions.spec.ts` test that opening Pro does not squeeze the picture.
+- **The bar sits in the flow, never over the picture.** On desktop the stage gives up the bar's height (`max-height`), so every pixel
+  stays paintable with the panel closed. On a phone the Pro sheet already leaves the picture in view, so the bar is hidden there.
+- **`P` now actually switches the brush on.** The shortcut sheet already promised it, but the Studio's key handler had no `paint`
+  branch. Pressing it again goes back to Move; the bar follows the tool.
+- **Keyboard shape editing stays in Move.** `MaskHandles` now listens regardless of the panel, so its arrow/Delete shortcuts are
+  restricted to the Move tool to avoid deleting a shape while painting.
+- **Tests:** `web/e2e/brush.spec.ts` and `regions.spec.ts` paint and drag in the right-hand strip after closing the panel, plus the
+  `P` toggle, undo and clear. The affected set (brush, regions, phone-pro, studio, layout, dock) is green. `rule-preview` and
+  `shape-helper` fail on clean `main` in this environment too, so they are not regressions from this change.
+
 ## 2026-11-06 · issue sweep (#8 #11 #9 #12 first) · decisions and what was run
 
 Branch `features-and-fixes`. See `decisions.md` V1 to V3.

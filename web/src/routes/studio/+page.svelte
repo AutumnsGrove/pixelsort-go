@@ -9,6 +9,7 @@
 	import MaskHandles from '#components/MaskHandles';
 	import CutoutLayer from '#components/CutoutLayer';
 	import BrushLayer from '#components/BrushLayer';
+	import ProtectBar from '#components/ProtectBar';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
 	import { isSvgFile, looksLikeSvg } from '#lib/svg-shapes';
@@ -125,6 +126,7 @@
 			exportOpen = false;
 			studio.cancelRename();
 		} else if (id === 'pro') proOpen = !proOpen;
+		else if (id === 'paint') studio.tool = studio.tool === 'paint' ? 'move' : 'paint';
 		else if (id === 'play') void studio.togglePlay();
 		else if (id === 'restart') void studio.restart();
 		else if (id === 'compare') studio.comparing = true;
@@ -170,6 +172,11 @@
 
 	const knob = (id: string) => () => (popover = popover === id ? null : id);
 	const changed = () => studio.changed();
+	// The compact protect bar is the way to keep painting or editing shapes with the Pro panel out of the way. It is
+	// shown whenever one of those tools is in play, not only while the panel is open.
+	const protectBar = $derived(
+		!!studio.size && (studio.tool !== 'move' || studio.maskObjects.length > 0 || studio.maskStrokes.length > 0)
+	);
 	const loadingText = $derived(
 		studio.engineLoad
 			? studio.engineLoad.total
@@ -285,13 +292,13 @@
 />
 
 <main class="workspace">
-	<section class="stage" class:sheet={proOpen}>
+	<section class="stage" class:sheet={proOpen} class:protect={protectBar}>
 		<div class="col">
 			<div class="frame">
 				<canvas bind:this={canvas} data-testid="stage" aria-label="Sorted picture"></canvas>
 				<canvas bind:this={overlay} class="overlay" data-testid="overlay" aria-hidden="true"></canvas>
-				<BrushLayer active={proOpen} />
-				<MaskHandles active={proOpen} />
+				<BrushLayer />
+				<MaskHandles />
 				<CutoutLayer />
 				{#if studio.scrubbable}
 					<input
@@ -329,6 +336,7 @@
 					onpointerleave={() => (studio.comparing = false)}><span class="long">hold to</span> compare</button
 				>
 			</div>
+			{#if protectBar}<ProtectBar onopen={() => (proOpen = true)} />{/if}
 		</div>
 	</section>
 
@@ -780,6 +788,16 @@
 		max-width: min(88vw, 1100px);
 		max-height: calc(100vh - 246px);
 		display: grid;
+	}
+	/* The compact protect bar adds a row under the picture; the picture gives up that height instead of the bar running
+	   into the dock. On phones the bar is hidden (the Pro sheet leaves the picture in view), so only desktops shrink. */
+	@media (min-width: 701px) {
+		.stage.protect .frame {
+			max-height: calc(100vh - 298px);
+		}
+		.stage.protect canvas {
+			max-height: calc(100vh - 298px);
+		}
 	}
 	canvas {
 		display: block;

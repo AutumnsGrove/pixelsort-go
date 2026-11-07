@@ -15,8 +15,7 @@
 
 	// The editable outlines of the protected shapes, drawn over the picture: drag to move, corners and sides to resize,
 	// the knob to rotate (Shift snaps to 15 degrees), arrows to nudge, Delete to remove. The model is in mask-model.ts.
-	let { active }: { active: boolean } = $props();
-
+	// It stays live whether or not the Pro panel is open, so a shape under the panel can be reached by closing it.
 	const size = $derived(studio.size);
 	const sel = $derived(studio.selectedMask);
 	let svg: SVGSVGElement | undefined = $state();
@@ -63,7 +62,7 @@
 		addEventListener('pointerup', onUp);
 	}
 	function onKey(e: KeyboardEvent): void {
-		if (!active || sel === null || !size) return;
+		if (studio.tool !== 'move' || sel === null || !size) return;
 		const t = e.target as HTMLElement | null;
 		if (t && (/INPUT|TEXTAREA|SELECT/.test(t.tagName) || t.isContentEditable)) return;
 		const o = studio.maskObjects[sel];
@@ -94,7 +93,7 @@
 
 <svelte:window onkeydowncapture={onKey} />
 
-{#if active && size && studio.maskObjects.length}
+{#if size && studio.maskObjects.length}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<svg
 		bind:this={svg}

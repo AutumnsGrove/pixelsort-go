@@ -3,12 +3,10 @@
 	import { addPoint, finishStroke, strokePoints, toFraction } from '#lib/brush';
 
 	// Paint over the picture to protect pixels from sorting, or erase to give them back. Strokes are stored as vectors
-	// (fractions of the picture), so the preview and a full-size export agree. Only listens while the Pro panel is open and
-	// the tool is Paint or Erase; with Move the shapes' own handles take the pointer instead.
-	let { active }: { active: boolean } = $props();
-
+	// (fractions of the picture), so the preview and a full-size export agree. It listens whenever the tool is Paint or
+	// Erase, whether or not the Pro panel is open; with Move the shapes' own handles take the pointer instead.
 	const size = $derived(studio.size);
-	const on = $derived(active && studio.tool !== 'move' && !!size);
+	const on = $derived(studio.tool !== 'move' && !!size);
 	let svg: SVGSVGElement | undefined = $state();
 	let live = $state<[number, number][] | null>(null);
 	let pointer = $state<[number, number] | null>(null);
@@ -36,7 +34,7 @@
 	}
 </script>
 
-{#if active && size && (on || studio.maskStrokes.length)}
+{#if size && (on || studio.maskStrokes.length)}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<svg
 		bind:this={svg}
