@@ -684,6 +684,13 @@ class Studio {
 		this.suggestion = null;
 		void this.applyMask();
 	}
+	/** Take back the last stroke, so a stray mark is easy to correct without losing the whole mask. */
+	undoStroke(): void {
+		if (!this.maskStrokes.length) return;
+		this.maskStrokes = this.maskStrokes.slice(0, -1);
+		this.suggestion = null;
+		void this.applyMask();
+	}
 
 	addMaskObject(kind: MaskObject['kind'], over?: Partial<MaskObject>): void {
 		this.maskObjects.push({

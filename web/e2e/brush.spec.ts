@@ -113,6 +113,50 @@ test('painting over a protected shape paints, it does not drag the shape', async
 	expect(await where()).toEqual(before);
 });
 
+test('the brush keeps working with the Pro panel closed, including the strip it covered', async ({ page }) => {
+	await open(page);
+	await page.getByTestId('tool-paint').click();
+	await page.getByTestId('brush-size').fill('0.08');
+	await page.getByRole('button', { name: 'Close the Pro panel' }).click();
+	await expect(page.getByTestId('pro')).toHaveCount(0);
+	await expect(page.getByTestId('protect-bar')).toBeVisible();
+	await expect(page.getByTestId('bar-tool-paint')).toHaveAttribute('aria-pressed', 'true');
+	const base = await veiled(page);
+	// the open panel sits over the right edge of the picture; with it closed the brush reaches there
+	await drag(page, [
+		[0.84, 0.5],
+		[0.88, 0.5],
+		[0.92, 0.5]
+	]);
+	await expect(page.getByTestId('stroke')).toHaveCount(1);
+	expect(await veiled(page)).toBeGreaterThan(base + 0.02);
+	await page.screenshot({ path: 'test-results/brush-panel-closed.png' });
+});
+
+test('P turns the protect brush on, the bar shows it, and undo and clear work from the bar', async ({ page }) => {
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.keyboard.press('p');
+	await expect(page.getByTestId('pro')).toHaveCount(0);
+	await expect(page.getByTestId('protect-bar')).toBeVisible();
+	await expect(page.getByTestId('bar-tool-paint')).toHaveAttribute('aria-pressed', 'true');
+	await drag(page, line(10));
+	await drag(
+		page,
+		line(10).map(([x, y]): [number, number] => [x, y + 0.05])
+	);
+	await expect(page.getByTestId('stroke')).toHaveCount(2);
+	await page.getByTestId('bar-undo').click();
+	await expect(page.getByTestId('stroke')).toHaveCount(1);
+	// P again goes back to Move; the bar stays because a stroke is still protected
+	await page.keyboard.press('p');
+	await expect(page.getByTestId('bar-tool-move')).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('protect-bar')).toBeVisible();
+	await page.getByTestId('bar-clear-strokes').click();
+	await expect(page.getByTestId('stroke')).toHaveCount(0);
+	await expect(page.getByTestId('protect-bar')).toHaveCount(0);
+});
+
 test('the brush works on a phone-sized screen too', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await open(page);

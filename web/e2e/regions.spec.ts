@@ -154,6 +154,47 @@ test('Protect on the canvas: drag a shape, resize it by a corner, rotate it, nud
 	await expect(page.getByTestId('mask-object')).toHaveCount(0);
 });
 
+test('Protect with the panel closed: drag a shape into the strip the panel covers, resize it, and reopen from the bar', async ({
+	page
+}) => {
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('pro-toggle').click();
+	await page.getByTestId('add-ellipse').click();
+	const shape = page.getByTestId('mask-shape');
+	await expect(shape).toHaveCount(1);
+	await page.getByRole('button', { name: 'Close the Pro panel' }).click();
+	await expect(page.getByTestId('pro')).toHaveCount(0);
+	await expect(page.getByTestId('protect-bar')).toBeVisible();
+	await expect(page.getByTestId('bar-tool-move')).toHaveAttribute('aria-pressed', 'true');
+
+	const stage = (await page.getByTestId('stage').boundingBox())!;
+	const before = (await shape.boundingBox())!;
+	await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(stage.x + stage.width * 0.84, stage.y + stage.height * 0.4, { steps: 6 });
+	await page.mouse.up();
+	const moved = (await shape.boundingBox())!;
+	expect(moved.x + moved.width / 2, 'the shape moved into the right-hand strip').toBeGreaterThan(
+		stage.x + stage.width * 0.7
+	);
+
+	// the handles still resize it with the panel closed
+	await expect(page.getByTestId('mask-handle')).toHaveCount(8);
+	const corner = (await page.getByTestId('mask-handle').nth(4).boundingBox())!;
+	await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(corner.x + 70, corner.y + 50, { steps: 5 });
+	await page.mouse.up();
+	expect((await shape.boundingBox())!.width).toBeGreaterThan(moved.width + 30);
+
+	// and the compact bar brings the panel back without losing the tool
+	await page.getByTestId('bar-pro').click();
+	await expect(page.getByTestId('pro')).toBeVisible();
+	await expect(page.getByTestId('bar-tool-move')).toHaveAttribute('aria-pressed', 'true');
+	await page.screenshot({ path: 'test-results/protect-panel-closed.png' });
+});
+
 test('region cards: fold open, give a kind its own recipe, and the summary and the picture follow', async ({
 	page
 }) => {
