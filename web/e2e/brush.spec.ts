@@ -121,6 +121,7 @@ test('the brush keeps working with the Pro panel closed, including the strip it 
 	await expect(page.getByTestId('pro')).toHaveCount(0);
 	await expect(page.getByTestId('protect-bar')).toBeVisible();
 	await expect(page.getByTestId('bar-tool-paint')).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('brush-exit')).toHaveCount(0); // the pill is only for phones
 	const base = await veiled(page);
 	// the open panel sits over the right edge of the picture; with it closed the brush reaches there
 	await drag(page, [
@@ -152,6 +153,11 @@ test('P turns the protect brush on, the bar shows it, and undo and clear work fr
 	await page.keyboard.press('p');
 	await expect(page.getByTestId('bar-tool-move')).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByTestId('protect-bar')).toBeVisible();
+	// and it stops the eraser too, instead of just switching it to Paint
+	await page.getByTestId('bar-tool-erase').click();
+	await expect(page.getByTestId('bar-tool-erase')).toHaveAttribute('aria-pressed', 'true');
+	await page.keyboard.press('p');
+	await expect(page.getByTestId('bar-tool-move')).toHaveAttribute('aria-pressed', 'true');
 	await page.getByTestId('bar-clear-strokes').click();
 	await expect(page.getByTestId('stroke')).toHaveCount(0);
 	await expect(page.getByTestId('protect-bar')).toHaveCount(0);
@@ -165,4 +171,95 @@ test('the brush works on a phone-sized screen too', async ({ page }) => {
 	await drag(page, line());
 	await expect(page.getByTestId('stroke')).toHaveCount(1);
 	await page.screenshot({ path: 'test-results/brush-phone.png' });
+});
+
+test('pressing the lit tool again puts the brush away, and Done does the same', async ({ page }) => {
+	await open(page);
+	await page.getByTestId('tool-paint').click();
+	await expect(page.getByTestId('brush-layer')).toHaveAttribute('data-tool', 'paint');
+	await page.screenshot({ path: 'test-results/brush-done.png' }); // the panel's Done and the bar's Done, side by side
+	// the same chip again: the brush goes away instead of staying armed
+	await page.getByTestId('tool-paint').click();
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('brush-layer')).toHaveCount(0); // nothing left to paint with
+	await drag(page, line(10));
+	await expect(page.getByTestId('stroke')).toHaveCount(0); // and a drag paints nothing
+	// Erase behaves the same way
+	await page.getByTestId('tool-erase').click();
+	await expect(page.getByTestId('tool-erase')).toHaveAttribute('aria-pressed', 'true');
+	await page.getByTestId('tool-erase').click();
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+	// a chip switches straight between the two brush tools
+	await page.getByTestId('tool-paint').click();
+	await page.getByTestId('tool-erase').click();
+	await expect(page.getByTestId('tool-erase')).toHaveAttribute('aria-pressed', 'true');
+	// Done in the panel is the explicit way out
+	await page.getByTestId('tool-done').click();
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('tool-done')).toHaveCount(0);
+	// and so is Done on the compact bar
+	await page.getByTestId('tool-paint').click();
+	await page.getByTestId('bar-done').click();
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+	await drag(page, line(10));
+	await expect(page.getByTestId('stroke')).toHaveCount(0);
+});
+
+test('Esc stops the brush, but only after whatever is open has been closed', async ({ page }) => {
+	await open(page);
+	await page.keyboard.press('p');
+	await expect(page.getByTestId('tool-paint')).toHaveAttribute('aria-pressed', 'true');
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+	// with a popover open, Esc closes it and leaves the brush alone: one layer at a time
+	await page.getByTestId('k-preset').click();
+	await expect(page.locator('.pop').first()).toBeVisible();
+	await page.keyboard.press('p');
+	await page.keyboard.press('Escape');
+	await expect(page.locator('.pop').first()).toHaveCount(0);
+	await expect(page.getByTestId('tool-paint')).toHaveAttribute('aria-pressed', 'true');
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('tool-move')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('on a phone a closed sheet leaves a Done pill over the picture, and it stops the brush', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('pro-toggle').click();
+	await page.getByTestId('tab-protect').click();
+	await page.getByTestId('tool-paint').click();
+	await expect(page.getByTestId('brush-exit')).toHaveCount(0); // while the sheet is open its own chips are right there
+	await page.getByRole('button', { name: 'Close the Pro panel' }).click();
+	const pill = page.getByTestId('brush-exit');
+	await expect(pill).toBeVisible();
+	const box = (await pill.boundingBox())!;
+	expect(box.height, 'a thumb can hit it').toBeGreaterThanOrEqual(43.5);
+	const stage = (await page.getByTestId('stage').boundingBox())!;
+	expect(box.x).toBeGreaterThanOrEqual(stage.x - 0.5);
+	expect(box.x + box.width, 'the pill sits inside the picture').toBeLessThanOrEqual(stage.x + stage.width + 0.5);
+	await expect(page.getByTestId('protect-bar')).toBeHidden(); // the bar stays a desktop thing
+	await page.screenshot({ path: 'test-results/brush-phone-exit.png' });
+	await drag(page, line(10));
+	await expect(page.getByTestId('stroke')).toHaveCount(1); // the brush is still on until Done
+	await pill.click();
+	await expect(pill).toHaveCount(0);
+	await drag(page, line(10));
+	await expect(page.getByTestId('stroke')).toHaveCount(1); // and is off afterwards
+});
+
+test('a window too short for the bar keeps the picture its size and floats Done on it', async ({ page }) => {
+	await page.setViewportSize({ width: 844, height: 390 }); // a phone held sideways: wide, but with no spare height
+	await page.goto('/studio');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	const before = (await page.getByTestId('stage').boundingBox())!;
+	await page.keyboard.press('p');
+	const pill = page.getByTestId('brush-exit');
+	await expect(pill).toBeVisible();
+	await expect(page.getByTestId('protect-bar')).toBeHidden();
+	const after = (await page.getByTestId('stage').boundingBox())!;
+	expect(after.height, 'no bar row is reserved, so the picture does not shrink').toBeCloseTo(before.height, 0);
+	await page.screenshot({ path: 'test-results/brush-short-window.png' });
+	await pill.click();
+	await expect(pill).toHaveCount(0);
 });

@@ -3,7 +3,7 @@
 	import { X, Trash2 } from '@lucide/svelte';
 	import { studio } from '#lib/studio.svelte';
 	import { PATTERNS, SHAPES, classCount } from '#lib/regions';
-	import { MAX_RADIUS, MIN_RADIUS } from '#lib/brush';
+	import { MAX_RADIUS, MIN_RADIUS, type Tool } from '#lib/brush';
 	import RegionCard from '#components/RegionCard';
 	import ShapeLibrary from '#components/ShapeLibrary';
 	import NameField from '#components/NameField';
@@ -306,16 +306,27 @@
 
 	{#if showProtect}<section>
 			<h4 class="eyebrow">Protect from sorting</h4>
-			<div class="chips" role="group" aria-label="Tool">
-				{#each [['move', 'Move shapes'], ['paint', 'Paint'], ['erase', 'Erase']] as [id, label] (id)}
+			<div class="toolrow">
+				<div class="chips" role="group" aria-label="Tool">
+					{#each [['move', 'Move shapes'], ['paint', 'Paint'], ['erase', 'Erase']] as [id, label] (id)}
+						<button
+							type="button"
+							class:on={studio.tool === id}
+							aria-pressed={studio.tool === id}
+							onclick={() => studio.setTool(id as Tool)}
+							data-testid="tool-{id}">{label}</button
+						>
+					{/each}
+				</div>
+				{#if studio.tool !== 'move'}
 					<button
 						type="button"
-						class:on={studio.tool === id}
-						aria-pressed={studio.tool === id}
-						onclick={() => (studio.tool = id as typeof studio.tool)}
-						data-testid="tool-{id}">{label}</button
+						class="mini done"
+						onclick={() => studio.exitTool()}
+						aria-label="Finish painting"
+						data-testid="tool-done">Done</button
 					>
-				{/each}
+				{/if}
 			</div>
 			{#if studio.tool !== 'move'}
 				<label
@@ -534,6 +545,17 @@
 		border: 1px solid var(--faint);
 		border-radius: 99px;
 		padding: 4px 10px;
+	}
+	.toolrow {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 7px;
+	}
+	/* Done sits beside the tool chips and is the quickest way out of the brush, so it is never below the fold on a phone. */
+	.done {
+		color: var(--paper);
+		border-color: var(--dim);
 	}
 	.tog {
 		display: flex;

@@ -18,7 +18,7 @@ import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
 import { classCount, defaultTiling, type MaskObject, type Stroke, type Tiling } from './regions';
 import { toSpec } from './mask-model';
-import { acceptGuess, DEFAULT_RADIUS, suggestFor, type Tool } from './brush';
+import { acceptGuess, DEFAULT_RADIUS, paintKey, pickTool, suggestFor, type Tool } from './brush';
 import type { Guess } from './snap';
 import { LocalStorageBackend } from './storage';
 import { ShapeLibrary, nextShapeName, type SavedShape } from './shape-library';
@@ -297,6 +297,7 @@ class Studio {
 		this.parentRunId = null;
 		this.engineNote = null;
 		this.clearCutout(); // a region belongs to the picture it was cut from
+		this.exitTool(); // a picture that has just arrived is not being painted on yet
 		this.stopHelper();
 		this.helper = { status: 'idle', steps: [], say: '', note: null };
 		this.customName = null;
@@ -657,6 +658,19 @@ class Studio {
 	maskStrokes = $state<Stroke[]>([]);
 	tool = $state<Tool>('move');
 	brushRadius = $state(DEFAULT_RADIUS);
+
+	/** A chip or a key picks a tool; pressing the lit brush tool again puts the brush away, back on Move. */
+	setTool(chosen: Tool): void {
+		this.tool = pickTool(this.tool, chosen);
+	}
+	/** Put the brush away: Done, Esc, or a picture that has just arrived and is not being painted on yet. */
+	exitTool(): void {
+		this.tool = 'move';
+	}
+	/** P: the protect brush from rest, and back to rest from either brush tool, so one key both picks up and puts down. */
+	togglePaint(): void {
+		this.tool = paintKey(this.tool);
+	}
 	/** A finished paint stroke that looks like a circle or rectangle, offered as "Snap". */
 	suggestion = $state<{ index: number; guess: Guess } | null>(null);
 
@@ -676,7 +690,7 @@ class Studio {
 		this.maskObjects.push(object);
 		this.selectedMask = this.maskObjects.length - 1;
 		this.suggestion = null;
-		this.tool = 'move';
+		this.exitTool();
 		void this.applyMask();
 	}
 	clearStrokes(): void {

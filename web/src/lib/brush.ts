@@ -6,6 +6,19 @@ import { guessShape, type Guess } from './snap';
 export type Tool = 'move' | 'paint' | 'erase';
 export type Size = { w: number; h: number };
 
+/**
+ * Which tool a chip press means. Pressing the chip that is already lit turns the brush off, so there is always a way back
+ * to Move without hunting for another control; Move is that resting state, so pressing it does nothing.
+ */
+export function pickTool(current: Tool, chosen: Tool): Tool {
+	return chosen !== 'move' && chosen === current ? 'move' : chosen;
+}
+
+/** What the P key means: the protect brush from rest, and nothing but rest from either brush, so one key both turns it on and off. */
+export function paintKey(current: Tool): Tool {
+	return current === 'move' ? 'paint' : 'move';
+}
+
 /** Brush radius as a fraction of the picture's width: 0.5 % .. 12 %. */
 export const MIN_RADIUS = 0.005;
 export const MAX_RADIUS = 0.12;

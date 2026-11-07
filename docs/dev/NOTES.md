@@ -2,6 +2,36 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-07 · issue #15 follow-up · there was no way out of the brush
+
+On `main` at Autumn's request.
+
+- **The brush had no way out.** `P` toggled Paint→Move, but a chip could only ever pick a tool, never put it down, and closing
+  the Pro panel no longer disabled anything after #15. Pressing the lit chip again now stops the brush (`pickTool`), and an
+  explicit **Done** sits beside the chips in the Pro panel and in the compact bar. Both go through `Studio.setTool` /
+  `Studio.exitTool`, so the chips, the shortcut and `Esc` can never disagree.
+- **`P` stops the eraser too.** It used to go Erase→Paint; as the protect-brush key it now means "brush on / brush off" from
+  either tool (`paintKey`). Switching between Paint and Erase stays the chips' job.
+- **`Esc` drops the brush last.** It still closes the rename field, popovers, help and export first, because a key that both
+  closes a dialog and disarms the brush does two things at once; with nothing open it goes back to Move.
+- **A phone had a real dead end.** The compact bar is hidden under 700 px, so Paint in the Pro sheet → close the sheet left the
+  brush armed over the whole picture with no visible exit at all (before #15, closing the panel disabled the layers, which is
+  the behaviour Autumn remembered). `BrushExit` now floats a 44 px "Done painting" pill over the bottom of the picture when a
+  brush tool is on, the bar is hidden and the sheet is closed. It is not shown where the bar carries Done, nor while the sheet
+  is open (its chips are right there).
+- **The bar also gives way on short screens.** A landscape phone (844x390) is wider than 700 px, so #15's bar was shown there
+  and the stage reserved 52 px for it: the picture dropped from 256x144 to 163x92. The bar now hides below 560 px of height and
+  the stage only shrinks where the bar is actually drawn (`min-width: 701px and min-height: 561px`), so the pill takes over and
+  the picture keeps its size. The three media queries (bar, stage, pill) carry comments pointing at each other.
+- **A new picture arrives on Move.** `load()` calls `exitTool()`, so opening a run from the Archive does not start armed.
+- **Tests:** `brush.test.ts` covers `pickTool` and `paintKey` exhaustively. `brush.spec.ts` adds the toggle, both Done buttons, a
+  drag that paints nothing after Done, `Esc` (alone and behind a popover), `P` from the eraser, the phone sheet-close pill and the
+  short-window pill (with the picture's height pinned). `pnpm test` 342 unit tests, `pnpm check`, `pnpm lint` and `make check`
+  clean. Affected set green: brush (11), regions, phone, phone-pro, dock, studio, layout and name-layout (94).
+- **Not mine, and not new:** the full `playwright test` run has 22 failures (`helper-ask` 8, `rule-preview` 6, `shape-helper` 8).
+  Checked against a stashed clean `main` in this same environment: the same 22 fail with 4 passing, so the engine's cut-out and
+  rule preview are broken here independently of this change. Every other spec passes (181).
+
 ## 2026-11-07 · issue #18 · multi-select in the Archive
 
 Branch `issue-18-archive-multi-select`.

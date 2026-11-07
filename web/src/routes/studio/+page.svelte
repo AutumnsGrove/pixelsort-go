@@ -10,6 +10,7 @@
 	import CutoutLayer from '#components/CutoutLayer';
 	import BrushLayer from '#components/BrushLayer';
 	import ProtectBar from '#components/ProtectBar';
+	import BrushExit from '#components/BrushExit';
 	import Tour from '#components/Tour';
 	import { seen as touredBefore } from '#lib/tour';
 	import { isSvgFile, looksLikeSvg } from '#lib/svg-shapes';
@@ -121,12 +122,15 @@
 		const id = shortcutFor(e);
 		if (!id) return;
 		if (id === 'esc') {
+			// Esc backs out one layer at a time: whatever is being typed or shown first, and the brush only when nothing else is.
+			const inTheWay = popover !== null || helpOpen || exportOpen || studio.renameFrom !== null;
 			popover = null;
 			helpOpen = false;
 			exportOpen = false;
 			studio.cancelRename();
+			if (!inTheWay) studio.exitTool();
 		} else if (id === 'pro') proOpen = !proOpen;
-		else if (id === 'paint') studio.tool = studio.tool === 'paint' ? 'move' : 'paint';
+		else if (id === 'paint') studio.togglePaint();
 		else if (id === 'play') void studio.togglePlay();
 		else if (id === 'restart') void studio.restart();
 		else if (id === 'compare') studio.comparing = true;
@@ -300,6 +304,7 @@
 				<BrushLayer />
 				<MaskHandles />
 				<CutoutLayer />
+				<BrushExit sheetOpen={proOpen} />
 				{#if studio.scrubbable}
 					<input
 						class="scrub"
@@ -790,8 +795,8 @@
 		display: grid;
 	}
 	/* The compact protect bar adds a row under the picture; the picture gives up that height instead of the bar running
-	   into the dock. On phones the bar is hidden (the Pro sheet leaves the picture in view), so only desktops shrink. */
-	@media (min-width: 701px) {
+	   into the dock. Where the bar is hidden (a phone, or a window too short for it) BrushExit takes over and nothing shrinks. */
+	@media (min-width: 701px) and (min-height: 561px) {
 		.stage.protect .frame {
 			max-height: calc(100vh - 298px);
 		}

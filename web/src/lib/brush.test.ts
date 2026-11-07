@@ -6,6 +6,8 @@ import {
 	finishStroke,
 	MAX_RADIUS,
 	MIN_RADIUS,
+	paintKey,
+	pickTool,
 	strokePoints,
 	suggestFor,
 	toFraction
@@ -143,5 +145,31 @@ describe('accepting a suggestion replaces the stroke', () => {
 		expect(rest).toEqual([strokes[0], strokes[2]]);
 		expect(object).toMatchObject({ kind: 'ellipse', mode: 'add', rot: 0 });
 		expect(strokes).toHaveLength(3); // the input is untouched
+	});
+});
+
+describe('picking a tool', () => {
+	it('turns Paint or Erase off when its own chip is pressed again', () => {
+		expect(pickTool('paint', 'paint')).toBe('move');
+		expect(pickTool('erase', 'erase')).toBe('move');
+	});
+	it('switches straight between the brush tools', () => {
+		expect(pickTool('move', 'paint')).toBe('paint');
+		expect(pickTool('move', 'erase')).toBe('erase');
+		expect(pickTool('paint', 'erase')).toBe('erase');
+		expect(pickTool('erase', 'paint')).toBe('paint');
+	});
+	it('leaves Move alone: it is where the other tools go to stop', () => {
+		expect(pickTool('move', 'move')).toBe('move');
+		expect(pickTool('paint', 'move')).toBe('move');
+		expect(pickTool('erase', 'move')).toBe('move');
+	});
+});
+
+describe('the P key', () => {
+	it('turns the protect brush on from Move, and puts whatever brush is on away', () => {
+		expect(paintKey('move')).toBe('paint');
+		expect(paintKey('paint')).toBe('move');
+		expect(paintKey('erase')).toBe('move'); // a key press stops the brush; switching tools is the chips' job
 	});
 });

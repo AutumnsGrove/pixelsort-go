@@ -20,7 +20,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
 	{
 		group: 'Making',
 		items: [
-			{ id: 'paint', keys: ['P'], what: 'Protect brush' },
+			{ id: 'paint', keys: ['P'], what: 'Protect brush — press again to stop' },
 			{ id: 'pro', keys: ['Tab'], what: 'Pro panel — shapes and masks' },
 			{ id: 'new', keys: ['N'], what: 'Bring a new picture' },
 			{ id: 'export', keys: ['E'], what: 'Export' },
@@ -32,7 +32,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
 		items: [
 			{ id: 'runs', keys: ['G'], what: 'Runs strip' },
 			{ id: 'help', keys: ['?'], what: 'This sheet' },
-			{ id: 'esc', keys: ['Esc'], what: 'Close whatever is open' }
+			{ id: 'esc', keys: ['Esc'], what: 'Close what is open, or stop painting' }
 		]
 	}
 ];
