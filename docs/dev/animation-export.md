@@ -40,7 +40,7 @@ Given total passes `P` (known after `Prepare`) and the chosen frame count `N`, p
     codec support; hide or disable the format with a reason when unavailable.
   - **GIF:** a quantizer/encoder library (e.g. gifenc) with a global palette from the first and last frames, optional dithering.
   - **APNG:** a small in-repo writer (PNG chunks acTL/fcTL/fdAT) on top of the existing PNG encode path.
-- Dependency choices need a licence and bundle-size check before adoption.
+- Dependency choices need a licence and bundle-size check before adoption (see Resolved decisions).
 
 ### 3. Animation panel (new, separate from the studio controls)
 
@@ -94,12 +94,21 @@ Each phase is independently shippable; 1 to 3 give a usable feature.
 - A saved animation plays in the Archive, shares like an image (opt-in, size-capped), and is removed by blob GC on permanent delete.
 - Unsupported formats (no WebCodecs) are disabled with an explanation, not a crash.
 
+## Resolved decisions
+
+- **GIF palette:** one global palette built from sampled frames (first, last, a few in between), with dithering. Avoids palette
+  flicker between frames and keeps files smaller. Not user-selectable for now.
+- **Encoder dependencies:** small third-party libraries, lazy-loaded when the animation panel opens (gifenc for GIF;
+  mp4-muxer / webm-muxer with WebCodecs for video). APNG stays in-repo. Licence and bundle-size check still required before adding.
+- **Share size cap:** a single fixed cap of 25 MB for shared animations. The export panel warns when the estimate exceeds it, and
+  sharing refuses larger files with a clear message. Revisit per-format caps if GIF proves too heavy in practice.
+
 ## Risks and open questions
 
-- GIF quality on photos (banding); mitigate with dithering and per-frame vs global palette choice.
+- GIF quality on photos (banding) with a global palette; dithering mitigates it.
 - Memory: frame count x resolution. Prefer streaming each frame into the encoder rather than buffering all frames.
 - `Seek` cost at high resolution (P9-T03 target is 300 ms at 2 MP); sequential `Step` is cheaper for in-order sampling, so use
   `Step` and reserve `Seek` for preview scrubbing.
 - Safari/Firefox WebCodecs support varies; MP4 (H.264) vs WebM (VP9/AV1) availability needs detection.
-- Share size limits on the Cloudflare Worker for video blobs.
+- Confirm the Cloudflare Worker can store and serve blobs up to the 25 MB cap.
 - Whether the phase-9 P9-T02 entry should be replaced by this plan (proposed: yes, mark it superseded).
