@@ -142,20 +142,34 @@ test('a failed share says what is safe and offers to try again', async ({ page }
 });
 
 test('binning a picture that is in a shared link warns first', async ({ page }) => {
-	await mockServer(page);
-	await page.route('**/api/runs/1', (r) => r.fulfill({ json: { ...run, shared: true } }));
+	const m = await mockServer(page);
+	m.shares = [
+		{
+			id: 'a'.repeat(26),
+			url: `https://share.example/a/${'a'.repeat(26)}`,
+			created_at: 1700000000,
+			expires_at: null,
+			revoked_at: null,
+			title: 'Sunset ridge',
+			include_recipe: false,
+			include_original: false,
+			items: 1,
+			run_ids: [1]
+		}
+	];
 	let trashed = 0;
 	await page.route('**/api/runs/trash', (r) => {
 		trashed++;
-		return r.fulfill({ json: { trashed: [1] } });
+		return r.fulfill({ json: { trashed: [1], missing: [] } });
 	});
 	await page.goto('/archive');
 	await page.getByRole('button', { name: 'Move Sunset ridge to the bin' }).click({ force: true });
-	await expect(page.getByTestId('trash-warn')).toContainText('The shared copy stays up until you revoke it');
+	const dialog = page.getByTestId('bulk-confirm');
+	await expect(dialog).toContainText('The shared copy stays up until you revoke it');
 	expect(trashed).toBe(0);
-	await page.getByRole('button', { name: 'Keep it' }).click();
-	await expect(page.getByTestId('trash-warn')).toHaveCount(0);
+	await dialog.getByTestId('bulk-confirm-cancel').click();
+	await expect(dialog).toHaveCount(0);
 	await page.getByRole('button', { name: 'Move Sunset ridge to the bin' }).click({ force: true });
-	await page.getByRole('button', { name: 'Move to the bin anyway' }).click();
+	await page.getByTestId('bulk-confirm-yes').click();
 	await expect.poll(() => trashed).toBe(1);
 });

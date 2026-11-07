@@ -66,6 +66,7 @@ func New(d Deps) *API {
 	a.handle("PATCH /api/runs/{id}", a.patchRun)
 	a.handle("POST /api/runs/trash", a.trashRuns)
 	a.handle("POST /api/runs/restore", a.restoreRuns)
+	a.handle("POST /api/runs/delete", a.deleteRuns)
 	a.handle("POST /api/trash/empty", a.emptyTrash)
 	a.handle("GET /api/usage", a.usage)
 	a.handle("GET /api/presets", a.listPresets)

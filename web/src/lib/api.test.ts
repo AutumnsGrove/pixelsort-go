@@ -75,6 +75,15 @@ test('204 answers resolve to undefined', async () => {
 	expect(backend.imageUrl('a'.repeat(64))).toBe(`/api/images/${'a'.repeat(64)}`);
 });
 
+test('bulk trash and delete forever send the ids and return what the server reports', async () => {
+	const { backend, calls } = fake([json({ trashed: [1], missing: [2] }), json({ deleted: [3], missing: [4] })]);
+	expect(await backend.trash([1, 2], true)).toEqual({ trashed: [1], missing: [2] });
+	expect(calls[0]!.init!.body).toBe(JSON.stringify({ ids: [1, 2], confirm_starred: true }));
+	expect(await backend.deleteForever([3, 4])).toEqual({ deleted: [3], missing: [4] });
+	expect(calls[1]!.url).toBe('/api/runs/delete');
+	expect(calls[1]!.init!.body).toBe(JSON.stringify({ ids: [3, 4] }));
+});
+
 test('saveRun names the run it was branched from, and sends nothing when it was not', async () => {
 	const png = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
 	const send = async (parentRunId?: number | null) => {

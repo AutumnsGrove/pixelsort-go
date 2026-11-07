@@ -26,6 +26,9 @@ export type ShareOptions = {
 };
 export type Created = { id: string; url: string; expires_at: number | null };
 
+/** One album link holds this many pictures at most. Keep it equal to MAX_IMAGES in worker/src/validate.ts. */
+export const MAX_ALBUM_IMAGES = 200;
+
 type Fetch = typeof fetch;
 
 /** The body of the create request: plain JSON, or multipart when stripped originals travel with it. */
@@ -51,6 +54,17 @@ export function buildCreateRequest(opts: ShareOptions, originals: Map<number, Bl
 
 /** Expiry choice from Settings ('never' | '30') to the API's number of days. */
 export const expiryDays = (choice: 'never' | '30'): number | null => (choice === '30' ? 30 : null);
+
+/** The runs inside a live share: not revoked, and not expired at `nowSeconds`. Mirrors the server's IsShared. */
+export function sharedRunIDs(shares: readonly ShareRow[], nowSeconds: number): Set<number> {
+	const out = new Set<number>();
+	for (const s of shares) {
+		if (s.revoked_at !== null) continue;
+		if (s.expires_at !== null && s.expires_at <= nowSeconds) continue;
+		for (const id of s.run_ids) out.add(id);
+	}
+	return out;
+}
 
 export class ShareBackend {
 	constructor(
