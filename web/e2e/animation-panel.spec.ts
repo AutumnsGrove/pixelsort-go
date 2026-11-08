@@ -47,6 +47,22 @@ test('the animation panel exports an APNG at the chosen scale', async ({ page })
 	expect(download.suggestedFilename()).toMatch(/-anim\.apng$/);
 });
 
+test('an export sends the animation with the saved run', async ({ page }) => {
+	let posted = '';
+	await page.route('**/api/images/check', (r) => r.fulfill({ json: { exists: false } }));
+	await page.route('**/api/runs', async (r) => {
+		if (r.request().method() !== 'POST') return r.fallback();
+		posted = r.request().postDataBuffer()?.toString('latin1') ?? '';
+		return r.fulfill({ status: 201, json: { id: 1 } });
+	});
+	await openPanel(page);
+	await smallSettings(page);
+	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
+	expect(download.suggestedFilename()).toMatch(/\.gif$/);
+	await expect(page.getByTestId('anim-saved')).toBeVisible();
+	await expect.poll(() => posted).toContain('name="video"');
+});
+
 test('the preview scrubs, plays and closes without disturbing the studio', async ({ page }) => {
 	await openPanel(page);
 	const before = await page.getByTestId('state').textContent();

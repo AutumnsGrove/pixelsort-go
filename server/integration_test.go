@@ -113,6 +113,12 @@ func (s *site) upload(orig, res, thumb int, seed int, omitOriginal bool) (*http.
 // uploadLook is upload with the settings object and parent run of the caller's choice.
 func (s *site) uploadLook(orig, res, thumb int, seed int, omitOriginal bool, settings map[string]any, parent *int64) (*http.Response, []byte) {
 	s.t.Helper()
+	return s.uploadLookVideo(orig, res, thumb, seed, omitOriginal, settings, parent, nil, "")
+}
+
+// uploadLookVideo is uploadLook with an optional animation part and its hash.
+func (s *site) uploadLookVideo(orig, res, thumb int, seed int, omitOriginal bool, settings map[string]any, parent *int64, video []byte, videoSHA string) (*http.Response, []byte) {
+	s.t.Helper()
 	ob, osha := tinyPNG(orig)
 	rb, rs := tinyPNG(res)
 	tb, ts := tinyPNG(thumb)
@@ -120,6 +126,9 @@ func (s *site) uploadLook(orig, res, thumb int, seed int, omitOriginal bool, set
 		"original": map[string]any{"sha256": osha, "mime": "image/png", "w": 4, "h": 4},
 		"result":   map[string]any{"sha256": rs, "mime": "image/png", "w": 4, "h": 4},
 		"thumb":    map[string]any{"sha256": ts, "mime": "image/png", "w": 4, "h": 4}}
+	if video != nil {
+		meta["video"] = map[string]any{"sha256": videoSHA, "mime": "image/gif", "w": 4, "h": 4}
+	}
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	mj, _ := json.Marshal(meta)
@@ -136,6 +145,9 @@ func (s *site) uploadLook(orig, res, thumb int, seed int, omitOriginal bool, set
 	}
 	file("result", rb)
 	file("thumb", tb)
+	if video != nil {
+		file("video", video)
+	}
 	_ = mw.Close()
 	req, _ := http.NewRequest("POST", s.ts.URL+"/api/runs", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
@@ -146,6 +158,43 @@ func (s *site) uploadLook(orig, res, thumb int, seed int, omitOriginal bool, set
 	defer r.Body.Close() //nolint:errcheck // test
 	out, _ := io.ReadAll(r.Body)
 	return r, out
+}
+
+// Exporting an animation of a look already in the Archive attaches it to that run over real HTTP.
+func TestIntegrationAnimationAttachesToSavedRun(t *testing.T) {
+	s := newSite(t, nil)
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	sum := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(sum[:])
+
+	res, body := s.upload(1, 2, 3, 7, false)
+	s.expect(res, body, 201)
+	var first created
+	if err := json.Unmarshal(body, &first); err != nil || first.ID == 0 {
+		t.Fatalf("%s %v", body, err)
+	}
+
+	res, body = s.uploadLookVideo(1, 2, 3, 7, false, map[string]any{"mode": "random", "angle": 45}, nil, gifBytes, gh)
+	s.expect(res, body, 200) // the same look, so the animation joins the existing run
+	var withVideo struct {
+		ID    int64 `json:"id"`
+		Video *struct {
+			SHA256 string `json:"sha256"`
+			Mime   string `json:"mime"`
+		} `json:"video"`
+	}
+	if err := json.Unmarshal(body, &withVideo); err != nil {
+		t.Fatal(err)
+	}
+	if withVideo.ID != first.ID || withVideo.Video == nil || withVideo.Video.SHA256 != gh || withVideo.Video.Mime != "image/gif" {
+		t.Fatalf("attached video = %+v on run %d, want %s on run %d", withVideo.Video, withVideo.ID, gh, first.ID)
+	}
+
+	res, body = s.do("GET", fmt.Sprintf("/api/runs/%d", first.ID), nil)
+	s.expect(res, body, 200)
+	if !strings.Contains(string(body), `"video":{"sha256":"`+gh+`"`) {
+		t.Fatalf("GET lost the animation: %s", body)
+	}
 }
 
 // The whole life of a run, over real HTTP and real SQLite.

@@ -621,3 +621,62 @@ func TestConcurrentTrashAndList(t *testing.T) {
 	}
 	<-done
 }
+
+// A saved run may carry one animation (GIF or APNG image, or an MP4/WebM video). It is stored as kind 'video' and
+// comes back on Get; a later save of the same look attaches an animation the first run did not have.
+func TestCreateWithVideoAndDuplicateAttach(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 1)
+	rb, rs := img(nil, 2)
+	tb, ts := img(nil, 3)
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	gs := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(gs[:])
+	base := runs.Meta{
+		Settings: []byte(`{"mode":"random"}`), Seed: 4, EngineVersion: "1",
+		Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+		Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+		Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+	}
+	parts := func(video bool) runs.Parts {
+		p := runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb)}
+		if video {
+			p.Video = bytes.NewReader(gifBytes)
+		}
+		return p
+	}
+
+	first, created, err := e.svc.Create(context.Background(), base, parts(false))
+	if err != nil || !created {
+		t.Fatalf("first create: created %v err %v", created, err)
+	}
+	if first.Video != nil {
+		t.Fatal("a run without a video has one")
+	}
+
+	withVideo := base
+	withVideo.Video = &runs.ImageMeta{SHA256: gh, W: 1, H: 1}
+	second, created, err := e.svc.Create(context.Background(), withVideo, parts(true))
+	if err != nil {
+		t.Fatalf("second create: %v", err)
+	}
+	if created {
+		t.Fatal("the same look was stored twice instead of attaching the animation")
+	}
+	if second.ID != first.ID {
+		t.Fatalf("second create made run %d, want the existing %d", second.ID, first.ID)
+	}
+	if second.Video == nil {
+		t.Fatal("the animation was not attached to the existing run")
+	}
+	if second.Video.SHA256 != gh || second.Video.Mime != "image/gif" {
+		t.Fatalf("video = %+v, want the GIF", second.Video)
+	}
+	got, err := e.svc.Get(context.Background(), first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Video == nil || got.Video.SHA256 != gh {
+		t.Fatalf("Get lost the video: %+v", got.Video)
+	}
+}

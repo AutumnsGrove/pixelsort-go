@@ -47,6 +47,8 @@ const RIDGE: Run = {
 const OLD: Run = { ...base(8), parent_run_id: 7, settings: { mode: 'edges', angle: 12, seed: 3 }, seed: 3 };
 /** A third run, so range and drag selection have somewhere to go. */
 const THIRD: Run = { ...base(9), title: 'Third look', settings: { mode: 'random', angle: 5, seed: 9 }, seed: 9 };
+/** A run with a saved animation. */
+const ANIMATED: Run = { ...base(10), title: 'Moving ridge', video: { ...img('d'), mime: 'image/gif' } };
 
 type Fake = {
 	patches: { id: number; title: unknown }[];
@@ -243,6 +245,16 @@ test('a failed rename puts the old name back, says so, and Retry stores it', asy
 	await page.getByRole('button', { name: 'Retry now' }).click();
 	await expect(card(page).getByTestId('run-name')).toContainText('Will fail');
 	await expect(page.getByTestId('archive-error')).toHaveCount(0);
+});
+
+test('a run with an animation shows a badge and plays the animation in the viewer', async ({ page }) => {
+	await gallery(page, { runs: [ANIMATED] });
+	await page.goto('/archive');
+	await expect(card(page).getByTestId('run-animated')).toBeVisible();
+	await card(page).getByTestId('run-open').click();
+	const viewer = page.getByTestId('viewer');
+	await expect(viewer.getByTestId('viewer-animation')).toBeVisible();
+	await expect(viewer.getByTestId('viewer-anim-download')).toBeVisible();
 });
 
 test('a card opens the viewer: the picture, the recipe in words, Esc closes and focus goes back', async ({ page }) => {

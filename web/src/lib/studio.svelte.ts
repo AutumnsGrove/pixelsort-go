@@ -173,6 +173,8 @@ class Studio {
 	/** Why the last save failed, for the error catalog ('disk', 'timeout', or unsaid). */
 	saveReason = $state<'disk' | 'timeout' | undefined>(undefined);
 	private saving = $state(false);
+	/** An animation exported from the panel, waiting for the next save to attach it to the run. */
+	pendingAnimation: Blob | null = null;
 	/** The look that was last stored, so Save knows whether pressing it again would change anything. */
 	private lastSavedKey = $state<string | null>(null);
 	/** Fingerprint of the original pixels: two pictures with the same corners are not the same picture. */
@@ -768,7 +770,7 @@ class Studio {
 	 */
 	async save(report = false): Promise<'saved' | 'unchanged' | 'failed' | 'busy'> {
 		if (!this.size || !this.original || !this.sorted || this.saving) return 'busy';
-		if (this.saveKey() === this.lastSavedKey) return 'unchanged';
+		if (this.saveKey() === this.lastSavedKey && !this.pendingAnimation) return 'unchanged';
 		this.isSample = false;
 		this.saving = true;
 		try {
@@ -816,6 +818,7 @@ class Studio {
 			original,
 			result,
 			thumb,
+			video: this.pendingAnimation,
 			w,
 			h,
 			title: this.customName,
@@ -824,6 +827,7 @@ class Studio {
 		// the next save in this session is a child of this one: a line of versions, each pointing at the one before
 		if (typeof saved?.id === 'number') this.parentRunId = saved.id;
 		this.lastSavedKey = key;
+		this.pendingAnimation = null;
 		this.saveFailed = false;
 	}
 

@@ -2,6 +2,29 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 6 (Archive)
+
+Branch `build/animation-export`.
+
+- **A run carries one optional animation.** The schema already had `runs.video_id` and the `video` image kind; the gap was
+  the plumbing. `runs.Run` gained `Video *ImageInfo` (null for a plain sort), the queries left-join the video image,
+  `Meta.Video`/`Parts.Video` accept it, and `POST /api/runs` reads an optional `video` multipart part. Blob GC and usage
+  already counted `video_id`, so permanent delete needed no change.
+- **Exporting an already-saved look attaches instead of duplicating.** The duplicate check returns the existing run; when
+  the request carries a video and that run has none, the same transaction sets `video_id`. This is what makes "Save, then
+  export an animation" work without a second run.
+- **The panel hands the blob to the next save.** `Studio.pendingAnimation` is set after a successful export; `save()`
+  treats a pending animation as a reason to save even when the look is unchanged, and clears it only after the save
+  succeeds, so a failed upload can be retried.
+- **The viewer plays the animation.** GIF/APNG (which sniff as `image/png`, so the MIME alone cannot tell them apart) and
+  MP4/WebM (video MIME) are both rendered from `video.sha256`; still runs keep `viewer-image`. A second Download button
+  saves the animation. Archive cards show an "Animated" badge.
+- **MP4/WebM are accepted by the store already** (`video/mp4`, `video/webm` in the blob allowlist) even though the web
+  encoder for them is phase 4, so the server needs no further change then.
+- **Tests:** `server/runs` (create with video, duplicate attach, Get), a real-HTTP integration test (upload a run, then the
+  same look with a GIF, expect `200` and the video on the run), `api.test.ts` (the form carries `video` and `meta.video`),
+  and archive/animation-panel e2e (badge, viewer animation, export uploads a `video` part).
+
 ## 2026-11-08 · issue #16 · animation export, phase 5 (the panel)
 
 Branch `build/animation-export`.

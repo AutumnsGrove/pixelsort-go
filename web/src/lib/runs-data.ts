@@ -12,6 +12,8 @@ export type RunItem = {
 	age: number;
 	starred: boolean;
 	bytes?: number;
+	/** The run has a saved animation. */
+	animated?: boolean;
 };
 
 export type Row<T = RunItem> = { type: 'head'; h: number; label: string } | { type: 'cards'; h: number; items: T[] };
