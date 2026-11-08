@@ -2,6 +2,26 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 3 (web encoders and loop)
+
+Branch `build/animation-export`.
+
+- **One new dependency: `gifenc` 1.0.3 (MIT, 172 kB unpacked).** It is imported only by `anim-gif.ts`, which the export
+  loop loads with `await import(...)`, so Vite code-splits it out of the main bundle until an export starts. We use its
+  `quantize`, `applyPalette` and container; the palette and pacing stay ours.
+- **GIF dithering is ordered (Bayer 8x8), not Floyd-Steinberg.** gifenc maps colours to the palette itself, so error
+  diffusion would need our own mapper behind its API. The Bayer offset is cheap per pixel and breaks banding; the CLI
+  still uses Floyd-Steinberg. This is a visible difference only in gradients.
+- **APNG is in-repo.** `anim-apng.ts` filters each frame, deflates it with `CompressionStream('deflate')` (the zlib stream
+  IDAT needs) and writes the acTL/fcTL/IDAT/fdAT chunks with CRCs. The frame count is declared in acTL up front.
+- **The export loop is pure orchestration** (`export-anim.ts`): sampler passes in order, `clientFrameSource` seeks and
+  scales, the encoder sees frames one at a time, progress and an `AbortSignal` are honoured. Tests use fake sources and
+  encoders, plus a small GIF/LZW decoder and APNG chunk reader, so they need no browser or engine.
+- **`maxPasses` now calls `prepare()` in the worker.** Asking straight after `configure` is the panel's flow; previously
+  `Session.MaxPasses` needed a prepared plan and the panel would have had to animate first.
+- **Nearest-neighbour scaling** in `anim-frame.ts` replaces the canvas resize for exports. It is deterministic, works in
+  Node tests and keeps the preview and the written file identical.
+
 ## 2026-11-08 · issue #16 · animation export, phase 2 (CLI)
 
 Branch `build/animation-export`.

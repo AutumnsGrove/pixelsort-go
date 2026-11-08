@@ -243,6 +243,9 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			return { res: started.ok ? { id: req.id, ok: true } : fail(req.id, started.error), transfer: [] };
 		}
 		case 'maxPasses': {
+			// Preparing here means the panel can ask for the bound straight after configure, before any run.
+			const prep = api.prepare();
+			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
 			const r = api.maxPasses();
 			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
 			return { res: { id: req.id, ok: true, passes: r.passes }, transfer: [] };
