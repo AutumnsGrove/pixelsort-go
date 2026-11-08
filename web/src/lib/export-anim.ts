@@ -5,7 +5,7 @@ import type { Sequence } from './anim-sampler';
 import type { FrameImage } from './anim-frame';
 import { scaleFrame, spread } from './anim-frame';
 
-export type AnimFormat = 'gif' | 'apng';
+export type AnimFormat = 'gif' | 'apng' | 'mp4' | 'webm';
 
 /** Answers with the frame at one pass, already scaled to the export size. */
 export type FrameSource = (pass: number) => Promise<FrameImage>;
@@ -55,14 +55,21 @@ export async function createEncoder(
 	width: number,
 	height: number,
 	frames: number,
-	loop: boolean
+	loop: boolean,
+	fps = 30
 ): Promise<AnimEncoder> {
 	if (format === 'gif') {
 		const { GIFEncoderStream } = await import('./anim-gif');
 		return new GIFEncoderStream(width, height, loop);
 	}
-	const { APNGEncoder } = await import('./anim-apng');
-	return new APNGEncoder(width, height, frames, loop);
+	if (format === 'apng') {
+		const { APNGEncoder } = await import('./anim-apng');
+		return new APNGEncoder(width, height, frames, loop);
+	}
+	const { VideoEncoderStream, pickVideoCodec } = await import('./anim-video');
+	const codec = await pickVideoCodec(format, width, height, fps);
+	if (!codec) throw new Error(`This browser cannot encode ${format} video here.`);
+	return new VideoEncoderStream(format, codec, width, height, fps);
 }
 
 /** The part of EngineClient the export needs, so tests can stand in for it. */
@@ -90,5 +97,7 @@ export function clientFrameSource(
 
 /** The file's MIME type. */
 export function animMime(format: AnimFormat): string {
-	return format === 'gif' ? 'image/gif' : 'image/apng';
+	if (format === 'gif') return 'image/gif';
+	if (format === 'apng') return 'image/apng';
+	return `video/${format}`;
 }

@@ -4,6 +4,7 @@ import {
 	DEFAULT_ANIM,
 	animFilename,
 	clampFrame,
+	evenSize,
 	estimateBytes,
 	frameCountFor,
 	memoryWarning,
@@ -22,6 +23,8 @@ describe('animation settings', () => {
 	it('has a format note for each format', () => {
 		expect(ANIM_FORMATS.gif.name).toBe('GIF');
 		expect(ANIM_FORMATS.apng.ext).toBe('apng');
+		expect(ANIM_FORMATS.mp4.ext).toBe('mp4');
+		expect(ANIM_FORMATS.webm.ext).toBe('webm');
 	});
 
 	it('turns seconds into frames', () => {
@@ -49,8 +52,14 @@ describe('size and memory', () => {
 		expect(outputSize(1, 1, 0.25)).toEqual({ w: 1, h: 1 });
 	});
 
-	it('estimates APNG larger than GIF', () => {
+	it('rounds video down to even dimensions', () => {
+		expect(evenSize(1200, 675)).toEqual({ w: 1200, h: 674 });
+		expect(evenSize(1, 1)).toEqual({ w: 2, h: 2 });
+	});
+
+	it('estimates APNG larger than GIF, and video smaller than both', () => {
 		expect(estimateBytes('apng', 100, 1e6)).toBeGreaterThan(estimateBytes('gif', 100, 1e6));
+		expect(estimateBytes('mp4', 100, 1e6)).toBeLessThan(estimateBytes('gif', 100, 1e6));
 	});
 
 	it('warns when the file would be too big to hold', () => {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 const waitDone = (page: Page) => expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
@@ -45,6 +46,27 @@ test('the animation panel exports an APNG at the chosen scale', async ({ page })
 	await expect(page.getByTestId('anim-info')).toContainText('.apng');
 	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
 	expect(download.suggestedFilename()).toMatch(/-anim\.apng$/);
+});
+
+test('exports MP4 and WebM when WebCodecs can encode them', async ({ page }) => {
+	await openPanel(page);
+	await smallSettings(page);
+
+	const mp4 = page.getByRole('radio', { name: 'MP4' });
+	await expect(mp4).toBeEnabled();
+	await mp4.click();
+	const [mp4Download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
+	expect(mp4Download.suggestedFilename()).toMatch(/\.mp4$/);
+	const mp4Bytes = readFileSync((await mp4Download.path())!);
+	expect(mp4Bytes.subarray(4, 8).toString('latin1')).toBe('ftyp');
+
+	const webm = page.getByRole('radio', { name: 'WebM' });
+	await expect(webm).toBeEnabled();
+	await webm.click();
+	const [webmDownload] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
+	expect(webmDownload.suggestedFilename()).toMatch(/\.webm$/);
+	const webmBytes = readFileSync((await webmDownload.path())!);
+	expect(Array.from(webmBytes.subarray(0, 4))).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
 });
 
 test('an export sends the animation with the saved run', async ({ page }) => {

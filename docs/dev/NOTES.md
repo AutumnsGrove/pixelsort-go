@@ -2,6 +2,28 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 4 (MP4/WebM)
+
+Branch `build/animation-export`.
+
+- **Mediabunny 1.65.2 replaces the plan's `mp4-muxer`/`webm-muxer`.** Both of those are deprecated upstream (the author
+  points at Mediabunny), so adopting them would have added dead dependencies. Mediabunny is MPL-2.0 and tree-shakes to a
+  **224 KB** lazy chunk; it is imported only by `anim-video.ts`, which the export loop loads on demand. The main bundle is
+  unchanged in practice.
+- **Feature detection does not import Mediabunny.** `anim-video-support.ts` probes `VideoEncoder.isConfigSupported` with
+  raw WebCodecs strings (H.264 level 4.0, VP9 profile 0, VP8), so the panel can ask on open without pulling the muxer.
+  The panel disables MP4/WebM with a title and, when neither works, shows a sentence; GIF/APNG stay available.
+- **Video dimensions are even.** H.264 rejects odd sizes, so video outputs round down to an even width and height
+  (`evenSize`); the support probe uses that same size. MP4 uses `fastStart: 'in-memory'` so it plays before the whole file
+  arrives. WebM prefers VP9 and falls back to VP8; MP4 uses AVC.
+- **Frame timing is the sampler's actual delay**, including the end hold, so a video's last frame stays as long as the GIF/
+  APNG one. There is no audio track.
+- **The Archive and sharing needed no further change**: phase 6 already stores `video/*` blobs and the viewer plays them,
+  and phase 7 already sends them to the Worker with a 25 MB cap.
+- **Tests:** `anim-video.test.ts` (no WebCodecs means both formats off with an explanation), `anim-panel` (even sizes,
+  video estimate smaller than GIF), `export-anim` (clear refusal when a codec is missing), and the e2e panel exports MP4
+  and WebM and checks the `ftyp` / EBML signatures, alongside the existing GIF/APNG/download/save tests.
+
 ## 2026-11-08 · issue #16 · animation export, phase 7 (sharing)
 
 Branch `build/animation-export`.

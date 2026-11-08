@@ -4,7 +4,7 @@ import { frameCount, newSequence, type Ease, type Sequence } from './anim-sample
 import { DEVICES, type DeviceId } from './export-model';
 import { slug } from './naming';
 
-export type AnimFormat = 'gif' | 'apng';
+export type AnimFormat = 'gif' | 'apng' | 'mp4' | 'webm';
 
 export type AnimSettings = {
 	format: AnimFormat;
@@ -34,7 +34,9 @@ export const PREVIEW_SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 
 export const ANIM_FORMATS: Record<AnimFormat, { name: string; ext: string; note: string }> = {
 	gif: { name: 'GIF', ext: 'gif', note: 'Plays everywhere. 256 colours, so photos can band.' },
-	apng: { name: 'APNG', ext: 'apng', note: 'Lossless and sharp. Bigger files than GIF.' }
+	apng: { name: 'APNG', ext: 'apng', note: 'Lossless and sharp. Bigger files than GIF.' },
+	mp4: { name: 'MP4', ext: 'mp4', note: 'Smallest, and plays nearly everywhere. Needs WebCodecs for H.264.' },
+	webm: { name: 'WebM', ext: 'webm', note: 'Small and sharp with VP9. Needs WebCodecs.' }
 };
 
 /** The frame plan for these settings and a sort with `maxPasses` passes. */
@@ -52,8 +54,13 @@ export function outputSize(w: number, h: number, scale: number): { w: number; h:
 	return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
 }
 
+/** Video encoders want even dimensions; this rounds down to the nearest even size (at least 2). */
+export function evenSize(w: number, h: number): { w: number; h: number } {
+	return { w: Math.max(2, w - (w % 2)), h: Math.max(2, h - (h % 2)) };
+}
+
 // Rough bytes a pixel costs in each format: GIF about 0.9 with one palette and dither; APNG about 2.5 with PNG compression.
-const BYTES_PER_PX: Record<AnimFormat, number> = { gif: 0.9, apng: 2.5 };
+const BYTES_PER_PX: Record<AnimFormat, number> = { gif: 0.9, apng: 2.5, mp4: 0.01, webm: 0.012 };
 
 /** A rough file size for warning before a long export, not a promise. */
 export function estimateBytes(format: AnimFormat, frames: number, px: number): number {

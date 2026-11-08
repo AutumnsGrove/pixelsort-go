@@ -11,6 +11,7 @@
 		ANIM_HOLDS,
 		ANIM_SCALES,
 		DEFAULT_ANIM,
+		evenSize,
 		PREVIEW_SPEEDS,
 		animFilename,
 		clampFrame,
@@ -28,6 +29,7 @@
 	import { fmtBytes, fmtMP } from '#lib/export-model';
 	import { clientFrameSource, createEncoder, exportAnimation } from '#lib/export-anim';
 	import { scaleFrame } from '#lib/anim-frame';
+	import { videoSupport, type VideoSupport } from '#lib/anim-video-support';
 	import type { EngineClient } from '#lib/engine/client';
 
 	let { onclose }: { onclose: () => void } = $props();
@@ -43,16 +45,20 @@
 	let progress = $state(0);
 	let error = $state<string | null>(null);
 	let saved = $state<string | null>(null);
+	let video = $state<VideoSupport>({ mp4: false, webm: false, note: null });
 	let canvas: HTMLCanvasElement | undefined = $state();
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let abort: AbortController | null = null;
 	let drawSeq = 0;
+	let videoSeq = 0;
 
 	const size = $derived(studio.size);
 	const device = $derived(
 		typeof matchMedia !== 'undefined' && matchMedia('(max-width: 700px)').matches ? 'phone' : 'desktop'
 	);
-	const out = $derived(size ? outputSize(size.w, size.h, settings.scale) : { w: 1, h: 1 });
+	const rawOut = $derived(size ? outputSize(size.w, size.h, settings.scale) : { w: 1, h: 1 });
+	const isVideo = $derived(settings.format === 'mp4' || settings.format === 'webm');
+	const out = $derived(isVideo ? evenSize(rawOut.w, rawOut.h) : rawOut);
 	const seq = $derived(sequenceFor(settings, maxPasses));
 	const frames = $derived(seq.passes.length);
 	const prev = $derived(previewSize(out.w, out.h));
@@ -80,6 +86,7 @@
 			}
 			session = s;
 			maxPasses = s.maxPasses;
+			await checkVideo();
 			await show(0);
 		} catch {
 			error = 'The animation engine could not start. Close the panel and try again.';
@@ -89,6 +96,26 @@
 	}
 
 	/** Seeks one frame and draws it; a newer seek wins, so a fast scrub never draws an old frame. */
+	/** Video formats are only offered when WebCodecs can encode one here. */
+	async function checkVideo(): Promise<void> {
+		const my = ++videoSeq;
+		try {
+			// Probe the even size the video encoder will actually receive, whatever format is selected now.
+			const probe = evenSize(rawOut.w, rawOut.h);
+			const next = await videoSupport(probe.w, probe.h, settings.fps);
+			if (my === videoSeq) video = next;
+		} catch {
+			if (my !== videoSeq) return;
+			video = { mp4: false, webm: false, note: 'The video encoder could not be checked. GIF and APNG still work.' };
+		}
+	}
+
+	function supported(format: AnimFormat): boolean {
+		if (format === 'mp4') return video.mp4;
+		if (format === 'webm') return video.webm;
+		return true;
+	}
+
 	async function show(i: number): Promise<void> {
 		if (!session || !size) return;
 		const my = ++drawSeq;
@@ -142,6 +169,7 @@
 		pause();
 		settings = { ...settings, ...patch };
 		saved = null;
+		if (patch.scale !== undefined || patch.fps !== undefined) void checkVideo();
 		void show(clampFrame(index, frames));
 	}
 
@@ -151,7 +179,7 @@
 	}
 
 	async function doExport(): Promise<void> {
-		if (!session || !size || problem) return;
+		if (!session || !size || problem || !supported(settings.format)) return;
 		pause();
 		exporting = true;
 		error = null;
@@ -159,7 +187,7 @@
 		progress = 0;
 		abort = new AbortController();
 		try {
-			const encoder = await createEncoder(settings.format, out.w, out.h, frames, settings.loop);
+			const encoder = await createEncoder(settings.format, out.w, out.h, frames, settings.loop, settings.fps);
 			const source = clientFrameSource(session.client, size.w, size.h, out.w, out.h);
 			const blob = await exportAnimation({
 				sequence: seq,
@@ -255,16 +283,20 @@
 					<span class="eyebrow">Format</span>
 					<div class="chips" role="radiogroup" aria-label="Format">
 						{#each Object.entries(ANIM_FORMATS) as [id, f] (id)}
+							{@const ok = supported(id as AnimFormat)}
 							<button
 								type="button"
 								role="radio"
 								aria-checked={settings.format === id}
 								class:on={settings.format === id}
+								disabled={!ok}
+								title={ok ? undefined : `${f.name} is not available in this browser`}
 								onclick={() => change({ format: id as AnimFormat })}>{f.name}</button
 							>
 						{/each}
 					</div>
 					<p class="sub">{ANIM_FORMATS[settings.format].note}</p>
+					{#if video.note}<p class="warn" role="note" data-testid="anim-video-note">{video.note}</p>{/if}
 				</div>
 
 				<div class="group">
@@ -360,7 +392,7 @@
 					<button
 						class="btn pri"
 						type="button"
-						disabled={!!problem || loading || !session}
+						disabled={!!problem || loading || !session || !supported(settings.format)}
 						onclick={doExport}
 						data-testid="anim-export"
 					>
@@ -450,6 +482,10 @@
 		font: inherit;
 		font-size: 11px;
 		cursor: pointer;
+	}
+	.chips button:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
 	}
 	.chips button.on {
 		color: var(--paper);

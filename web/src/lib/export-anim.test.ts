@@ -105,6 +105,12 @@ describe('createEncoder', () => {
 		expect(e).toBeDefined();
 		expect(animMime('apng')).toBe('image/apng');
 	});
+
+	it('refuses video with a clear error when WebCodecs cannot encode it', async () => {
+		await expect(createEncoder('mp4', 640, 360, 10, false)).rejects.toThrow('cannot encode mp4');
+		expect(animMime('mp4')).toBe('video/mp4');
+		expect(animMime('webm')).toBe('video/webm');
+	});
 });
 
 describe('clientFrameSource', () => {
