@@ -8,19 +8,17 @@ check the work afterwards.
 The visual and behavioural spec is the working mockup in [`../../mockups/`](../../mockups/): open
 `mockups/index.html`, and treat `mockups/tests/` as the acceptance tests for the real app.
 
-**To start the build agent,** paste the prompt from [`PROMPT.md`](PROMPT.md). It also has a resume prompt and the
-review prompt for afterwards.
+**Working in this repo?** [`../../AGENTS.md`](../../AGENTS.md) is the short version: commands, the rules that
+matter, and how to leave a session tidy. Everything below is the detail behind it.
 
 ## Read in this order
 
-1. [`AGENT.md`](AGENT.md): the rules of the game. The loop for every task, commit style, what to do when
-   stuck. **Read this first, every session.**
-2. [`conventions.md`](conventions.md): Go and TypeScript standards, project layout, the determinism rules.
-3. [`testing.md`](testing.md): TDD, property tests, fuzzing, goldens, benchmarks, and the exact commands.
-4. [`decisions.md`](decisions.md): choices made while writing these plans (they refine PLAN.md; where they
+1. [`conventions.md`](conventions.md): Go and TypeScript standards, project layout, the determinism rules.
+2. [`testing.md`](testing.md): TDD, property tests, fuzzing, goldens, benchmarks, and the exact commands.
+3. [`decisions.md`](decisions.md): choices made while writing these plans (they refine PLAN.md; where they
    differ, **these win**).
-5. [`PROGRESS.md`](PROGRESS.md): the checklist of every task. Tick a box in the same commit as the work.
-6. The phase file you are on, then only the task you are on.
+4. [`NOTES.md`](NOTES.md): what happened, newest first. Read the top of it to catch up.
+5. The phase file for whatever is left in [`PROGRESS.md`](PROGRESS.md), then only the task you are on.
 
 ## Phases
 
@@ -44,7 +42,7 @@ after phase 1. Everything else follows the table.
 ## Where things go
 
 ```
-docs/dev/                  these plans (PROGRESS.md and NOTES.md are the only files the build agent edits here)
+docs/dev/                  these plans (NOTES.md is the file that keeps growing; PROGRESS.md is a record)
 docs/dev/reference/        verified reference code for the riskiest primitives (.go.txt, not compiled)
 engine/  cmd/  server/  worker/  web/  deploy/    the code, as laid out in conventions.md
 mockups/                   the throwaway design mockups; never modify, only read
@@ -52,9 +50,9 @@ mockups/                   the throwaway design mockups; never modify, only read
 
 ## Who does what
 
-- **The build agent** works one task at a time on a `build/phase-N` branch, commits each task, and never
-  pushes (see `AGENT.md`).
+- **The build agent** works on its own branch, one piece of work at a time, and opens a pull request (see
+  [`../../AGENTS.md`](../../AGENTS.md)).
 - **Autumn** does the steps marked **[HUMAN]** (anything that touches Cloudflare, the homelab, her accounts or
-  her money) and merges phases after review.
-- **Review** happens after each phase: diff `main...build/phase-N`, read `NOTES.md`, run `make check` and
-  the phase's acceptance command, then merge.
+  her money) and merges pull requests after review.
+- **Review** happens per branch: diff against `main`, read `NOTES.md`, run `make check` and the acceptance
+  commands for the phase, then merge.

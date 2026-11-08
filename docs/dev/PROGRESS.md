@@ -1,6 +1,12 @@
 # Progress
 
-Tick a box (`[ ]` to `[x]`) in the **same commit** as the work. Tasks marked **[HUMAN]** are Autumn's: the build agent skips them and notes them in `NOTES.md`. Work top to bottom within a phase; the order below is the dependency order.
+**A record, not a to-do list.** The phase 0-8 buildout is finished; this file is kept so the plan can be
+read against what was actually built. Do not tick boxes here any more. The boxes still open below are
+unfinished ideas from the original plan, not assigned work: open work lives in GitHub issues, and anything
+a person has to do is under "Needs Autumn" in [`NOTES.md`](NOTES.md).
+
+Each task, when it was built, was ticked (`[ ]` to `[x]`) in the **same commit** as the work, and tasks
+marked **[HUMAN]** were Autumn's. Phases ran top to bottom; the order below is the dependency order.
 
 ## Phase 0: repo, tooling, and a hello-world WASM
 
