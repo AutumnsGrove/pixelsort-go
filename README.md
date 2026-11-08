@@ -44,19 +44,6 @@ make embed-build
 | `make image` `make compose-test` | the container image, and a check of it |
 | `make bench` `make hello` `make spike` | benchmarks, and small ways to poke the engine |
 
-## Where to look next
-
-| | |
-|---|---|
-| [`docs/gallery.md`](docs/gallery.md) | Every screen, and what the engine does to a photograph. |
-| [`PLAN.md`](PLAN.md) | The whole plan: goals, architecture, engine design, gallery, deployment, tests, decisions. |
-| [`docs/dev/README.md`](docs/dev/README.md) | **How it gets built** — one test-first plan per phase, plus conventions and testing. |
-| [`docs/deploy.md`](docs/deploy.md) | Deploying it. |
-| [`docs/handoffs/`](docs/handoffs/) | Where things stand and what happens next. The latest handoff is the best way back in. |
-| [`mockups/`](mockups/) | Build-free HTML mockups of every screen — open `mockups/index.html`. |
-
-Open work is tracked in [`docs/dev/PROGRESS.md`](docs/dev/PROGRESS.md).
-
 ## Security
 
 Sorting happens in your browser; the server never touches pixels. The service makes outside calls, but only to its

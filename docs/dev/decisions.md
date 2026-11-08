@@ -167,8 +167,9 @@ outline. The page cuts the shape out itself and nothing enters the shape library
 
 ## Process
 
-**P1.** One branch per phase (`build/phase-N`), one commit per task, no pushing by the build agent. Review
-happens on the diff against `main`.
+**P1.** ~~One branch per phase (`build/phase-N`), one commit per task, no pushing by the build agent.~~ That was
+the cloud buildout's rule. Now: one branch per piece of work, cut from `main`, pushed, and reviewed as a pull
+request that Autumn merges. The per-task commits of the buildout are still the pattern worth copying.
 
 **P2.** Open questions the agent hits are answered by choosing the simplest consistent option and logging it in
 `NOTES.md`, not by stopping.

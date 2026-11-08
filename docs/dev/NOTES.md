@@ -147,7 +147,7 @@ on R2) and P8-T12 (the homelab docs are pushed).
 2. **Optional** · `CLOUDFLARE_API_TOKEN` on the `production` environment so `deploy-worker.yml` can deploy from CI;
    a dedicated `pixelsort-backups` bucket and R2 token instead of the interim `vaultwarden-backups` prefix;
    `/lab/bench` on a phone and the table in `docs/perf.md`.
-3. Delete `DESKTOP-HANDOFF.md` when the update and rollback have both been exercised.
+3. ~~Delete `DESKTOP-HANDOFF.md` when the update and rollback have both been exercised.~~ Done: the file is gone.
 
 ## 2026-11-05 · Deploy results (desktop session)
 
@@ -210,7 +210,8 @@ dock and works now that the Worker is configured (no issue needed).
 
 ## Where the cloud session stopped (first stretch on `build/all`, PR #1; the second on `build/next`)
 
-The desktop steps are written out command by command in `DESKTOP-HANDOFF.md` at the repository root (it deletes itself when you are done).
+The desktop steps were written out command by command in `DESKTOP-HANDOFF.md` at the repository root, which has since
+been deleted; what it asked for is in `docs/deploy.md` and in the dated sections below.
 
 Done and tested: phases 2, 3, 4; phase 5's pure modules, the desktop and phone Studio, Archive and Settings; phase 6 (server T01-T14);
 phase 7's whole engine side (tilings, custom polygons, classes, masks, brightest spot, session + WASM calls, goldens matching on native and
@@ -231,7 +232,7 @@ reads an optional `ca` build secret for this). The linux/arm64 build is **not ve
 
 ## Decisions and questions
 
-One entry per choice the agent made when the spec was unclear (format in `AGENT.md`).
+One entry per choice the agent made when the spec was unclear (format in `AGENTS.md`).
 
 ## 2026-11-05 · Local build: `cookie` must be a direct web dependency
 
