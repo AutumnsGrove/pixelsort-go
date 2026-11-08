@@ -27,6 +27,9 @@ var (
 // MaxImages is the Worker's limit on images in one album.
 const MaxImages = 200
 
+// MaxAnimationBytes is the size cap for a shared animation. The panel warns before it, and this refuses one over it.
+const MaxAnimationBytes = 25 << 20
+
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // Service creates, lists and revokes shares.
@@ -91,7 +94,11 @@ type manifest struct {
 	Images  []manifestImage `json:"images"`
 }
 
-var allowedMime = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
+// allowedMime is what an album may hold: stills, GIF/APNG animations, and the video formats the studio can write.
+var allowedMime = map[string]bool{
+	"image/png": true, "image/jpeg": true, "image/webp": true, "image/gif": true, "image/apng": true,
+	"video/mp4": true, "video/webm": true,
+}
 
 type upload struct {
 	n      int
@@ -151,18 +158,25 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, originals map[i
 		if run.TrashedAt != nil {
 			return Created{}, fmt.Errorf("%w: run %d is in the trash", ErrInvalid, rid)
 		}
-		if !allowedMime[run.Result.Mime] || !allowedMime[run.Thumb.Mime] {
-			return Created{}, fmt.Errorf("%w: run %d is not a PNG, JPEG or WebP", ErrInvalid, rid)
+		shown := run.Result
+		if run.Video != nil {
+			if run.Video.Bytes > MaxAnimationBytes {
+				return Created{}, fmt.Errorf("%w: the animation for run %d is larger than 25 MB", ErrInvalid, rid)
+			}
+			shown = *run.Video
+		}
+		if !allowedMime[shown.Mime] || !allowedMime[run.Thumb.Mime] {
+			return Created{}, fmt.Errorf("%w: run %d is not a PNG, JPEG, WebP, GIF, APNG, MP4 or WebM", ErrInvalid, rid)
 		}
 		name := ""
 		if run.Title != nil {
 			name = runs.CleanName(*run.Title)
 		}
-		img := manifestImage{W: run.Result.W, H: run.Result.H, Mime: run.Result.Mime, Name: name}
+		img := manifestImage{W: run.Result.W, H: run.Result.H, Mime: shown.Mime, Name: name}
 		if req.IncludeRecipe {
 			img.Recipe = run.Settings
 		}
-		add(img, run.Result.SHA256, run.Result.Mime, run.Result.Bytes, run.Thumb.SHA256, run.Thumb.Mime, run.Thumb.Bytes, nil)
+		add(img, shown.SHA256, shown.Mime, shown.Bytes, run.Thumb.SHA256, run.Thumb.Mime, run.Thumb.Bytes, nil)
 		if req.IncludeOriginal {
 			o := originals[rid]
 			if !allowedMime[o.Mime] || len(o.Data) == 0 {

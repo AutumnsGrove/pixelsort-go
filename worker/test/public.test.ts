@@ -54,6 +54,15 @@ test('every page has nosniff and a CSP whose nonce changes', async () => {
 	expect(await a.text()).toContain(`<script nonce="${nonce(a)}">`);
 });
 
+test('a video album allows media and carries the video element', async () => {
+	await seed(base({ images: [{ w: 4, h: 3, mime: 'video/mp4', name: 'clip' }] }));
+	const r = await get(`/a/${ID}`);
+	const html = await r.text();
+	expect(r.headers.get('Content-Security-Policy')).toContain("media-src 'self'");
+	expect(html).toContain('id="vid"');
+	expect(html).toContain('video/mp4');
+});
+
 test('files carry CORS and a content type; the manifest is not cached', async () => {
 	await seed(base());
 	const img = await get(`/a/${ID}/0`);

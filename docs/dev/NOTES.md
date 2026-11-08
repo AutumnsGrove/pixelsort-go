@@ -2,6 +2,24 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 7 (sharing)
+
+Branch `build/animation-export`.
+
+- **A shared run sends its animation instead of its still result.** `share.Service` picks `run.Video` when present, keeps
+  the run's result dimensions for the manifest (the web stores video width/height as 0) and keeps the still thumbnail.
+  Still-only runs are unchanged, including the re-encoded original path.
+- **The 25 MB cap is server-side.** `share.MaxAnimationBytes` refuses a larger animation with `400` and a sentence naming
+  the size; the Worker's own object cap is 30 MB, so the server is the tighter one.
+- **Worker types widened**: `image/gif`, `image/apng`, `video/mp4` and `video/webm` are accepted for album objects and in
+  the manifest. APNG usually arrives as `image/png` (it shares the PNG signature), which already worked.
+- **Public pages render video.** The viewer keeps the `<img>` for stills, GIF and APNG and swaps in a muted looping
+  `<video controls playsinline>` for `video/*`; the CSP gained `media-src 'self'` and the format row says MP4/WEBM. The
+  strip stays thumbnails, and Download still saves the item at its own path.
+- **Tests:** server share integration (the album's image bytes are the GIF, manifest MIME/dimensions, thumbnail present),
+  Worker `albums.test.ts` (the four new types accepted, `image/avif` still refused) and `public.test.ts` (media CSP,
+  video element and MIME in the page). `pdg`/`pnpm check` for the Worker is clean.
+
 ## 2026-11-08 · issue #16 · animation export, phase 6 (Archive)
 
 Branch `build/animation-export`.

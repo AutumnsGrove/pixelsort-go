@@ -208,4 +208,4 @@ File: [`animation-export.md`](animation-export.md)
 - [ ] A4 MP4/WebM via WebCodecs with feature detection
 - [x] A5 Animation panel with preview
 - [x] A6 Archive storage, viewer, delete/GC
-- [ ] A7 Sharing (server + worker + public pages)
+- [x] A7 Sharing (server + worker + public pages)

@@ -68,8 +68,9 @@ controls when they are off.
 
 ### `POST /api/shares`
 JSON `{"run_ids":[1,2],"include_recipe":false,"include_original":false,"expires_in_days":30|null,"title":"…"}`, or
-`multipart/form-data` with the same JSON in a `meta` field plus one `orig-<run_id>` file per run. Uploads the results
-(and thumbnails) to the Worker, then the manifest last, and records the share. Returns `201`
+`multipart/form-data` with the same JSON in a `meta` field plus one `orig-<run_id>` file per run. Uploads each run's
+animation when it has one (otherwise its result) and its thumbnail to the Worker, then the manifest last, and records
+the share. A shared animation is capped at 25 MB (`400 bad_request` above that); GIF, APNG, MP4 and WebM are allowed. Returns `201`
 `{"id":"…26 chars…","url":"https://…/a/<id>","expires_at":null}`. `include_original` needs a browser re-encoded,
 metadata-stripped original for every run (`400 originals_required` without them): a stored original is never sent as is.
 If any upload fails the partial album is removed and nothing is recorded (`502 upstream_failed`).
