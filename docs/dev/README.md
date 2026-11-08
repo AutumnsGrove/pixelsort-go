@@ -18,9 +18,14 @@ matter, and how to leave a session tidy. Everything below is the detail behind i
 3. [`decisions.md`](decisions.md): choices made while writing these plans (they refine PLAN.md; where they
    differ, **these win**).
 4. [`NOTES.md`](NOTES.md): what happened, newest first. Read the top of it to catch up.
-5. The phase file for whatever is left in [`PROGRESS.md`](PROGRESS.md), then only the task you are on.
+5. The phase files, as the record of what was built: read `phase-N.md` to see why something is the way it
+   is. Do not work through its task list — `PROGRESS.md` is frozen, and anything still open is a GitHub
+   issue.
 
 ## Phases
+
+Every phase 0 to 8 is built; phase 9 is partly done. This is the record of what each one delivered, kept
+in the order they depended on each other.
 
 | Phase | File | What it delivers | Depends on |
 |---|---|---|---|
