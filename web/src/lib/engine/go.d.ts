@@ -47,6 +47,8 @@ interface PixelsortApi {
 	instant(): GoResult;
 	reset(): GoResult;
 	step(n: number): GoResult<{ done: boolean; progress: number; pass: number }>;
+	/** An upper bound on the passes a stepped sort needs; known right after prepare. */
+	maxPasses(): GoResult<{ passes: number }>;
 	/** Jump to the state after `pass` passes (the same pixels as stepping from the start). */
 	seek(pass: number): GoResult<{ done: boolean; progress: number; pass: number }>;
 	pixelsPtr(): GoResult<{ ptr: number; len: number }>;

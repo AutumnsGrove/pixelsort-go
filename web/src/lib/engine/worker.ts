@@ -242,6 +242,11 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const started = startAnimation();
 			return { res: started.ok ? { id: req.id, ok: true } : fail(req.id, started.error), transfer: [] };
 		}
+		case 'maxPasses': {
+			const r = api.maxPasses();
+			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
+			return { res: { id: req.id, ok: true, passes: r.passes }, transfer: [] };
+		}
 		case 'seek': {
 			// Scrubbing holds the animation where the person put it; Resume carries on from there (even if the sort had
 			// finished before they dragged back).

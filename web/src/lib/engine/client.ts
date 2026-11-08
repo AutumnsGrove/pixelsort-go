@@ -239,6 +239,17 @@ export class EngineClient {
 	}
 
 	/**
+	 * An upper bound on the passes a stepped sort of the configured recipe needs (Prepare must have run). The animation
+	 * panel uses it to spread frames over the whole sort before the first pass.
+	 */
+	async maxPasses(): Promise<number> {
+		const res = await this.send({ type: 'maxPasses' }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (res.passes === undefined) throw new Error('maxPasses answered without a count');
+		return res.passes;
+	}
+
+	/**
 	 * Pauses and jumps to the state after `pass` passes, answering with those pixels. Latest wins: while one seek is in flight
 	 * only the newest further seek is kept, and any older waiting one resolves 'superseded', so dragging a slider never queues
 	 * up work for positions already passed.

@@ -197,3 +197,15 @@ File: [`phase-9.md`](phase-9.md)
 - [ ] P9-T08 TinyGo experiment
 - [ ] P9-T09 Detail / coarseness control
 - [ ] P9-T10 Polish pass
+
+## Animation export (issue #16)
+
+File: [`animation-export.md`](animation-export.md)
+
+- [x] A1 Sampler (Go + TS) with property tests and `MaxPasses`
+- [ ] A2 CLI GIF/APNG/frames output
+- [ ] A3 Web export loop with GIF + APNG
+- [ ] A4 MP4/WebM via WebCodecs with feature detection
+- [ ] A5 Animation panel with preview
+- [ ] A6 Archive storage, viewer, delete/GC
+- [ ] A7 Sharing (server + worker + public pages)

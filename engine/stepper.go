@@ -1,6 +1,9 @@
 package engine
 
-import "slices"
+import (
+	"math/bits"
+	"slices"
+)
 
 // family is one algorithm's share of a stepper: the intervals that use it and whatever state it needs between
 // passes. Families run side by side, one pass each per Step (decision E9).
@@ -23,6 +26,7 @@ type Stepper struct {
 	keys     []uint8  // per position: the key of the pixel currently there (keys travel with their pixel)
 	fams     []family
 	pass     int
+	maxPass  int // upper bound from the families; see MaxPasses
 	finished bool
 	progMax  float64
 	scratch  []uint32 // soft-blended preview, allocated on first use
@@ -59,8 +63,44 @@ func (pl *Plan) NewStepper() *Stepper {
 	if len(reveal) > 0 {
 		s.fams = append(s.fams, newReveal(pl, reveal))
 	}
+	s.maxPass = pl.MaxPasses()
 	s.finished = s.allDone()
 	return s
+}
+
+// MaxPasses is an upper bound on the passes NewStepper needs for this plan: stepping that many times always finishes,
+// and the last image equals Sort. It is known before the first pass, so an animation can spread its frames over the whole
+// sort. Odd-even stops early on two quiet passes, so the bound can be a few passes loose.
+func (pl *Plan) MaxPasses() int {
+	var maxLen, count [4]int
+	for i, a := range pl.Algos {
+		slot := 0
+		switch a {
+		case AlgoInsertion:
+			slot = 1
+		case AlgoMerge:
+			slot = 2
+		case AlgoReveal:
+			slot = 3
+		}
+		maxLen[slot] = max(maxLen[slot], int(pl.Intervals[i].B-pl.Intervals[i].A))
+		count[slot]++
+	}
+	best := 0
+	if count[0] > 0 {
+		best = max(best, maxLen[0]+2) // n phases sort it, two quiet phases prove it
+	}
+	if count[1] > 0 {
+		best = max(best, max(1, maxLen[1]-1)) // one element per pass after the first
+	}
+	if count[2] > 0 && maxLen[2] > 1 {
+		best = max(best, bits.Len(uint(maxLen[2]-1))) // run widths double
+	}
+	if count[3] > 0 {
+		chunk := max(6, (count[3]+159)/160)
+		best = max(best, (count[3]+chunk-1)/chunk)
+	}
+	return best
 }
 
 func (s *Stepper) allDone() bool {
@@ -98,6 +138,7 @@ func (s *Stepper) Clone() *Stepper {
 		keys:     slices.Clone(s.keys),
 		fams:     make([]family, len(s.fams)),
 		pass:     s.pass,
+		maxPass:  s.maxPass,
 		finished: s.finished,
 		progMax:  s.progMax,
 	}
@@ -109,6 +150,11 @@ func (s *Stepper) Clone() *Stepper {
 
 // Done reports whether every family has finished.
 func (s *Stepper) Done() bool { return s.finished }
+
+// MaxPasses is an upper bound on the passes this stepper needs: stepping it that many times always finishes, and the
+// last image equals Plan.Sort. It is known before the first pass, so an animation can spread its frames over the
+// whole sort. It is a bound, not the exact count (odd-even stops early on two quiet passes).
+func (s *Stepper) MaxPasses() int { return s.maxPass }
 
 // Pass is the number of passes run so far.
 func (s *Stepper) Pass() int { return s.pass }

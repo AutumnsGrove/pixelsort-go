@@ -2,6 +2,25 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 1 (sampler)
+
+Branch `build/animation-export`.
+
+- **`Stepper.MaxPasses` is an upper bound, not the exact pass count.** The plan said the total is "known after `Prepare`";
+  it is not. Odd-even only stops after two quiet passes, so the exact end is data-dependent. `Plan.MaxPasses` computes a
+  bound from the interval/algorithm mix instead (odd-even `longest+2`, insertion `longest-1`, merge `ceil(log2 longest)`,
+  reveal its chunk count). A property test checks that stepping that many passes always reaches `Plan.Sort`; a second test
+  keeps the bound within `longest/5` of the real count. The bound is free (no stepper allocation), which matters at 2 MP.
+- **Frames repeat when there are more frames than passes.** The plan asked for strictly increasing passes, which is
+  impossible for a five second export of a ten-pass merge sort. `Sample` therefore returns a non-decreasing list: strictly
+  increasing whenever `frames <= passes+1`, and repeating passes evenly otherwise. When repeats are needed the easing falls
+  back to linear so they do not pile up at the end. The sampler tests state both branches.
+- **Integer-only sampling.** Time-to-pass uses integer arithmetic (linear rounding and the quadratic ease-out
+  `total*i*(2*den-i)/den^2`) rather than floats, so the Go CLI and the TypeScript studio cannot disagree at a boundary.
+  A shared vector table in `internal/anim/sampler_test.go` and `web/src/lib/anim-sampler.test.ts` pins the same results.
+- **`Session.MaxPasses` and a `maxPasses` worker request** expose the bound to the studio without changing `engine.Stats`.
+
+
 ## 2026-11-07 · issue #15 follow-up · there was no way out of the brush
 
 On `main` at Autumn's request.

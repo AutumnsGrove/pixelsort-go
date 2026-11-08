@@ -1,0 +1,14 @@
+# 2026/11/08 17:02:50.152057 [TestProp_SamplerShape] [rapid] draw total: 3
+# 2026/11/08 17:02:50.152077 [TestProp_SamplerShape] [rapid] draw frames: 4
+# 2026/11/08 17:02:50.152080 [TestProp_SamplerShape] [rapid] draw ease: "ease-out"
+# 2026/11/08 17:02:50.152084 [TestProp_SamplerShape] with 4 frames over 3 passes every frame must be a new pass, but 3 repeats: [0 2 3 3]
+# 
+v0.4.8#12619321934835314339
+0x0
+0x34b4b4b4b4b4c
+0x3
+0x0
+0x364d9364d9365
+0x2
+0x0
+0x1
