@@ -2,6 +2,27 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 5 (the panel)
+
+Branch `build/animation-export`.
+
+- **A separate panel, opened from a Film button in the studio toolbar** (and included in the Escape layering). It renders
+  from the studio's current picture and look and never edits them. `Studio.animationSession()` builds a second
+  `EngineClient` with the same image, tiling, mask spec and params, so a live sort on screen is untouched. It is disposed
+  when the panel closes.
+- **The preview walks the export's own `Sequence`.** `anim-panel.ts` is pure (settings, estimate, preview cap, playback
+  arithmetic) with Vitest coverage. The canvas is capped at 520 px on its long edge but keeps the export's shape; the
+  same sampler passes and delays drive play/pause, the scrubber and the 0.25x–4x speeds.
+- **GIF needs the palette before its first frame**, so the encoder samples up to eight frames first and the preview/export
+  then restarts at pass 0. The panel shows progress per frame and cancels at the next frame boundary.
+- **Both exports download and then call `studio.save()`**, matching the still export's rule that an export is deliberate.
+  Archive storage and sharing are the next phases; nothing is uploaded yet.
+- **The engine wasm must be rebuilt for `maxPasses`.** `make wasm` updates the gitignored `web/static/engine.wasm`; the
+  first e2e run failed with `t.maxPasses is not a function` until it was. CI builds it, so this only bit this checkout.
+- **Tests:** `anim-panel.test.ts` (frames, sequence, size, warning, playback, name) and
+  `e2e/animation-panel.spec.ts` (preview draws, GIF download, APNG download, scrub/play/close leaves the studio state
+  alone). The full web suite is 398 unit tests, `pnpm check`, `pnpm lint` and the new e2e spec green.
+
 ## 2026-11-08 · issue #16 · animation export, phase 3 (web encoders and loop)
 
 Branch `build/animation-export`.

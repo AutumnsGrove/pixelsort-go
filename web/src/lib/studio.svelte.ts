@@ -388,6 +388,28 @@ class Studio {
 		}
 	}
 
+	/**
+	 * A second engine session set up exactly like the studio's current picture and look, for the animation panel. It
+	 * never touches the live session, so opening the panel cannot disturb a sort on screen. The caller disposes it.
+	 */
+	async animationSession(): Promise<{ client: EngineClient; maxPasses: number; w: number; h: number } | null> {
+		if (!this.size || !this.original) return null;
+		const { w, h } = this.size;
+		const client = new EngineClient();
+		try {
+			await client.init(w, h);
+			await client.setImage(this.original);
+			if (this.tiling) await client.setTiling({ ...this.tiling }, this.engineDefs());
+			if (this.hasMask()) await client.setMaskSpec(this.maskSpec());
+			await client.configure(this.params);
+			const maxPasses = await client.maxPasses();
+			return { client, maxPasses, w, h };
+		} catch (e) {
+			client.dispose();
+			throw e;
+		}
+	}
+
 	async play(): Promise<void> {
 		if (!this.client || !this.size) return;
 		this.isSample = false;

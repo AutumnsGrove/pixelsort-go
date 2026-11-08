@@ -1,10 +1,22 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Save, Check, Download, ImagePlus, Link2, SlidersHorizontal } from '@lucide/svelte';
+	import {
+		Play,
+		Pause,
+		RotateCcw,
+		Save,
+		Check,
+		Download,
+		ImagePlus,
+		Link2,
+		SlidersHorizontal,
+		Film
+	} from '@lucide/svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { saveButton, createLeaveGuard } from '#lib/save-policy';
 	import TopBar from '#components/TopBar';
 	import ProPanel from '#components/ProPanel';
+	import AnimationPanel from '#components/AnimationPanel';
 	import Strip from '#components/Strip';
 	import MaskHandles from '#components/MaskHandles';
 	import CutoutLayer from '#components/CutoutLayer';
@@ -44,6 +56,7 @@
 	let popover = $state<string | null>(null);
 	let helpOpen = $state(false);
 	let exportOpen = $state(false);
+	let animOpen = $state(false);
 	let exportFormat = $state<FormatId>(settings.exportFormat);
 	let exportQuality = $state(settings.exportQuality);
 	let exportScale = $state(1);
@@ -123,10 +136,11 @@
 		if (!id) return;
 		if (id === 'esc') {
 			// Esc backs out one layer at a time: whatever is being typed or shown first, and the brush only when nothing else is.
-			const inTheWay = popover !== null || helpOpen || exportOpen || studio.renameFrom !== null;
+			const inTheWay = popover !== null || helpOpen || exportOpen || animOpen || studio.renameFrom !== null;
 			popover = null;
 			helpOpen = false;
 			exportOpen = false;
+			animOpen = false;
 			studio.cancelRename();
 			if (!inTheWay) studio.exitTool();
 		} else if (id === 'pro') proOpen = !proOpen;
@@ -644,6 +658,9 @@
 			aria-label="Load from a link"
 			data-testid="link-open"><Link2 size={17} /></button
 		>
+		<button class="round" type="button" onclick={() => (animOpen = true)} aria-label="Animate" data-testid="animate"
+			><Film size={17} /></button
+		>
 		<button class="round" type="button" onclick={() => (exportOpen = true)} aria-label="Export" data-testid="export"
 			><Download size={17} /></button
 		>
@@ -652,6 +669,7 @@
 </main>
 
 {#if proOpen}<ProPanel onclose={() => (proOpen = false)} />{/if}
+{#if animOpen}<AnimationPanel onclose={() => (animOpen = false)} />{/if}
 
 <input
 	bind:this={fileInput}

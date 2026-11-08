@@ -206,6 +206,6 @@ File: [`animation-export.md`](animation-export.md)
 - [x] A2 CLI GIF/APNG/frames output
 - [x] A3 Web export loop with GIF + APNG
 - [ ] A4 MP4/WebM via WebCodecs with feature detection
-- [ ] A5 Animation panel with preview
+- [x] A5 Animation panel with preview
 - [ ] A6 Archive storage, viewer, delete/GC
 - [ ] A7 Sharing (server + worker + public pages)
