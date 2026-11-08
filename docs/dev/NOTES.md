@@ -2,6 +2,28 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation export, phase 2 (CLI)
+
+Branch `build/animation-export`.
+
+- **`render` now takes `--anim` and `--frames` as well as `--out`.** All three may be given at once. `--anim` picks the
+  encoder from the extension: `.gif`, `.apng`, or `.png` (APNG). Other extensions are refused by name, as are an unknown
+  `--ease`, an out-of-range `--fps`, `--hold` below zero and a `--scale` outside `(0, 1]`. `--out` still writes the
+  instant PNG exactly as before.
+- **Both encoders stream.** `internal/anim` has its own GIF writer (standard library `compress/lzw` plus GIF block
+  framing) and APNG writer (each frame through `image/png`, re-framed as `fcTL`/`fdAT`), so a two second 2 MP export
+  never holds the frame list. `image/gif`'s `EncodeAll` would have needed every paletted frame in memory.
+- **GIF needs two walks.** One global palette means the colours must be known before the first frame. The CLI walks up
+  to eight frames spread across the sequence, samples 25k pixels each, runs median cut, then walks again to encode with
+  Floyd-Steinberg dithering. This doubles the stepping cost of a GIF export; APNG and `--frames` walk once.
+- **`--scale` is nearest-neighbour.** No new image dependency; it is deterministic and cheap, and the plan only asked
+  for the existing `SCALES` values. The browser still uses the canvas for a smoother downscale.
+- **Tests:** `internal/anim` covers median cut (exact colours when they fit, 64/256 slots, empty input), the mapper
+  (exact colours, flat images without dithering, grey dithered across black and white), GIF round-trip through
+  `image/gif`, APNG chunk order/sequence/delays/CRC/first-frame decode, and the CLI end to end (GIF frame count and
+  final sort, APNG last frame equals the instant result, `--frames` names, scaling, errors). A real 400x225 forest
+  sample produced a 3.1 MB GIF and a 9.1 MB APNG at 20 fps for 2 s.
+
 ## 2026-11-08 · issue #16 · animation export, phase 1 (sampler)
 
 Branch `build/animation-export`.
