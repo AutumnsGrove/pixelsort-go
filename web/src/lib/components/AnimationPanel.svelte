@@ -94,8 +94,7 @@
 			session = s;
 			maxPasses = s.maxPasses;
 			await checkVideo();
-			// The canvas only exists once loading is false; wait for it before drawing the first frame.
-			loading = false;
+			// The stage mounts as soon as the session exists; draw the first frame before reporting ready.
 			await nextTick();
 			await show(0);
 		} catch {
@@ -240,12 +239,13 @@
 			</button>
 		</div>
 
-		{#if loading}
+		{#if !session && loading}
 			<p class="sub" data-testid="anim-loading">Setting up a second engine session…</p>
 		{:else if error && !session}
 			<p class="fail" role="alert" data-testid="anim-error">{error}</p>
 			<div class="foot"><button class="btn pri" type="button" onclick={onclose}>Close</button></div>
 		{:else}
+			{#if loading}<p class="sub" data-testid="anim-loading">Preparing the preview…</p>{/if}
 			<div class="stage">
 				<canvas
 					bind:this={canvas}

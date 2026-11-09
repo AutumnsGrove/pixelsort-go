@@ -9,8 +9,9 @@ Branch `build/animation-export`.
 - **A duplicate save replaces the animation and leaves nothing behind.** `Create` updates `video_id` to the newest
   export, deletes the replaced image row once no run points at it, removes its blob after commit, and also removes any
   blob the request uploaded but did not reference. The test counts files and `images` rows for both GIFs.
-- **The panel draws its first frame on open.** `loading` went false only after `show(0)`, so the canvas did not exist yet.
-  It now waits for the canvas (`tick`) before the first seek; the e2e checks pixels before touching a control.
+- **The panel draws its first frame on open.** The stage mounts as soon as the session exists, so the canvas is there,
+  but the loading marker (and the e2e's wait) stays until `show(0)` has drawn a frame. The first-frame pixel check is
+  therefore not racing the worker seek.
 - **A pending animation belongs to the look it was exported from.** `Studio.attachAnimation` records the save key and
   size; `pendingFor` lets a save attach it only when the key still matches. An e2e exports, fails the save, changes the
   angle, saves again and asserts no `video` part went up.
