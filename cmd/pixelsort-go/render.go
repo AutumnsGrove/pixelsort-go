@@ -25,6 +25,7 @@ type renderOptions struct {
 	fps                   int
 	durationSec           float64
 	ease                  string
+	mode                  string
 	holdMS                int
 	scale                 float64
 	loop                  bool
@@ -48,8 +49,9 @@ func newRender() *cobra.Command {
 	f.StringVar(&o.animPath, "anim", "", "animation to write: .gif or .apng (also .png for APNG)")
 	f.StringVar(&o.framesDir, "frames", "", "directory for a PNG frame sequence")
 	f.IntVar(&o.fps, "fps", 30, "animation frame rate (1-60)")
-	f.Float64Var(&o.durationSec, "duration", 5, "animation length in seconds")
+	f.Float64Var(&o.durationSec, "duration", 5, "animation length in seconds (the whole loop with --mode infinity)")
 	f.StringVar(&o.ease, "ease", "ease-out", "pacing: linear or ease-out")
+	f.StringVar(&o.mode, "mode", "once", "once or infinity: infinity sorts, then unsorts back to the original")
 	f.IntVar(&o.holdMS, "hold", 500, "extra milliseconds the last frame stays")
 	f.Float64Var(&o.scale, "scale", 1, "animation scale, (0, 1]")
 	f.BoolVar(&o.loop, "loop", true, "loop GIF and APNG forever")
@@ -61,6 +63,10 @@ func render(cmd *cobra.Command, o renderOptions) error {
 		return errors.New("render: --in, --recipe and one of --out, --anim or --frames are required")
 	}
 	ease, err := parseEase(o.ease)
+	if err != nil {
+		return err
+	}
+	mode, err := parseMode(o.mode)
 	if err != nil {
 		return err
 	}
@@ -106,7 +112,7 @@ func render(cmd *cobra.Command, o renderOptions) error {
 	}
 	if o.animPath != "" || o.framesDir != "" {
 		w, h := scaledSize(pl.W, pl.H, o.scale)
-		seq := anim.NewSequence(pl.MaxPasses(), int(math.Round(o.durationSec*1000)), o.fps, o.holdMS, ease)
+		seq := anim.NewSequence(pl.MaxPasses(), int(math.Round(o.durationSec*1000)), o.fps, o.holdMS, ease, mode, o.loop)
 		if o.animPath != "" {
 			if err := writeAnimation(o.animPath, pl, seq, w, h, o.loop); err != nil {
 				return err
@@ -132,6 +138,17 @@ func parseEase(s string) (anim.Ease, error) {
 		return anim.EaseOut, nil
 	}
 	return "", fmt.Errorf("render: --ease must be %q or %q", anim.Linear, anim.EaseOut)
+}
+
+// parseMode accepts the two ways a sequence can play; an unknown one is an error rather than a silent once.
+func parseMode(s string) (anim.Mode, error) {
+	switch anim.Mode(s) {
+	case anim.Once:
+		return anim.Once, nil
+	case anim.Infinity:
+		return anim.Infinity, nil
+	}
+	return "", fmt.Errorf("render: --mode must be %q or %q", anim.Once, anim.Infinity)
 }
 
 // loadImage decodes a photo into the engine's packed RGBA form, without premultiplying anything.
