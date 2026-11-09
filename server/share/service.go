@@ -277,7 +277,7 @@ func b2i(b bool) int {
 	return 0
 }
 
-// Share is one row as the Albums tab shows it.
+// Share is one row as the shared albums tab shows it.
 type Share struct {
 	ID              string  `json:"id"`
 	URL             string  `json:"url"`

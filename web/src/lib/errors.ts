@@ -150,7 +150,7 @@ export const CATALOG: Record<ErrorCode, (c: ErrorContext) => Entry> = {
 		title: 'Couldn’t make the link.',
 		body:
 			c.reason === 'quota'
-				? 'The shared bucket is full. Revoke an old album to make room.'
+				? 'The shared bucket is full. Revoke an old shared album to make room.'
 				: 'Your Worker didn’t answer, so nothing was uploaded.',
 		safe: 'Nothing was shared and your runs are untouched.',
 		actions: [{ id: 'retry', label: 'Try again', primary: true }, close()]

@@ -1,5 +1,22 @@
 # Build notes
 
+## 2026-11-09 · the Albums tab is now "shared albums"
+
+Autumn shared things happily and then could not find them again: the Archive's `Albums` tab held every link she had made,
+but the word never said so. The chip now reads **shared albums**, and the two other places that called a link an "album"
+(the bulk-bin warning and the bucket-full error) say "shared album" too, so the noun matches wherever it appears.
+
+- **The tab id stays `albums`.** It is state, not copy, and no URL carries it, but keeping it meant a one-line diff instead
+  of a rename through `share.ts`, the tests and the component. The labels now live in a `TABS` table in
+  `archive/+page.svelte`; ids and labels were the same string until this change, which is exactly why the label was hard
+  to find.
+- **Lowercase, like the chips beside it.** `all`, `starred` and `trash` are lowercase and `.chips button` has no
+  `text-transform`, so "Shared albums" in title case would have been the odd one out.
+- **`mockups/gallery.html` still says "Albums".** It is the read-only visual spec and the acceptance tests read it, so it
+  stays as drawn; this is a copy change on the built UI, not a spec change.
+- **Tests:** `e2e/share.spec.ts` looks for the `shared albums` tab, which failed before the change and passes after; the
+  full share and archive suites, `pnpm check`, `lint` and the 417 unit tests are green.
+
 ## 2026-11-09 · the Shape helper's missing deploy recipe (committed straight to `main`)
 
 Autumn went looking for how to turn the Shape helper on and found nothing: `PIXELSORT_OPENROUTER_KEY` was documented in
