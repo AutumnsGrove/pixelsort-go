@@ -203,4 +203,6 @@ Design decisions worth knowing:
 - A true inverse sort, undo logs, or a per-pixel rewind.
 - Different easing or a different speed on the return leg (the return mirrors the outbound trip).
 - Audio, speed ramps, or a "boomerang with pauses" variant.
+- A different rewind pace in the live canvas than in an export. Both walk the passes at the sort's own rate; only the
+  frame rate differs, because a rewind frame is a seek.
 - Rewriting already-exported animations into infinity mode on the server. It is an export setting, not a post-process.
