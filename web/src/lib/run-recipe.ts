@@ -80,7 +80,7 @@ function readTiling(v: unknown): Tiling | null {
 }
 
 const ORDERS = ['', 'asc', 'desc'];
-const CARD_MODE = ['random', 'wave', 'threshold', 'edges', 'ca', 'none'];
+const CARD_MODE = ['random', 'wave', 'threshold', 'edges', 'ca', 'pattern', 'pattern-edges', 'none'];
 
 function readCards(v: unknown): Record<number, RegionCard> | null {
 	if (!isObj(v)) return null;
@@ -146,6 +146,11 @@ export function recipeSlate(settings: Record<string, unknown>): SlateRow[] {
 	const rows: SlateRow[] = [{ label: 'Intervals', value: modes.includes(p.mode) ? p.mode : String(p.mode) }];
 	if (p.mode === 'ca' || p.mode === 'ca-edges')
 		rows.push({ label: 'Cellular rule', value: `${p.rule}, in ${p.caSpace} space` });
+	else if (p.mode === 'pattern' || p.mode === 'pattern-edges')
+		rows.push({
+			label: 'Pattern',
+			value: `${p.pattern} ${p.patternVariant}${p.patternOverlay ? ', frozen' : ''}, in ${p.caSpace} space`
+		});
 	else if (p.mode === 'threshold') rows.push({ label: 'Band', value: `${p.thresholdKey} ${p.lo} to ${p.hi}` });
 	else if (p.mode === 'edges') rows.push({ label: 'Edge level', value: String(p.edge) });
 	if (p.mode === 'random' || p.mode === 'wave')

@@ -61,6 +61,8 @@ export const MODE_LABEL: Record<string, string> = {
 	edges: 'edges',
 	ca: 'cellular',
 	'ca-edges': 'cellular edges',
+	pattern: 'pattern',
+	'pattern-edges': 'pattern edges',
 	none: 'none'
 };
 export const ALGO_LABEL: Record<string, string> = {

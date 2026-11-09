@@ -31,7 +31,8 @@ commit and explain why, or find the bug.
 `image.go` pixels · `params.go` the recipe · `keys.go` sort keys · `lines.go` the scanline partition ·
 `regions.go` cells and classes · `intervals.go` and `plan.go` cutting · `sorter.go` the instant stable sort ·
 `edges.go` the Laplacian map · `feather.go` the soft-mask blur · `stepper*.go` the animated sort (phase 3) ·
-`ca.go` and `carules.go` cellular automata (phase 4) · `api/` the session boundary the WASM binding wraps.
+`ca.go`, `carules.go` and `pattern.go` cellular automata and generative patterns (phase 4) · `patterns/` the pattern
+families · `api/` the session boundary the WASM binding wraps.
 
 ## Cellular-automaton intervals (`ca`, `ca-edges`)
 
@@ -45,3 +46,28 @@ There are two places to lay the grid (`CASpace`):
 - **`image`**: over the picture. Read along a sort line at an angle, the pattern is sheared into slanted slivers.
 - **`line`**: over the sort lines (row = line number, column = index along the line), so the pattern turns with the
   sort and stays blocky and aligned with the direction of the streaks. At angle 0 the two are identical.
+
+## Generative pattern masks (`pattern`, `pattern-edges`, `patternOverlay`)
+
+`engine/patterns` draws a 0/1 plane from a family of generative patterns: our own implementations of Truchet tiles,
+interference gratings, radial figures and straight lattices, inspired by bookofshapes.com but not copied from it. (That
+site lets you use anything you generate with it, but not redistribute the patterns as patterns, and its node graphs and
+source are not covered by its licence.)
+
+A recipe names a family (`Pattern`), a variant (`PatternVariant`), and shapes it with `PatternCell` (per mille of the
+width), `PatternThickness`, `PatternRotate`, `PatternDetail` and `PatternInvert`. `CASpace` decides whether the pattern
+is laid over the picture (`image`) or along the sort lines (`line`), exactly as it does for a CA.
+
+Two interval modes read it:
+
+- **`pattern`**: a new interval starts wherever the mask turns on, so the pattern's lines become the seams of the sort.
+- **`pattern-edges`**: a new interval starts at the edges of the mask (`Edge` is the threshold), so the sort follows the
+  pattern's outline.
+
+`PatternOverlay` turns the same mask into a **frozen overlay** instead: the pixels the pattern covers keep their
+original colour and the rest sorts. It is applied per region class, so a region can freeze its own pattern. The overlay
+is a hard mask for now; the feather blend (`Soft`) is still only wired to the Protect panel.
+
+Masks are cached per plan by everything that draws them, so a live preview and a stepped sort do not redraw them.
+`PatternPreview` draws the texture on a small canvas for the panel; with a region map each class may walk its lines at
+its own angle, so the preview is a texture, not the exact mask of that picture (the same caveat as `CAPreview`).

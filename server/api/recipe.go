@@ -6,4 +6,6 @@ var recipeKeys = map[string]bool{
 	"mode": true, "key": true, "reverse": true, "angle": true, "length": true, "randomness": true, "waveAmp": true,
 	"wavePeriod": true, "lo": true, "hi": true, "thresholdKey": true, "edge": true, "rule": true, "cell": true,
 	"caSpace": true, "caBoundary": true, "algo": true, "seed": true,
+	"pattern": true, "patternVariant": true, "patternCell": true, "patternThickness": true, "patternRotate": true,
+	"patternDetail": true, "patternInvert": true, "patternOverlay": true,
 }

@@ -61,6 +61,15 @@ func goldenRecipes() []goldenCase {
 				Defs: []engine.ClassDef{{}, {Frozen: true}, {Mode: &caMode, Rule: &rule54, Angle: &angle60}},
 			}},
 		},
+		{name: "pattern-arc", w: 97, h: 61, params: with(func(p *engine.Params) {
+			p.Mode, p.Pattern, p.PatternVariant, p.PatternCell, p.PatternThickness, p.Seed = engine.ModePattern, "truchet", "arc", 60, 8, 15
+		})},
+		{name: "pattern-edges-spiral", w: 61, h: 97, params: with(func(p *engine.Params) {
+			p.Mode, p.Pattern, p.PatternVariant, p.Angle, p.PatternCell, p.PatternThickness, p.Seed = engine.ModePatternEdges, "radial", "spiral", 37, 40, 6, 16
+		})},
+		{name: "pattern-overlay-iso", w: 97, h: 61, params: with(func(p *engine.Params) {
+			p.Mode, p.Pattern, p.PatternVariant, p.PatternOverlay, p.PatternCell, p.PatternThickness, p.Seed = engine.ModeNone, "grid", "iso", true, 60, 8, 17
+		})},
 		{name: "tiny-1x40", w: 1, h: 40, params: with(func(p *engine.Params) { p.Seed = 9 })},
 		{name: "tiny-40x1", w: 40, h: 1, params: with(func(p *engine.Params) { p.Seed = 10 })},
 	}
@@ -98,7 +107,7 @@ func TestGoldenCoversEveryMode(t *testing.T) {
 			regions = true
 		}
 	}
-	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeCA, engine.ModeCAEdges, engine.ModeNone} {
+	for _, mode := range []engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges, engine.ModeCA, engine.ModeCAEdges, engine.ModePattern, engine.ModePatternEdges, engine.ModeNone} {
 		if !seen[mode] {
 			t.Errorf("no golden uses mode %q", mode)
 		}

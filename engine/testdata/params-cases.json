@@ -28,5 +28,15 @@
   { "name": "negative seed is rejected", "json": "{\"seed\":-1}", "valid": false },
   { "name": "seed past 32 bits is rejected", "json": "{\"seed\":4294967296}", "valid": false },
   { "name": "trailing garbage is rejected", "json": "{} x", "valid": false },
-  { "name": "not json is rejected", "json": "nope", "valid": false }
+  { "name": "not json is rejected", "json": "nope", "valid": false },
+  { "name": "every mode: pattern", "json": "{\"mode\":\"pattern\"}", "valid": true },
+  { "name": "every mode: pattern-edges", "json": "{\"mode\":\"pattern-edges\"}", "valid": true },
+  { "name": "unknown pattern family is rejected", "json": "{\"pattern\":\"spiral\"}", "valid": false },
+  { "name": "unknown pattern variant is rejected", "json": "{\"patternVariant\":\"nope\"}", "valid": false },
+  { "name": "pattern cell 0 is rejected", "json": "{\"patternCell\":0}", "valid": false },
+  { "name": "pattern thickness 501 is rejected", "json": "{\"patternThickness\":501}", "valid": false },
+  { "name": "pattern rotate 360 is rejected", "json": "{\"patternRotate\":360}", "valid": false },
+  { "name": "pattern detail 17 is rejected", "json": "{\"patternDetail\":17}", "valid": false },
+  { "name": "an overlay needs a pattern", "json": "{\"pattern\":\"\",\"patternOverlay\":true}", "valid": false },
+  { "name": "the default pattern can overlay", "json": "{\"patternOverlay\":true}", "valid": true }
 ]

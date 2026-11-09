@@ -15,6 +15,10 @@ func (pl *Plan) cutSegments(dst [][2]int, line, lineStart, r0, r1 int, cp Params
 		return cutRising(dst, pl.Lines.P, r0, r1, pl.ca.mask(cp))
 	case ModeCAEdges:
 		return cutEdges(dst, pl.Lines.P, r0, r1, pl.ca.edgeMap(cp), cp.Edge)
+	case ModePattern:
+		return cutRising(dst, pl.Lines.P, r0, r1, pl.pattern.mask(cp))
+	case ModePatternEdges:
+		return cutEdges(dst, pl.Lines.P, r0, r1, pl.pattern.edgeMap(cp), cp.Edge)
 	default: // ModeNone, ModeThreshold: the run between two frozen pixels is the interval (decision E7)
 		return append(dst, [2]int{r0, r1})
 	}

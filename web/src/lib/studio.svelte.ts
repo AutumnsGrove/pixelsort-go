@@ -91,6 +91,8 @@ async function fingerprint(rgba: Uint8ClampedArray): Promise<string> {
 
 class Studio {
 	params = $state<Params>({ ...defaultParams, algo: 'oddeven', mode: 'random', length: 83, randomness: 10 });
+	/** The pattern families and their variants, read from the engine once the first pattern mode is chosen. */
+	patternFamilies = $state<{ name: string; note: string; variants: { name: string; note: string }[] }[]>([]);
 	size = $state<{ w: number; h: number } | null>(null);
 	original = $state<Uint8ClampedArray | null>(null);
 	sorted = $state<Uint8ClampedArray | null>(null);
@@ -160,6 +162,24 @@ class Studio {
 		if (!this.client) return null;
 		try {
 			return await this.client.caPreview({ ...this.params }, rule);
+		} catch {
+			return null;
+		}
+	}
+	/** Load the pattern catalog once; the panel and the interval popover both read it from here. */
+	async loadPatternFamilies(): Promise<void> {
+		if (this.patternFamilies.length || !this.client) return;
+		try {
+			this.patternFamilies = await this.client.patternCatalog();
+		} catch {
+			// the panel shows "preview unavailable" rather than pretending there is a catalog
+		}
+	}
+	/** What this recipe's pattern looks like with the knobs as they are right now; null if the engine cannot say. */
+	async patternPreview(): Promise<{ mask: Uint8Array; w: number; h: number } | null> {
+		if (!this.client) return null;
+		try {
+			return await this.client.patternPreview({ ...this.params });
 		} catch {
 			return null;
 		}

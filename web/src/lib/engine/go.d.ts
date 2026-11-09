@@ -22,6 +22,10 @@ interface PixelsortApi {
 	histogram(key: string): GoResult<{ counts: number[] }>;
 	caRules(): GoResult<{ rules: { rule: number; note: string }[] }>;
 	caPreview(paramsJson: string, rule: number): GoResult<{ mask: Uint8Array; w: number; h: number }>;
+	patternCatalog(): GoResult<{
+		families: { name: string; note: string; variants: { name: string; note: string }[] }[];
+	}>;
+	patternPreview(paramsJson: string): GoResult<{ mask: Uint8Array; w: number; h: number }>;
 	/** Grow a region from a point (fractions of the picture) and trace its outline. A refusal is data: `refused` says why. */
 	cutOut(
 		x: number,

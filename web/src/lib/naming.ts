@@ -25,6 +25,8 @@ const MODE: Record<string, string> = {
 	edges: 'edges',
 	ca: 'cellular',
 	'ca-edges': 'cellular',
+	pattern: 'pattern',
+	'pattern-edges': 'pattern edges',
 	none: 'plain'
 };
 // Control characters and invisible/direction-override characters are the point of this pattern.
@@ -54,13 +56,16 @@ function hash(t: unknown): number {
 
 /** The automatic name: a word picked from the seed, then the mode. Stable for the same inputs. */
 export function suggest(
-	params: { mode?: string; rule?: number; seed?: number } | null | undefined,
+	params: { mode?: string; rule?: number; pattern?: string; seed?: number } | null | undefined,
 	seed?: number | string
 ): string {
 	const p = params ?? {};
 	const word = WORDS[hash(seed ?? p.seed ?? 0) % WORDS.length] ?? 'Ridge';
 	const mode = MODE[String(p.mode)] ?? String(p.mode ?? 'random');
-	return word + ', ' + mode + ((p.mode === 'ca' || p.mode === 'ca-edges') && p.rule != null ? ' ' + p.rule : '');
+	let tail = '';
+	if ((p.mode === 'ca' || p.mode === 'ca-edges') && p.rule != null) tail = ' ' + p.rule;
+	if ((p.mode === 'pattern' || p.mode === 'pattern-edges') && p.pattern) tail = ' ' + p.pattern;
+	return word + ', ' + mode + tail;
 }
 
 /** Typed text becomes the name to keep. An empty entry goes back to `fallback`, so a name is never blank. */

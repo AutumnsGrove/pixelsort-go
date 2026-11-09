@@ -39,6 +39,7 @@ type Plan struct {
 	Stats     Stats
 	soft      []uint8 // the Soft option, kept for Sort's final blend
 	ca        *caCache
+	pattern   *patternCache
 }
 
 // NewPlan validates the recipe and the options, then decides every key, line and interval.
@@ -157,6 +158,23 @@ func NewPlan(im *Image, p Params, o *Options) (*Plan, error) {
 	}
 	pl.Stats.Lines = len(pl.Lines.Starts) - 1
 	pl.ca = newCACache(pl, p.Seed, opts.CAMask)
+	pl.pattern = newPatternCache(pl, p.Seed)
+	// A pattern overlay is a mask, not a cutter: the pixels it covers keep their original colour. It is per class, so a
+	// region can protect its own pattern while the rest of the picture sorts.
+	for c := range eff {
+		if !eff[c].PatternOverlay || eff[c].Pattern == "" {
+			continue
+		}
+		m := pl.pattern.mask(eff[c])
+		class := uint8(c) //nolint:gosec // G115: region classes are uint8
+		for i := range frozen {
+			if !frozen[i] && classAt(i) == class && m[i] != 0 {
+				frozen[i] = true
+				frozenPixels++
+			}
+		}
+	}
+	pl.Stats.FrozenPixels = frozenPixels
 	pl.buildIntervals(p, eff, classAt, frozen, edges)
 	return pl, nil
 }

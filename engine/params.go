@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/AutumnsGrove/pixelsort-go/engine/patterns"
 )
 
 // IntervalMode is how a line is cut into sortable intervals (PLAN.md 3.3, decision E7).
@@ -13,13 +15,15 @@ type IntervalMode string
 
 // The interval modes. ca and ca-edges are accepted by Params but only built in phase 4.
 const (
-	ModeRandom    IntervalMode = "random"
-	ModeWave      IntervalMode = "wave"
-	ModeThreshold IntervalMode = "threshold"
-	ModeEdges     IntervalMode = "edges"
-	ModeCA        IntervalMode = "ca"
-	ModeCAEdges   IntervalMode = "ca-edges"
-	ModeNone      IntervalMode = "none"
+	ModeRandom       IntervalMode = "random"
+	ModeWave         IntervalMode = "wave"
+	ModeThreshold    IntervalMode = "threshold"
+	ModeEdges        IntervalMode = "edges"
+	ModeCA           IntervalMode = "ca"
+	ModeCAEdges      IntervalMode = "ca-edges"
+	ModePattern      IntervalMode = "pattern"
+	ModePatternEdges IntervalMode = "pattern-edges"
+	ModeNone         IntervalMode = "none"
 )
 
 // SortKey names the per-pixel value pixels are sorted by (decision E2).
@@ -68,41 +72,57 @@ const (
 // Params is the recipe: one JSON-serialisable struct that, with the seed and EngineVersion, reproduces a result
 // exactly (PLAN.md 3.1). Spatial fields are per mille of the image width so a preview and an export agree.
 type Params struct {
-	Mode         IntervalMode `json:"mode"`
-	Key          SortKey      `json:"key"`
-	Reverse      bool         `json:"reverse"`    // descending
-	Angle        int          `json:"angle"`      // whole degrees 0..359 (decision E3)
-	Length       int          `json:"length"`     // mean interval length, per mille of image width, 1..1000
-	Randomness   int          `json:"randomness"` // percent of intervals left unsorted, 0..100
-	WaveAmp      int          `json:"waveAmp"`    // 0..100
-	WavePeriod   int          `json:"wavePeriod"` // per mille of width, 0 = automatic, else 1..1000
-	Lo           int          `json:"lo"`         // threshold band, 0..255, Lo <= Hi
-	Hi           int          `json:"hi"`
-	ThresholdKey SortKey      `json:"thresholdKey"` // which value the band applies to
-	Edge         int          `json:"edge"`         // a pixel is an edge when its laplacian is greater than this
-	Rule         int          `json:"rule"`         // Wolfram rule, 0..255 (phase 4)
-	Cell         int          `json:"cell"`         // CA cell size, per mille of width, 1..1000 (phase 4)
-	CASpace      string       `json:"caSpace"`      // CASpaceImage or CASpaceLine (phase 4)
-	CABoundary   string       `json:"caBoundary"`   // CABoundaryRandom, CABoundaryWrap or CABoundaryFixed
-	Algo         Algo         `json:"algo"`
-	Seed         uint32       `json:"seed"`
+	Mode             IntervalMode `json:"mode"`
+	Key              SortKey      `json:"key"`
+	Reverse          bool         `json:"reverse"`    // descending
+	Angle            int          `json:"angle"`      // whole degrees 0..359 (decision E3)
+	Length           int          `json:"length"`     // mean interval length, per mille of image width, 1..1000
+	Randomness       int          `json:"randomness"` // percent of intervals left unsorted, 0..100
+	WaveAmp          int          `json:"waveAmp"`    // 0..100
+	WavePeriod       int          `json:"wavePeriod"` // per mille of width, 0 = automatic, else 1..1000
+	Lo               int          `json:"lo"`         // threshold band, 0..255, Lo <= Hi
+	Hi               int          `json:"hi"`
+	ThresholdKey     SortKey      `json:"thresholdKey"`     // which value the band applies to
+	Edge             int          `json:"edge"`             // a pixel is an edge when its laplacian is greater than this
+	Rule             int          `json:"rule"`             // Wolfram rule, 0..255 (phase 4)
+	Cell             int          `json:"cell"`             // CA cell size, per mille of width, 1..1000 (phase 4)
+	CASpace          string       `json:"caSpace"`          // CASpaceImage or CASpaceLine (phase 4)
+	CABoundary       string       `json:"caBoundary"`       // CABoundaryRandom, CABoundaryWrap or CABoundaryFixed
+	Pattern          string       `json:"pattern"`          // family from engine/patterns; "" = none
+	PatternVariant   string       `json:"patternVariant"`   // variant of that family; "" = the family's first
+	PatternCell      int          `json:"patternCell"`      // per mille of width, 1..1000
+	PatternThickness int          `json:"patternThickness"` // per mille of width, 1..500
+	PatternRotate    int          `json:"patternRotate"`    // degrees 0..359
+	PatternDetail    int          `json:"patternDetail"`    // arms, spokes or gaps, 1..16
+	PatternInvert    bool         `json:"patternInvert"`
+	PatternOverlay   bool         `json:"patternOverlay"` // freeze the pattern instead of cutting intervals at it
+	Algo             Algo         `json:"algo"`
+	Seed             uint32       `json:"seed"`
 }
 
 // ClassDef is one region class's overrides of Params. A nil field inherits the global value (decision E10).
 type ClassDef struct {
-	Frozen     bool          `json:"frozen,omitempty"`
-	Angle      *int          `json:"angle,omitempty"`
-	Key        *SortKey      `json:"key,omitempty"`
-	Reverse    *bool         `json:"reverse,omitempty"`
-	Mode       *IntervalMode `json:"mode,omitempty"`
-	Length     *int          `json:"length,omitempty"`
-	Randomness *int          `json:"randomness,omitempty"`
-	Lo         *int          `json:"lo,omitempty"`
-	Hi         *int          `json:"hi,omitempty"`
-	Edge       *int          `json:"edge,omitempty"`
-	Rule       *int          `json:"rule,omitempty"`
-	Cell       *int          `json:"cell,omitempty"`
-	Algo       *Algo         `json:"algo,omitempty"`
+	Frozen           bool          `json:"frozen,omitempty"`
+	Angle            *int          `json:"angle,omitempty"`
+	Key              *SortKey      `json:"key,omitempty"`
+	Reverse          *bool         `json:"reverse,omitempty"`
+	Mode             *IntervalMode `json:"mode,omitempty"`
+	Length           *int          `json:"length,omitempty"`
+	Randomness       *int          `json:"randomness,omitempty"`
+	Lo               *int          `json:"lo,omitempty"`
+	Hi               *int          `json:"hi,omitempty"`
+	Edge             *int          `json:"edge,omitempty"`
+	Rule             *int          `json:"rule,omitempty"`
+	Cell             *int          `json:"cell,omitempty"`
+	Pattern          *string       `json:"pattern,omitempty"`
+	PatternVariant   *string       `json:"patternVariant,omitempty"`
+	PatternCell      *int          `json:"patternCell,omitempty"`
+	PatternThickness *int          `json:"patternThickness,omitempty"`
+	PatternRotate    *int          `json:"patternRotate,omitempty"`
+	PatternDetail    *int          `json:"patternDetail,omitempty"`
+	PatternInvert    *bool         `json:"patternInvert,omitempty"`
+	PatternOverlay   *bool         `json:"patternOverlay,omitempty"`
+	Algo             *Algo         `json:"algo,omitempty"`
 }
 
 // ErrInvalidParams means a recipe is out of range or names something that does not exist. Validate wraps it with
@@ -112,7 +132,7 @@ var ErrInvalidParams = errors.New("engine: invalid params")
 // validModes, validKeys and validAlgos are read-only lookup sets for validation.
 var (
 	validModes = map[IntervalMode]bool{ModeRandom: true, ModeWave: true, ModeThreshold: true, ModeEdges: true,
-		ModeCA: true, ModeCAEdges: true, ModeNone: true}
+		ModeCA: true, ModeCAEdges: true, ModePattern: true, ModePatternEdges: true, ModeNone: true}
 	validKeys = map[SortKey]bool{KeyLuma: true, KeyValue: true, KeyIntensity: true, KeyMinimum: true, KeyHue: true,
 		KeySaturation: true, KeyRed: true, KeyGreen: true, KeyBlue: true, KeyAlpha: true}
 	validAlgos = map[Algo]bool{AlgoOddEven: true, AlgoInsertion: true, AlgoMerge: true, AlgoReveal: true}
@@ -121,23 +141,29 @@ var (
 // DefaultParams is the recipe a new sort starts from.
 func DefaultParams() Params {
 	return Params{
-		Mode:         ModeRandom,
-		Key:          KeyLuma,
-		Angle:        0,
-		Length:       83,
-		Randomness:   10,
-		WaveAmp:      70,
-		WavePeriod:   0,
-		Lo:           51,
-		Hi:           209,
-		ThresholdKey: KeyLuma,
-		Edge:         26,
-		Rule:         110,
-		Cell:         8,
-		CASpace:      CASpaceImage,
-		CABoundary:   CABoundaryRandom,
-		Algo:         AlgoOddEven,
-		Seed:         7,
+		Mode:             ModeRandom,
+		Key:              KeyLuma,
+		Angle:            0,
+		Length:           83,
+		Randomness:       10,
+		WaveAmp:          70,
+		WavePeriod:       0,
+		Lo:               51,
+		Hi:               209,
+		ThresholdKey:     KeyLuma,
+		Edge:             26,
+		Rule:             110,
+		Cell:             8,
+		CASpace:          CASpaceImage,
+		CABoundary:       CABoundaryRandom,
+		Pattern:          "truchet",
+		PatternVariant:   "arc",
+		PatternCell:      60,
+		PatternThickness: 8,
+		PatternRotate:    0,
+		PatternDetail:    5,
+		Algo:             AlgoOddEven,
+		Seed:             7,
 	}
 }
 
@@ -185,7 +211,26 @@ func (p Params) Validate() error {
 	case p.CABoundary != CABoundaryRandom && p.CABoundary != CABoundaryWrap && p.CABoundary != CABoundaryFixed:
 		return invalidParams("caBoundary %q", p.CABoundary)
 	}
+	if p.Pattern == "" {
+		if p.Mode == ModePattern || p.Mode == ModePatternEdges || p.PatternOverlay {
+			return invalidParams("mode %q needs a pattern", p.Mode)
+		}
+		return nil
+	}
+	if err := patterns.Validate(p.patternSpec(1)); err != nil {
+		return invalidParams("pattern: %v", err)
+	}
 	return nil
+}
+
+// patternSpec is the patterns.Spec a recipe asks for. width is the reference width for the per-mille sizes: a
+// line-space mask passes the picture's width, not the narrow canvas it is drawn on.
+func (p Params) patternSpec(width int) patterns.Spec {
+	return patterns.Spec{
+		Family: p.Pattern, Variant: p.PatternVariant, Seed: p.Seed,
+		Cell: p.PatternCell, Thickness: p.PatternThickness, Rotate: p.PatternRotate,
+		Detail: p.PatternDetail, Invert: p.PatternInvert, Width: width,
+	}
 }
 
 // ParseParams decodes a recipe on top of DefaultParams, so a partial recipe keeps the defaults for every field it
@@ -243,6 +288,30 @@ func (p Params) With(c ClassDef) Params {
 	}
 	if c.Cell != nil {
 		p.Cell = *c.Cell
+	}
+	if c.Pattern != nil {
+		p.Pattern = *c.Pattern
+	}
+	if c.PatternVariant != nil {
+		p.PatternVariant = *c.PatternVariant
+	}
+	if c.PatternCell != nil {
+		p.PatternCell = *c.PatternCell
+	}
+	if c.PatternThickness != nil {
+		p.PatternThickness = *c.PatternThickness
+	}
+	if c.PatternRotate != nil {
+		p.PatternRotate = *c.PatternRotate
+	}
+	if c.PatternDetail != nil {
+		p.PatternDetail = *c.PatternDetail
+	}
+	if c.PatternInvert != nil {
+		p.PatternInvert = *c.PatternInvert
+	}
+	if c.PatternOverlay != nil {
+		p.PatternOverlay = *c.PatternOverlay
 	}
 	if c.Algo != nil {
 		p.Algo = *c.Algo

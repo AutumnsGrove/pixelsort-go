@@ -4,6 +4,7 @@ package testutil
 
 import (
 	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/engine/patterns"
 	"pgregory.net/rapid"
 )
 
@@ -55,7 +56,7 @@ func ImageGen(maxW, maxH int) *rapid.Generator[*engine.Image] {
 // ParamsGen draws any valid recipe, including the cellular-automaton modes.
 func ParamsGen() *rapid.Generator[engine.Params] {
 	return paramsGen([]engine.IntervalMode{engine.ModeRandom, engine.ModeWave, engine.ModeThreshold, engine.ModeEdges,
-		engine.ModeCA, engine.ModeCAEdges, engine.ModeNone})
+		engine.ModeCA, engine.ModeCAEdges, engine.ModePattern, engine.ModePatternEdges, engine.ModeNone})
 }
 
 func paramsGen(modes []engine.IntervalMode) *rapid.Generator[engine.Params] {
@@ -64,27 +65,38 @@ func paramsGen(modes []engine.IntervalMode) *rapid.Generator[engine.Params] {
 	algos := []engine.Algo{engine.AlgoOddEven, engine.AlgoInsertion, engine.AlgoMerge, engine.AlgoReveal}
 	spaces := []string{engine.CASpaceImage, engine.CASpaceLine}
 	boundaries := []string{engine.CABoundaryRandom, engine.CABoundaryWrap, engine.CABoundaryFixed}
+	fams := patterns.Catalog()
 	return rapid.Custom(func(t *rapid.T) engine.Params {
 		lo := rapid.IntRange(0, 255).Draw(t, "lo")
+		fam := fams[rapid.IntRange(0, len(fams)-1).Draw(t, "patternFamily")]
+		variant := fam.Variants[rapid.IntRange(0, len(fam.Variants)-1).Draw(t, "patternVariant")]
 		return engine.Params{
-			Mode:         rapid.SampledFrom(modes).Draw(t, "mode"),
-			Key:          rapid.SampledFrom(keys).Draw(t, "key"),
-			Reverse:      rapid.Bool().Draw(t, "reverse"),
-			Angle:        rapid.IntRange(0, 359).Draw(t, "angle"),
-			Length:       rapid.IntRange(1, 1000).Draw(t, "length"),
-			Randomness:   rapid.IntRange(0, 100).Draw(t, "randomness"),
-			WaveAmp:      rapid.IntRange(0, 100).Draw(t, "waveAmp"),
-			WavePeriod:   rapid.IntRange(0, 1000).Draw(t, "wavePeriod"),
-			Lo:           lo,
-			Hi:           rapid.IntRange(lo, 255).Draw(t, "hi"),
-			ThresholdKey: rapid.SampledFrom(keys).Draw(t, "thresholdKey"),
-			Edge:         rapid.IntRange(0, 255).Draw(t, "edge"),
-			Rule:         rapid.IntRange(0, 255).Draw(t, "rule"),
-			Cell:         rapid.IntRange(1, 1000).Draw(t, "cell"),
-			CASpace:      rapid.SampledFrom(spaces).Draw(t, "caSpace"),
-			CABoundary:   rapid.SampledFrom(boundaries).Draw(t, "caBoundary"),
-			Algo:         rapid.SampledFrom(algos).Draw(t, "algo"),
-			Seed:         rapid.Uint32().Draw(t, "seed"),
+			Mode:             rapid.SampledFrom(modes).Draw(t, "mode"),
+			Key:              rapid.SampledFrom(keys).Draw(t, "key"),
+			Reverse:          rapid.Bool().Draw(t, "reverse"),
+			Angle:            rapid.IntRange(0, 359).Draw(t, "angle"),
+			Length:           rapid.IntRange(1, 1000).Draw(t, "length"),
+			Randomness:       rapid.IntRange(0, 100).Draw(t, "randomness"),
+			WaveAmp:          rapid.IntRange(0, 100).Draw(t, "waveAmp"),
+			WavePeriod:       rapid.IntRange(0, 1000).Draw(t, "wavePeriod"),
+			Lo:               lo,
+			Hi:               rapid.IntRange(lo, 255).Draw(t, "hi"),
+			ThresholdKey:     rapid.SampledFrom(keys).Draw(t, "thresholdKey"),
+			Edge:             rapid.IntRange(0, 255).Draw(t, "edge"),
+			Rule:             rapid.IntRange(0, 255).Draw(t, "rule"),
+			Cell:             rapid.IntRange(1, 1000).Draw(t, "cell"),
+			CASpace:          rapid.SampledFrom(spaces).Draw(t, "caSpace"),
+			CABoundary:       rapid.SampledFrom(boundaries).Draw(t, "caBoundary"),
+			Pattern:          fam.Name,
+			PatternVariant:   variant.Name,
+			PatternCell:      rapid.IntRange(1, 1000).Draw(t, "patternCell"),
+			PatternThickness: rapid.IntRange(1, 500).Draw(t, "patternThickness"),
+			PatternRotate:    rapid.IntRange(0, 359).Draw(t, "patternRotate"),
+			PatternDetail:    rapid.IntRange(1, 16).Draw(t, "patternDetail"),
+			PatternInvert:    rapid.Bool().Draw(t, "patternInvert"),
+			PatternOverlay:   rapid.Bool().Draw(t, "patternOverlay"),
+			Algo:             rapid.SampledFrom(algos).Draw(t, "algo"),
+			Seed:             rapid.Uint32().Draw(t, "seed"),
 		}
 	})
 }

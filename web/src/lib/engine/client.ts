@@ -190,6 +190,24 @@ export class EngineClient {
 		return { mask: new Uint8Array(res.mask), ...res.preview };
 	}
 
+	/** The generative pattern families and their variants, with a one-line note for each, from the engine. */
+	async patternCatalog(): Promise<{ name: string; note: string; variants: { name: string; note: string }[] }[]> {
+		const res = await this.send({ type: 'patternCatalog' }, []);
+		if (!res.ok || !res.families) throw new Error(res.ok ? 'no families' : res.error);
+		return res.families;
+	}
+
+	/**
+	 * What this recipe's pattern looks like on the panel's small canvas, drawn by the engine's own mask code. The recipe
+	 * travels with the question, so it needs no picture and no configure, and it never disturbs a running sort.
+	 */
+	async patternPreview(params: Params): Promise<{ mask: Uint8Array; w: number; h: number }> {
+		const res = await this.send({ type: 'patternPreview', json: JSON.stringify(params) }, []);
+		if (!res.ok) throw new Error(res.error);
+		if (!res.mask || !res.preview) throw new Error('patternPreview answered without a mask');
+		return { mask: new Uint8Array(res.mask), ...res.preview };
+	}
+
 	/** Which pixels the current recipe lets move: 1 where a pixel is in some interval, 0 where it is held. Asked of the engine, never worked out here. */
 	async sortable(): Promise<Uint8Array> {
 		const res = await this.send({ type: 'sortable' }, []);

@@ -67,8 +67,9 @@ func TestProp_FrozenNeverMove(t *testing.T) {
 			t.Fatalf("NewPlan: %v", err)
 		}
 		out := pl.Sort()
+		overlays := map[uint8][]uint8{}
 		for i := range im.Pix {
-			if frozenAt(i, im, p, o) && out.Pix[i] != im.Pix[i] {
+			if frozenAt(i, im, p, o, overlayAt(t, i, im, p, o, pl, overlays)) && out.Pix[i] != im.Pix[i] {
 				t.Fatalf("frozen pixel %d moved", i)
 			}
 		}

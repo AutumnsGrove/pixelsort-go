@@ -20,6 +20,7 @@ func TestDefaultParamsValid(t *testing.T) {
 		Mode: engine.ModeRandom, Key: engine.KeyLuma, Angle: 0, Length: 83, Randomness: 10,
 		WaveAmp: 70, WavePeriod: 0, Lo: 51, Hi: 209, ThresholdKey: engine.KeyLuma, Edge: 26,
 		Rule: 110, Cell: 8, CASpace: engine.CASpaceImage, CABoundary: engine.CABoundaryRandom,
+		Pattern: "truchet", PatternVariant: "arc", PatternCell: 60, PatternThickness: 8, PatternDetail: 5,
 		Algo: engine.AlgoOddEven, Seed: 7,
 	}
 	if p != want {
@@ -50,6 +51,14 @@ func TestValidateRejects(t *testing.T) {
 		{"unknown ca space", "caSpace", func(p *engine.Params) { p.CASpace = "x" }},
 		{"unknown ca boundary", "caBoundary", func(p *engine.Params) { p.CABoundary = "x" }},
 		{"unknown threshold key", "thresholdKey", func(p *engine.Params) { p.ThresholdKey = "nope" }},
+		{"unknown pattern family", "pattern", func(p *engine.Params) { p.Pattern = "nope" }},
+		{"unknown pattern variant", "pattern", func(p *engine.Params) { p.PatternVariant = "nope" }},
+		{"pattern cell zero", "pattern", func(p *engine.Params) { p.PatternCell = 0 }},
+		{"pattern thickness 501", "pattern", func(p *engine.Params) { p.PatternThickness = 501 }},
+		{"pattern rotate 360", "pattern", func(p *engine.Params) { p.PatternRotate = 360 }},
+		{"pattern detail 17", "pattern", func(p *engine.Params) { p.PatternDetail = 17 }},
+		{"pattern mode without a pattern", "pattern", func(p *engine.Params) { p.Mode, p.Pattern = engine.ModePattern, "" }},
+		{"overlay without a pattern", "pattern", func(p *engine.Params) { p.PatternOverlay, p.Pattern = true, "" }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

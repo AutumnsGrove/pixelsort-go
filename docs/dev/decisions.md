@@ -91,6 +91,16 @@ then `out = Lerp255(sorted, original, alpha)` per channel. The mask itself stays
 **E12. `EngineVersion` is a string constant, starting at `"1"`.** Bump it in the same commit that deliberately
 changes a golden. It is stored with every run.
 
+**E13. Generative patterns are their own package, and the overlay is a mask.** `engine/patterns` returns a 0/1 plane
+from a family/variant spec; the engine treats it exactly like a CA mask, with `pattern` / `pattern-edges` cutting
+intervals and `PatternOverlay` freezing pixels. The families are our own implementations (Truchet, interference,
+radial, grid), not assets from bookofshapes.com: that site's licence lets you use what it generates, but not
+redistribute its patterns as patterns, and its node graphs are not covered. A pattern's cell and thickness are per mille
+of the width like every other spatial parameter (E4); its own `PatternCell` keeps the CA's `Cell` default of 8 from
+turning every first pattern into noise. Per-region pattern cards are deliberately not in the first pass: the engine
+supports per-class overrides, but the card UI would need another set of controls, and the global picker is the useful
+first step.
+
 ## Boundary between JavaScript and the engine
 
 **B1.** One coarse API (PLAN.md 5): `init(w,h)`, `setImage(rgba)`, `setRegions(...)`, `configure(json)`,

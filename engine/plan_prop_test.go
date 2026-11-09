@@ -41,9 +41,14 @@ func TestProp_PlanInvariants(t *testing.T) {
 			}
 		}
 
+		// The pattern overlay is a per-class mask; compute each class's plane once, from the same preview code the
+		// panel uses, so the property checks the specification rather than the plan's own bookkeeping.
+		overlays := map[uint8][]uint8{}
+		overlayFor := func(i int) []uint8 { return overlayAt(t, i, im, p, o, pl, overlays) }
+
 		sortable, frozen := 0, 0
 		for i := range im.Pix {
-			if frozenAt(i, im, p, o) {
+			if frozenAt(i, im, p, o, overlayFor(i)) {
 				frozen++
 			}
 		}
@@ -68,7 +73,7 @@ func TestProp_PlanInvariants(t *testing.T) {
 			}
 			for i := iv.A; i < iv.B; i++ {
 				pos := pl.Lines.P[i]
-				if frozenAt(int(pos), im, p, o) {
+				if frozenAt(int(pos), im, p, o, overlayFor(int(pos))) {
 					t.Fatalf("interval %d (%v) contains frozen pixel %d", n, iv, pos)
 				}
 				if o.Regions != nil && o.Regions.Labels[pos] != cell {
@@ -86,9 +91,29 @@ func TestProp_PlanInvariants(t *testing.T) {
 	})
 }
 
+// overlayAt returns the pattern overlay plane for the class at pixel i, computed once per class and shared by every
+// property that needs to know which pixels the plan froze.
+func overlayAt(t *rapid.T, i int, im *engine.Image, p engine.Params, o *engine.Options, pl *engine.Plan, cache map[uint8][]uint8) []uint8 {
+	class := uint8(0)
+	eff := p
+	if o.Regions != nil {
+		class = o.Regions.ClassOf[o.Regions.Labels[i]]
+		eff = p.With(o.Regions.Defs[class])
+	}
+	if m, ok := cache[class]; ok {
+		return m
+	}
+	var m []uint8
+	if eff.PatternOverlay && eff.Pattern != "" {
+		m = pl.PatternMaskForTest(eff)
+	}
+	cache[class] = m
+	return m
+}
+
 // frozenAt repeats the engine's freeze rule from the outside, so the property is checked against the specification
 // rather than against the implementation's own bookkeeping.
-func frozenAt(i int, im *engine.Image, p engine.Params, o *engine.Options) bool {
+func frozenAt(i int, im *engine.Image, p engine.Params, o *engine.Options, overlay []uint8) bool {
 	if o.Mask != nil && o.Mask[i] != 0 {
 		return true
 	}
@@ -106,5 +131,5 @@ func frozenAt(i int, im *engine.Image, p engine.Params, o *engine.Options) bool 
 			return true
 		}
 	}
-	return false
+	return overlay != nil && overlay[i] != 0
 }

@@ -1,7 +1,17 @@
 // A TypeScript mirror of engine.Params (engine/params.go): same field names, same ranges. The shared table in
 // engine/testdata/params-cases.json keeps the two honest.
 
-export const modes = ['random', 'wave', 'threshold', 'edges', 'ca', 'ca-edges', 'none'] as const;
+export const modes = [
+	'random',
+	'wave',
+	'threshold',
+	'edges',
+	'ca',
+	'ca-edges',
+	'pattern',
+	'pattern-edges',
+	'none'
+] as const;
 export const keys = [
 	'luma',
 	'value',
@@ -17,6 +27,17 @@ export const keys = [
 export const algos = ['oddeven', 'insertion', 'merge', 'reveal'] as const;
 export const caSpaces = ['image', 'line'] as const;
 export const caBoundaries = ['random', 'wrap', 'fixed'] as const;
+
+// The pattern catalog, kept in step with engine/patterns.Catalog(). The panel reads the notes and variants from the
+// engine; this list is what validation and old-run loading need without starting a worker.
+export const patternFamilies = ['truchet', 'interference', 'radial', 'grid'] as const;
+export const patternVariants: Record<string, readonly string[]> = {
+	truchet: ['arc', 'strand', 'hex'],
+	interference: ['mesh', 'rings'],
+	radial: ['spiral', 'spokes', 'broken'],
+	grid: ['woven', 'chevron', 'iso']
+};
+const allPatternVariants = Object.values(patternVariants).flat();
 
 export type Mode = (typeof modes)[number];
 export type SortKey = (typeof keys)[number];
@@ -39,6 +60,14 @@ export interface Params {
 	cell: number;
 	caSpace: (typeof caSpaces)[number];
 	caBoundary: (typeof caBoundaries)[number];
+	pattern: string;
+	patternVariant: string;
+	patternCell: number;
+	patternThickness: number;
+	patternRotate: number;
+	patternDetail: number;
+	patternInvert: boolean;
+	patternOverlay: boolean;
 	algo: Algo;
 	seed: number;
 }
@@ -60,6 +89,14 @@ export const defaultParams: Readonly<Params> = Object.freeze({
 	cell: 8,
 	caSpace: 'image',
 	caBoundary: 'random',
+	pattern: 'truchet',
+	patternVariant: 'arc',
+	patternCell: 60,
+	patternThickness: 8,
+	patternRotate: 0,
+	patternDetail: 5,
+	patternInvert: false,
+	patternOverlay: false,
 	algo: 'oddeven',
 	seed: 7
 });
@@ -75,6 +112,10 @@ const intRanges: Record<string, [number, number]> = {
 	edge: [0, 255],
 	rule: [0, 255],
 	cell: [1, 1000],
+	patternCell: [1, 1000],
+	patternThickness: [1, 500],
+	patternRotate: [0, 359],
+	patternDetail: [1, 16],
 	seed: [0, 0xffffffff]
 };
 
@@ -84,7 +125,9 @@ const enums: Record<string, readonly string[]> = {
 	thresholdKey: keys,
 	algo: algos,
 	caSpace: caSpaces,
-	caBoundary: caBoundaries
+	caBoundary: caBoundaries,
+	pattern: patternFamilies,
+	patternVariant: allPatternVariants
 };
 
 /** Returns a message naming the first problem with a recipe, or null when it is valid. */
@@ -99,6 +142,8 @@ export function validateParams(p: Params): string | null {
 			return `${name} ${String(v)} outside ${lo}..${hi}`;
 	}
 	if (typeof p.reverse !== 'boolean') return 'reverse must be true or false';
+	if (p.pattern && !(patternVariants[p.pattern] ?? []).includes(p.patternVariant))
+		return `patternVariant ${JSON.stringify(p.patternVariant)} is not a ${p.pattern} variant`;
 	if (p.lo > p.hi) return `lo ${p.lo} is above hi ${p.hi}`;
 	return null;
 }
@@ -136,6 +181,12 @@ export function clampParams(raw: unknown): Params {
 		if (typeof v === 'number' && Number.isFinite(v)) out[name] = Math.min(hi, Math.max(lo, Math.round(v)));
 	}
 	if (typeof o.reverse === 'boolean') out.reverse = o.reverse;
+	// A stored pattern may name a variant from another family (or one that no longer exists): keep the family and
+	// fall back to its first variant rather than handing the engine a pair it will refuse.
+	const fam = out.pattern as string;
+	const variants = patternVariants[fam] ?? [];
+	if (!variants.includes(out.patternVariant as string))
+		out.patternVariant = variants[0] ?? defaultParams.patternVariant;
 	const p = out as unknown as Params;
 	if (p.lo > p.hi) p.hi = p.lo;
 	return p;

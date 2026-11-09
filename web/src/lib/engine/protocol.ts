@@ -19,6 +19,8 @@ export type Request =
 	| { id: number; type: 'caRules' } // the recommended cellular-automaton rules with notes
 	| { id: number; type: 'cutOut'; x: number; y: number; tolerance: number } // a region grown from a point, with its outline
 	| { id: number; type: 'caPreview'; json: string; rule: number } // what one cellular rule looks like with this recipe
+	| { id: number; type: 'patternCatalog' } // the generative pattern families and their variants
+	| { id: number; type: 'patternPreview'; json: string } // what this recipe's pattern looks like
 	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
@@ -45,7 +47,8 @@ export type Response =
 			counts?: number[];
 			passes?: number; // maxPasses: an upper bound on the passes a stepped sort needs
 			rules?: { rule: number; note: string }[];
-			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable); or the preview's 0/1 cells (caPreview)
+			families?: { name: string; note: string; variants: { name: string; note: string }[] }[];
+			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable); or a preview's 0/1 cells (caPreview, patternPreview)
 			preview?: { w: number; h: number }; // the size of the caPreview mask
 			/** An outline from cutOut: points are x,y pairs; bbox is x,y,w,h; w is the picture's width (the mask's row length). */
 			cutout?: {

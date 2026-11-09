@@ -26,6 +26,43 @@ export function previewLabel(rule: number, space: Params['caSpace'], angle: numb
 		: `Rule ${rule} · image space`;
 }
 
+/** A one-line caption for the pattern preview, naming the family, variant and space. */
+export function patternLabel(p: Pick<Params, 'pattern' | 'patternVariant' | 'caSpace' | 'angle'>): string {
+	return p.caSpace === 'line'
+		? `${p.pattern} / ${p.patternVariant} · line space, turning with the ${p.angle}° direction`
+		: `${p.pattern} / ${p.patternVariant} · image space`;
+}
+
+/** Everything that changes what a pattern preview looks like. */
+export function patternVersion(
+	p: Pick<
+		Params,
+		| 'pattern'
+		| 'patternVariant'
+		| 'patternCell'
+		| 'patternThickness'
+		| 'patternRotate'
+		| 'patternDetail'
+		| 'patternInvert'
+		| 'caSpace'
+		| 'angle'
+		| 'seed'
+	>
+): string {
+	return [
+		p.pattern,
+		p.patternVariant,
+		p.patternCell,
+		p.patternThickness,
+		p.patternRotate,
+		p.patternDetail,
+		p.patternInvert,
+		p.caSpace,
+		p.caSpace === 'line' ? p.angle : '-',
+		p.seed
+	].join('|');
+}
+
 /** Everything that changes what a preview looks like. The sort angle only counts in line space, where the pattern turns with it. */
 export function previewVersion(
 	p: Pick<Params, 'caSpace' | 'angle' | 'cell' | 'caBoundary' | 'seed'>,

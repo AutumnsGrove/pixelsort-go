@@ -63,6 +63,12 @@
 	let fileInput: HTMLInputElement | undefined = $state();
 	let originalCopy: ImageData | null = null;
 
+	// The pattern picker reads its families and variants from the engine; ask once, the first time a pattern mode is used.
+	$effect(() => {
+		if (studio.params.mode === 'pattern' || studio.params.mode === 'pattern-edges' || studio.params.patternOverlay)
+			void studio.loadPatternFamilies();
+	});
+
 	function paint(rgba: Uint8ClampedArray, w: number, h: number): void {
 		if (!canvas) return;
 		if (canvas.width !== w || canvas.height !== h) {
@@ -536,6 +542,56 @@
 									}}>{s} space</button
 								>{/each}
 						</div>
+					{/if}
+					{#if studio.params.mode === 'pattern' || studio.params.mode === 'pattern-edges'}
+						<div class="chips">
+							{#each studio.patternFamilies as f (f.name)}<button
+									type="button"
+									class:on={studio.params.pattern === f.name}
+									title={f.note}
+									onclick={() => {
+										studio.params.pattern = f.name;
+										studio.params.patternVariant = f.variants[0]?.name ?? studio.params.patternVariant;
+										changed();
+									}}>{f.name}</button
+								>{/each}
+						</div>
+						<div class="chips">
+							{#each studio.patternFamilies.find((f) => f.name === studio.params.pattern)?.variants ?? [] as v (v.name)}<button
+									type="button"
+									class:on={studio.params.patternVariant === v.name}
+									title={v.note}
+									onclick={() => {
+										studio.params.patternVariant = v.name;
+										changed();
+									}}>{v.name}</button
+								>{/each}
+						</div>
+						<label
+							>cell size <input
+								type="range"
+								min="10"
+								max="300"
+								bind:value={studio.params.patternCell}
+								oninput={changed}
+							/></label
+						>
+						<label
+							>thickness <input
+								type="range"
+								min="1"
+								max="80"
+								bind:value={studio.params.patternThickness}
+								oninput={changed}
+							/></label
+						>
+						<label class="tog"
+							><span><b>Freeze the pattern</b></span><input
+								type="checkbox"
+								bind:checked={studio.params.patternOverlay}
+								onchange={changed}
+							/></label
+						>
 					{/if}
 				</div>
 			{/if}

@@ -35,7 +35,7 @@ func FuzzPlanAndSort(f *testing.F) {
 		out := pl.Sort()
 		checkPermutation(t, im, out)
 		for i := range im.Pix {
-			if frozenAt(i, im, p, &engine.Options{}) && out.Pix[i] != im.Pix[i] {
+			if frozenAt(i, im, p, &engine.Options{}, nil) && out.Pix[i] != im.Pix[i] {
 				t.Fatalf("frozen pixel %d moved", i)
 			}
 		}

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { previewLabel, previewPixels, previewVersion } from './rule-preview';
+import { patternLabel, patternVersion, previewLabel, previewPixels, previewVersion } from './rule-preview';
+import { defaultParams } from './engine/params';
 
 describe('drawing a rule preview', () => {
 	test('cells are paper on ink, fully opaque, one pixel per cell', () => {
@@ -22,6 +23,38 @@ describe('what the preview says about itself', () => {
 	});
 	test('line space says it follows the direction, with the angle', () => {
 		expect(previewLabel(110, 'line', 37)).toBe('Rule 110 · line space, turning with the 37° direction');
+	});
+});
+
+describe('the pattern preview', () => {
+	test('names the family, variant and space', () => {
+		expect(patternLabel({ ...defaultParams, pattern: 'grid', patternVariant: 'iso', caSpace: 'image' })).toContain(
+			'grid / iso'
+		);
+		expect(
+			patternLabel({ ...defaultParams, pattern: 'radial', patternVariant: 'spiral', caSpace: 'line', angle: 37 })
+		).toContain('37°');
+	});
+	test('its version changes with every knob that draws the pattern', () => {
+		const base = { ...defaultParams };
+		const v = patternVersion(base);
+		for (const patch of [
+			{ pattern: 'grid' },
+			{ patternVariant: 'iso' },
+			{ patternCell: 120 },
+			{ patternThickness: 20 },
+			{ patternRotate: 45 },
+			{ patternDetail: 9 },
+			{ patternInvert: true },
+			{ caSpace: 'line' as const },
+			{ seed: 8 }
+		])
+			expect(patternVersion({ ...base, ...patch })).not.toBe(v);
+		// the sort angle matters only in line space
+		expect(patternVersion({ ...base, angle: 45 })).toBe(v);
+		expect(patternVersion({ ...base, caSpace: 'line', angle: 45 })).not.toBe(
+			patternVersion({ ...base, caSpace: 'line', angle: 0 })
+		);
 	});
 });
 

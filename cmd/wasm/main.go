@@ -102,6 +102,35 @@ func main() {
 			}
 			return result(map[string]any{"mask": newU8(m), "w": w, "h": h}), nil
 		},
+		"patternCatalog": func([]js.Value) (any, error) {
+			fams := api.PatternCatalog()
+			arr := js.Global().Get("Array").New(len(fams))
+			for i, f := range fams {
+				o := js.Global().Get("Object").New()
+				o.Set("name", f.Name)
+				o.Set("note", f.Note)
+				vars := js.Global().Get("Array").New(len(f.Variants))
+				for j, v := range f.Variants {
+					vo := js.Global().Get("Object").New()
+					vo.Set("name", v.Name)
+					vo.Set("note", v.Note)
+					vars.SetIndex(j, vo)
+				}
+				o.Set("variants", vars)
+				arr.SetIndex(i, o)
+			}
+			return result(map[string]any{"families": arr}), nil
+		},
+		"patternPreview": func(a []js.Value) (any, error) {
+			if len(a) < 1 {
+				return nil, errors.New("patternPreview needs the recipe")
+			}
+			m, w, h, err := api.PatternPreview([]byte(a[0].String()))
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"mask": newU8(m), "w": w, "h": h}), nil
+		},
 		"cutOut": func(a []js.Value) (any, error) {
 			if len(a) < 3 {
 				return nil, errors.New("cutOut needs x, y and a tolerance")

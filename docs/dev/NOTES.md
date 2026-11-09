@@ -1,5 +1,42 @@
 # Build notes
 
+## 2026-11-09 · pattern overlays, from the Book of Shapes
+
+Autumn found bookofshapes.com and asked whether its patterns could drive the sorter. They can, but not by shipping its
+files: the site's licence lets you use anything you generate there (commercial, no attribution), while forbidding
+redistribution of the patterns as patterns and not covering its node graphs or source at all. So the families are our
+own Go implementations of the same ideas — Truchet tiles, interference gratings, radial figures and straight lattices —
+and the docs say "inspired by", not "from".
+
+- **Four families, eleven variants.** `engine/patterns` draws a 0/1 plane from a `Spec` (family, variant, seed, cell,
+  thickness, rotate, detail, invert, reference width). Truchet: arc, strand, hex. Interference: mesh, rings. Radial:
+  spiral, spokes, broken. Grid: woven, chevron, iso. Flow was left out on purpose: streamlines are the expensive one and
+  Autumn did not pick it for the first pass.
+- **Two ways to use a pattern, as asked.** `pattern` starts intervals where the mask turns on; `pattern-edges` starts
+  them at the mask's edges; `patternOverlay` freezes the mask instead, so the shapes keep the original pixels and the
+  gaps sort. The overlay is per class in the engine, so a region can freeze its own pattern.
+- **`PatternCell` is separate from the CA's `Cell`.** CA cells default to 8 per mille; patterns want around 60. Sharing
+  one field would have made every first pattern a field of noise, or changed every existing CA preset.
+- **The preview is a texture, not the exact mask.** `PatternPreview` draws the same code the sort uses, but a stateless
+  preview has no region map; with regions each class may walk its lines at its own angle. The same caveat already
+  applies to `CAPreview`, and the caption says "image space" or "line space, turning with the N° direction".
+- **Per-region pattern cards are not in this pass.** `ClassDef` carries every pattern field, so the engine can do it,
+  but the RegionCard UI would need a second set of controls. The global picker in Pro is the useful first step; the
+  card modes stay as they were.
+- **The overlay is hard for now.** Feathering a pattern overlay would need a per-pixel alpha plane per class, which is
+  more than the `Soft` option (one global plane) can express. The Protect panel's feather still works for its own mask.
+- **Seed, not randomness.** Tile orientation, hex gaps and ring centres come from a 32-bit hash of the tile/centre and
+  the recipe seed, not from `RNG` streams: a mask must not depend on how many lines the picture has.
+- **No existing golden changed**, so `EngineVersion` stays `"1"`; the three new recipes are additive pins.
+- **Verified:** `make check` (gofmt, vet, golangci-lint, all short tests), `make wasm-test` (the pattern goldens match
+  on arm64 and WASM), `pnpm --dir web check lint test` (431 tests), and three real renders through the CLI: a Truchet
+  cut at 30°, a spiral edge sort, and an isometric frozen overlay. The renders were checked locally and are not
+  committed.
+- **The old `TestProp_PlanInvariants` rapid fail file was deleted.** Extending `ParamsGen` with the pattern draws made
+  its recorded draw list no longer valid; the property still covers the same case through its generators.
+- **Needs Autumn:** nothing to unblock. Follow-ups worth a decision: expose patterns in region cards, add feather to the
+  overlay, and decide whether to credit bookofshapes.com in the UI footer (the licence does not require it).
+
 ## 2026-11-09 · the Albums tab is now "shared albums"
 
 Autumn shared things happily and then could not find them again: the Archive's `Albums` tab held every link she had made,
