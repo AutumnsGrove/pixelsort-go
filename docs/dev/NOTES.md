@@ -28,6 +28,10 @@ panel, `--mode infinity` on the CLI.
   preview — so the existing checkpoint cache stays as it is. Numbers are in `infinity-mode.md`.
 - **The hold moved, and the label moved with it:** the panel says "Hold at both ends" in Infinity mode, and `--hold`'s
   help says so too.
+- **A review catch worth keeping:** the sequence now needs to know whether the file loops (a closed loop has an extra
+  frame), and the answer depends on the format, not only on the checkbox. Our viewers always loop a video, so MP4/WebM
+  force `loop` regardless of a GIF setting the person turned off earlier; `loopsByItself` is that rule, used by both the
+  sequence and the preview's stepping.
 - **Verified:** `make check`, `make test`, `pnpm --dir web check lint test` (407 tests), and the animation panel e2e
   (8 tests, including the new Infinity one). Not run: `make fuzz` (nothing in the engine changed), `make image-test`.
 

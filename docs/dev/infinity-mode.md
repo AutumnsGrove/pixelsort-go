@@ -35,6 +35,10 @@ Two surfaces, one rule: the panel's preview and every export. A third (the live 
   long animation still freezes on the finished picture before the turnaround, at both ends of every loop.
 - **The loop holds at both ends and can close itself.** Frame 0 (the original) gets the end-hold as well as the finished
   picture, and `loop=false` appends the original as a closing frame so a one-shot export ends where it began.
+- **"Does it loop" is now a property of the format, not just of the checkbox.** The sequence has to know, because a closed
+  loop has an extra frame. Our viewers always loop a video, so MP4/WebM count as looping whether or not the GIF setting
+  was left off (`loopsByItself`), which also stops the preview from halting where the video would keep going. Found in
+  review.
 - **The loop has about as many frames as a `once` export of the same duration.** Splitting the duration between the two
   legs means 4 s at 24 fps is 96 frames once and 94 frames as a loop, so the size estimate, the memory refusal and the
   user's expectation of "4 seconds" all still hold.
@@ -141,22 +145,24 @@ is meant to make beautiful.
 
 This also improves the existing `once` export, so it is a good separate commit either way.
 
-## Tests (these are the specification)
+## Tests (the specification, and where it is proved)
 
-- `web/src/lib/anim-sampler.test.ts` and `internal/anim/sampler_test.go`, same vectors in both:
-  round trip is `2N-2` frames; first frame is pass 0 and last is pass 1; no two adjacent frames share a pass when
-  `N <= P+1`; delays are the forward delays mirrored; the hold lands on both turnarounds; `P == 0` falls back to `once`;
-  a leg is never shorter than `MinFrames`.
-- Property: for any `P` and `N`, the loop reversed is itself mirrored — `passes[k] == passes[2N-3-k]` for the middle,
-  and the two legs are the same list seen from opposite ends. (No `rapid` needed on the web side; `rapid` on the Go side.)
-- `web/src/lib/anim-panel.test.ts`: the mode is part of `AnimSettings` and its default is `once`, and `nextFrame` still
-  loops or stops at the end. (It did not need to learn about direction; see above.)
+- `web/src/lib/anim-sampler.test.ts` and `internal/anim/sampler_test.go`, the same cases in both: the round trip is
+  `2N-2` frames; it starts at pass 0 and ends at pass 1; no two adjacent frames share a pass; a repeated endpoint is not
+  repeated at the seam; the hold lands on both ends; `loop=false` adds the closing frame; an unsortable picture stays a
+  still; Infinity splits the duration between the legs (94 frames against 96 at 4 s and 24 fps).
+- Property, both languages: with one frame per pass, the two legs mirror each other (`loop[len-k] == fwd[k]`), the highest
+  pass is the finished sort, and it appears once.
+- `web/src/lib/anim-panel.test.ts`: the mode is part of `AnimSettings` and defaults to `once`; `sequenceFor` walks back
+  down in Infinity mode; `nextFrame` still loops or stops at the end (it did not need to learn about direction).
 - `web/src/lib/export-anim.test.ts`: the source is called in sequence order, so the return leg asks for descending passes,
-  and frames reach the encoder in time order.
-- `cmd/pixelsort-go/render_anim_test.go`: the last frame of a `--mode infinity` export is pass 0's picture, and the frame
-  before the first sorted one is pass 1 — i.e. the loop closes.
-- Panel e2e: choose Infinity, preview it, export it, and assert the first two frames are not identical (a doubled
-  turnaround frame is the bug this feature is most likely to ship with).
+  and the frames reach the encoder in time order.
+- `internal/anim/walk_test.go`: every rewound frame matches the forward walk's pixels, and pass 0 gives the original back;
+  `walk_internal_test.go`: a forward-only walk takes no checkpoints (they cost 5 bytes a pixel) and a rewinding one does.
+- `cmd/pixelsort-go/render_anim_test.go`: a `--mode infinity` frame sequence starts at the original, reaches the finished
+  sort once on the way in, and is still coming back down at the end; with `--loop=false` the last frame is the original.
+- Panel e2e: choose Infinity, scrub to the end of the loop and assert the canvas is nearer the original than the middle
+  of the loop is, scrub back down to prove a backward seek lands on the right frame, then export and check the GIF.
 - Determinism: same recipe and settings give the same bytes, twice.
 
 ## Phases

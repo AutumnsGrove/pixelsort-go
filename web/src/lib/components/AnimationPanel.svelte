@@ -17,6 +17,7 @@
 		animFilename,
 		clampFrame,
 		estimateBytes,
+		loopsByItself,
 		memoryRefusal,
 		memoryWarning,
 		nextFrame,
@@ -166,7 +167,7 @@
 		timer = setTimeout(
 			() => {
 				if (!playing) return;
-				const next = nextFrame(index, frames, settings.loop);
+				const next = nextFrame(index, frames, loopsByItself(settings));
 				if (next === index) {
 					pause();
 					return;

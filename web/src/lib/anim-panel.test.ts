@@ -8,6 +8,7 @@ import {
 	evenSize,
 	estimateBytes,
 	frameCountFor,
+	loopsByItself,
 	memoryRefusal,
 	memoryWarning,
 	nextFrame,
@@ -54,6 +55,22 @@ describe('animation settings', () => {
 		expect(Math.max(...seq.passes)).toBe(50);
 		expect(seq.passes[seq.passes.length - 1]).toBeLessThan(50);
 		expect(seq.passes[seq.passes.length - 1]).toBeGreaterThan(0);
+	});
+
+	it('loops videos whether or not the GIF setting was turned off', () => {
+		// A GIF with Loop off, then switched to MP4: our viewers always loop a video, so the sequence must not close.
+		expect(loopsByItself({ ...base, loop: false })).toBe(false);
+		expect(loopsByItself({ ...base, loop: false, format: 'mp4' })).toBe(true);
+		expect(loopsByItself({ ...base, loop: false, format: 'webm' })).toBe(true);
+		expect(loopsByItself({ ...base, loop: false, format: 'apng' })).toBe(false);
+
+		const still = { ...base, mode: 'infinity' as const, durationSec: 2, fps: 10 };
+		expect(sequenceFor({ ...still, format: 'mp4', loop: false }, 50).passes).toEqual(
+			sequenceFor({ ...still, format: 'mp4', loop: true }, 50).passes
+		);
+		expect(sequenceFor({ ...still, format: 'gif', loop: false }, 50).passes).toHaveLength(
+			sequenceFor({ ...still, format: 'gif', loop: true }, 50).passes.length + 1
+		);
 	});
 
 	it('reports impossible settings', () => {

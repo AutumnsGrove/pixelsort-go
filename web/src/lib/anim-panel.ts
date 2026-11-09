@@ -50,6 +50,11 @@ export const ANIM_MODES: Record<Mode, { name: string; note: string }> = {
 	}
 };
 
+/** Whether the file will repeat by itself where we show it: our viewers always loop videos, GIF/APNG follow the setting. */
+export function loopsByItself(settings: AnimSettings): boolean {
+	return settings.format === 'mp4' || settings.format === 'webm' || settings.loop;
+}
+
 /** The frame plan for these settings and a sort with `maxPasses` passes. */
 export function sequenceFor(settings: AnimSettings, maxPasses: number): Sequence {
 	return newSequence(
@@ -59,7 +64,7 @@ export function sequenceFor(settings: AnimSettings, maxPasses: number): Sequence
 		settings.holdMs,
 		settings.ease,
 		settings.mode,
-		settings.loop
+		loopsByItself(settings)
 	);
 }
 
