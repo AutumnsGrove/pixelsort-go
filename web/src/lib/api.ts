@@ -150,8 +150,8 @@ export class ServerBackend {
 		original: Blob;
 		result: Blob;
 		thumb: Blob;
-		/** The animation to attach, when exporting one. */
-		video?: Blob | null;
+		/** The animation to attach, when exporting one, with its own (possibly scaled) size. */
+		video?: { blob: Blob; w: number; h: number } | null;
 		w: number;
 		h: number;
 		title?: string | null;
@@ -163,7 +163,7 @@ export class ServerBackend {
 			hash(r.original),
 			hash(r.result),
 			hash(r.thumb),
-			r.video ? hash(r.video) : Promise.resolve('')
+			r.video ? hash(r.video.blob) : Promise.resolve('')
 		]);
 		const { exists } = await this.post<{ exists: boolean }>('/api/images/check', { sha256: os });
 		const meta = {
@@ -176,14 +176,14 @@ export class ServerBackend {
 			original: { sha256: os, mime: r.original.type, w: r.w, h: r.h },
 			result: { sha256: rs, mime: r.result.type, w: r.w, h: r.h },
 			thumb: { sha256: ts, mime: r.thumb.type, w: 0, h: 0 },
-			video: r.video ? { sha256: vs, mime: r.video.type, w: 0, h: 0 } : null
+			video: r.video ? { sha256: vs, mime: r.video.blob.type, w: r.video.w, h: r.video.h } : null
 		};
 		const form = new FormData();
 		form.set('meta', JSON.stringify(meta));
 		if (!exists) form.set('original', r.original, 'original');
 		form.set('result', r.result, 'result');
 		form.set('thumb', r.thumb, 'thumb');
-		if (r.video) form.set('video', r.video, 'video');
+		if (r.video) form.set('video', r.video.blob, 'video');
 		return this.json('/api/runs', { method: 'POST', body: form });
 	}
 }

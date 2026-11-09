@@ -213,7 +213,7 @@
 			a.click();
 			setTimeout(() => URL.revokeObjectURL(url), 2000);
 			saved = name;
-			studio.pendingAnimation = blob; // the next save stores the animation with the run
+			studio.attachAnimation(blob, out.w, out.h); // the next save of this look stores it
 			void studio.save(); // an export is deliberate, so the look is kept too
 		} catch (e) {
 			if ((e as Error).name !== 'AbortError') error = 'The export failed. Try a smaller scale or a shorter duration.';

@@ -65,7 +65,7 @@ test('saveRun uploads the original when it is new', async () => {
 test('saveRun attaches an animation and leaves video out when there is none', async () => {
 	const png = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
 	const gif = new Blob([new Uint8Array([71, 73, 70])], { type: 'image/gif' });
-	const send = async (video?: Blob) => {
+	const send = async (video?: { blob: Blob; w: number; h: number }) => {
 		const { backend, calls } = fake([json({ exists: true }), json({ id: 7 }, 201)]);
 		await backend.saveRun({
 			settings: {},
@@ -81,7 +81,7 @@ test('saveRun attaches an animation and leaves video out when there is none', as
 		});
 		return calls[1]!.init!.body as FormData;
 	};
-	const withVideo = await send(gif);
+	const withVideo = await send({ blob: gif, w: 320, h: 200 });
 	expect(withVideo.has('video')).toBe(true);
 	const meta = JSON.parse(withVideo.get('meta') as string);
 	expect(meta.video).toMatchObject({ mime: 'image/gif' });

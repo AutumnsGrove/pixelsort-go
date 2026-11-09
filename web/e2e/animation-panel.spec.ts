@@ -93,6 +93,31 @@ test('an export sends the animation with the saved run', async ({ page }) => {
 	await expect.poll(() => posted).toContain('name="video"');
 });
 
+test('an animation does not follow a changed look into a new save', async ({ page }) => {
+	const posts: string[] = [];
+	await page.route('**/api/images/check', (r) => r.fulfill({ json: { exists: false } }));
+	await page.route('**/api/runs', async (r) => {
+		if (r.request().method() !== 'POST') return r.fallback();
+		posts.push(r.request().postDataBuffer()?.toString('latin1') ?? '');
+		if (posts.length === 1) return r.fulfill({ status: 500, json: { error: { code: 'internal', message: 'boom' } } });
+		return r.fulfill({ status: 201, json: { id: 2 } });
+	});
+	await openPanel(page);
+	await smallSettings(page);
+	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
+	expect(download.suggestedFilename()).toMatch(/\.gif$/);
+	await expect.poll(() => posts.length).toBe(1); // the export's save failed
+	await page.getByTestId('anim-close').click();
+
+	await page.getByTestId('k-angle').click();
+	await page.getByTestId('angle-input').fill('77');
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await page.getByTestId('save').click();
+	await expect.poll(() => posts.length).toBe(2);
+	expect(posts[1]).not.toContain('name="video"');
+});
+
 test('the preview scrubs, plays and closes without disturbing the studio', async ({ page }) => {
 	await openPanel(page);
 	const before = await page.getByTestId('state').textContent();
