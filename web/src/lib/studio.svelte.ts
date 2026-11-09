@@ -13,7 +13,7 @@ import { askHelper, helperCopy, helperErrorText, stepLabel, type HelperEvent, ty
 import { cutoutName, outlineSvg, refusalText, TOLERANCE } from './cutout-shape';
 import type { CutoutResult } from './engine/client';
 import { settings } from './settings.svelte';
-import { autoSaveAllowed, saveFailureReason, type SaveState } from './save-policy';
+import { autoSaveAllowed, resultPixels, saveFailureReason, type SaveState } from './save-policy';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
 import { classCount, defaultTiling, type MaskObject, type Stroke, type Tiling } from './regions';
@@ -94,10 +94,20 @@ class Studio {
 	size = $state<{ w: number; h: number } | null>(null);
 	original = $state<Uint8ClampedArray | null>(null);
 	sorted = $state<Uint8ClampedArray | null>(null);
+	/** The finished sort, kept because a loop that comes home leaves the canvas on the original again. */
+	finishedSort = $state<Uint8ClampedArray | null>(null);
+	/** The pixels Save and Export mean: the finished sort, not whatever a loop happens to be showing. */
+	get result(): Uint8ClampedArray | null {
+		return resultPixels(this.sorted, this.finishedSort);
+	}
 	run = $state<RunState>('idle');
 	progress = $state(0);
 	pass = $state(0);
 	speed = $state(40);
+	/** Loop the sort: a finished sort walks back down to the original and starts again. */
+	loop = $state(false);
+	/** The loop is on its way back down (the sort itself has finished). */
+	rewinding = $state(false);
 	presetId = $state<string | null>(null);
 	applied = $state<Recipe | null>(null);
 	customName = $state<string | null>(null);
@@ -250,10 +260,15 @@ class Studio {
 			this.progress = f.progress;
 			this.pass = f.pass;
 			this.maxPass = Math.max(this.maxPass, f.pass);
+			this.rewinding = f.rewinding;
+			if (f.finished) this.finishedSort = f.rgba;
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
-				if (this.autoSaving()) this.saver.schedule(this.saveKey(), true);
+				// A loop switched off on the way home stops on the original: that is not a finished sort, so it is not stored
+				// as one. (While the loop is on the animation never finishes, so nothing is stored mid-loop either: Save and
+				// Export stay deliberate.)
+				if (!f.home && this.autoSaving()) this.saver.schedule(this.saveKey(), true);
 			}
 		});
 	}
@@ -295,6 +310,7 @@ class Studio {
 		this.size = { w: img.w, h: img.h };
 		this.original = img.rgba;
 		this.sorted = img.rgba;
+		this.finishedSort = null;
 		this.isSample = opts.sample === true;
 		this.originalId = id;
 		this.parentRunId = null;
@@ -381,9 +397,11 @@ class Studio {
 			const r = await this.client.run();
 			if (r === 'superseded') return;
 			this.sorted = r.rgba;
+			this.finishedSort = null;
 			this.timings = r.timings;
 			this.progress = 1;
 			this.run = 'done';
+			this.rewinding = false;
 			this.onFrame?.(r.rgba, this.size.w, this.size.h);
 			if (this.autoSaving()) this.saver.schedule(this.saveKey());
 		} catch (e) {
@@ -423,8 +441,10 @@ class Studio {
 			this.maxPass = 0;
 			this.stepped = true;
 			this.scrubbed = false;
+			this.rewinding = false;
+			this.finishedSort = null;
 			this.run = 'animating';
-			await this.client.animate(this.speed);
+			await this.client.animate(this.speed, this.loop);
 		} catch (e) {
 			this.fail(e);
 		}
@@ -462,9 +482,11 @@ class Studio {
 			const r = await this.client.seek(Math.max(0, Math.round(pass)));
 			if (r === 'superseded') return;
 			this.sorted = r.rgba;
+			this.finishedSort = null;
 			this.progress = r.progress;
 			this.pass = r.pass;
 			this.maxPass = Math.max(this.maxPass, r.pass);
+			this.rewinding = false;
 			this.run = r.done ? 'done' : 'paused';
 			this.onFrame?.(r.rgba, this.size.w, this.size.h);
 		} catch (e) {
@@ -478,6 +500,8 @@ class Studio {
 		this.pass = 0;
 		this.maxPass = 0;
 		this.scrubbed = false;
+		this.rewinding = false;
+		this.finishedSort = null; // a replay from the start is not the finished sort any more
 		this.run = 'animating';
 		await this.client?.restart();
 	}
@@ -485,6 +509,12 @@ class Studio {
 	setSpeed(v: number): void {
 		this.speed = v;
 		void this.client?.setSpeed(v);
+	}
+
+	/** Turn the loop on or off. Off means a rewind still finishes its trip home, then stops on the original. */
+	setLoop(v: boolean): void {
+		this.loop = v;
+		void this.client?.setLoop(v);
 	}
 
 	/** Sends the tiling and its class rules to the engine, then re-sorts. */
@@ -793,7 +823,8 @@ class Studio {
 	}
 
 	private async saveRun(): Promise<void> {
-		if (!this.size || !this.original || !this.sorted) return;
+		const pixels = this.result;
+		if (!this.size || !this.original || !pixels) return;
 		const key = this.saveKey(); // changes made while this uploads are a new look, not part of this save
 		const { w, h } = this.size;
 		const encode = async (rgba: Uint8ClampedArray, tw: number, th: number, type: string, quality?: number) => {
@@ -806,8 +837,8 @@ class Studio {
 		const k = Math.min(1, 320 / Math.max(w, h));
 		const [original, result, thumb] = await Promise.all([
 			encode(this.original, w, h, 'image/png'),
-			encode(this.sorted, w, h, 'image/png'),
-			encode(this.sorted, Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)), 'image/webp', 0.8)
+			encode(pixels, w, h, 'image/png'),
+			encode(pixels, Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)), 'image/webp', 0.8)
 		]);
 		const saved = await this.server.saveRun({
 			settings: packRecipe({

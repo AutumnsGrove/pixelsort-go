@@ -20,7 +20,8 @@ no rotated edges, no transparent corners.*
 - **Any angle, no rotation.** Pixels are partitioned into staircase lines with `k = y − round(x·tanθ)` — a pure
   permutation, so no lossy rotate-and-crop and no transparent corners.
 - **Watch the sort itself.** Stable, visible algorithms advance a step at a time on the same buffer; the last
-  frame is guaranteed to equal the instant result.
+  frame is guaranteed to equal the instant result. Turn on Loop and the finished sort walks back down to the
+  original and starts again.
 - **Regions, not reassembly.** Masks and geometric segmentation are one idea: a map of cells and classes, each
   free to freeze, turn, re-key or re-cut. One pass, one buffer, no seams.
 - **Take the sort with you.** Export the process as a GIF, APNG, MP4 or WebM from the studio, or as GIF/APNG (plus a PNG sequence for ffmpeg)

@@ -1,14 +1,15 @@
 # Infinity mode (sort → unsort → loop)
 
-Status: **built and tested**, phases 1 and 2 (issue [#23](https://github.com/AutumnsGrove/pixelsort-go/issues/23), branch
-`build/infinity-mode`). Phase 3 (the live canvas) is not built. Builds on `animation-export.md`, which is already shipped.
+Status: **built and tested**, all three phases: the panel and every export (issue
+[#23](https://github.com/AutumnsGrove/pixelsort-go/issues/23), PRs #25 and #26), and the live studio canvas. Builds on
+`animation-export.md`, which is already shipped.
 
 ## The idea
 
 Watch a sort start from the original picture, run to the finished one, then run **backwards** to the original, and
 repeat forever. Exported, the loop has no seam: the last frame flows into the first through the same motion.
 
-Two surfaces, one rule: the panel's preview and every export. A third (the live studio canvas) is a later phase.
+Three surfaces, one rule: the panel's preview, every export, and the live studio canvas.
 
 ## What was built
 
@@ -18,6 +19,7 @@ Two surfaces, one rule: the panel's preview and every export. A third (the live 
 | Mode in the panel's settings and a Mode control | `web/src/lib/anim-panel.ts` (`ANIM_MODES`, `AnimSettings.mode`), `AnimationPanel.svelte` |
 | `--mode once|infinity` on the CLI | `cmd/pixelsort-go/render.go` |
 | A walker that can rewind, so a round trip is not one full sort per return frame | `internal/anim/walk.go` |
+| The live loop: the worker turns round at the end and seeks back down | `web/src/lib/engine/{worker,animator,protocol,client}.ts`, `studio.svelte.ts`, `routes/studio/+page.svelte` |
 
 ### Where the implementation differs from the plan
 
@@ -30,9 +32,8 @@ Two surfaces, one rule: the panel's preview and every export. A third (the live 
   meant replaying from the original for every return-leg frame — one full sort per frame. It now keeps up to sixteen
   clones (a 96 MB budget, the same estimate as the engine session's scrub cache) so a rewind replays from the nearest.
   `anim.NewSequence(..., Infinity, ...)` and a file therefore cost about one sort forward plus one stride per frame back.
-- **The dead tail is still there.** `Session.ExactPasses()` is not built: the CLI and the studio must pick the same
-  passes (they are ports of each other), so it has to land in both at once, and that is its own commit. Meanwhile a
-  long animation still freezes on the finished picture before the turnaround, at both ends of every loop.
+- **The dead tail is measured and left alone.** `Session.ExactPasses()` is not built: the bound turned out to be 0–3%
+  loose on photographs, so the payoff is a few frames against a whole extra sort at panel open. See the section below.
 - **The loop holds at both ends and can close itself.** Frame 0 (the original) gets the end-hold as well as the finished
   picture, and `loop=false` appends the original as a closing frame so a one-shot export ends where it began.
 - **"Does it loop" is now a property of the format, not just of the checkbox.** The sequence has to know, because a closed
@@ -128,22 +129,49 @@ session only (it already owns a second session, so the studio is unaffected); ca
 return leg needs (about 1 MB each at the panel's 520 px cap, so this needs a frame limit rather than a guess); or drive
 the preview from the export loop, which walks forward once.
 
-## The other wrinkle: the dead tail becomes visible
-
-## The other wrinkle: the dead tail becomes visible
+## The other wrinkle: the dead tail, measured and left alone
 
 `MaxPasses` is an *upper bound* — odd-even stops after two quiet passes — so the late frames of a long animation show the
-finished picture already. Infinity mode makes that a freeze at both ends of every loop, which is the one thing the feature
-is meant to make beautiful.
+finished picture already, and a loop freezes at both ends for that stretch.
 
-- **Recommended:** add `Session.ExactPasses()` (or `Plan.ExactPasses()`), which runs a throwaway stepper to completion and
-  returns `stepper.Pass()`. One extra full sort per recipe change, on the panel's own session, which exists for this kind
-  of work and is not the live one. Deterministic, no behaviour change, no goldens.
-- Rejected: hashing frames during the export and trimming. It costs a whole export to learn the answer, and the preview
-  would have played a sequence the file does not use.
-- Doing nothing is also honest for phase 1; the freeze is bounded by the bound's looseness.
+The plan was to add `Session.ExactPasses()`: run a throwaway stepper to completion and use `stepper.Pass()`. Measured
+instead (`docs/dev/NOTES.md`, 2026-11-09), the bound is **0–3% loose on photographs** — 2% at 1600×900, 3% at 800×600,
+9% at 1600×900 with `length` 100 — with one outlier at 16% for a 320×240 thumbnail, where the bound's fixed `+2` matters.
+Insertion, merge and reveal are exact to the pass.
 
-This also improves the existing `once` export, so it is a good separate commit either way.
+So it is **not built**: a few percent of frames at each turnaround is smaller than the default 500 ms hold, and the price
+is a whole extra sort at panel open — exactly when the preview should appear. If the tail ever does matter, that is the
+number to beat: under 3% on the pictures people export.
+
+Rejected for the same reason as before: hashing frames during the export and trimming after the fact, which costs an
+entire export to learn the answer and makes the file disagree with the preview that has already played.
+
+## The live canvas (phase 3): the same loop in the studio
+
+The studio's own animation loops now, driven by the worker: when the sort finishes it turns round and **seeks** back
+through the passes, one frame at a time, using the session's checkpoint cache. The page never sees a difference — it gets
+frames — and the loop is a superset of the old behaviour (with Loop off the animation stops on the finished picture
+exactly as it did before).
+
+Design decisions worth knowing:
+
+- **The rewind keeps the forward pass rate**; the frame rate does what the machine allows. A rewind frame is a seek, which
+  replays from the nearest checkpoint, so the way back costs more than the way in. Measured (`api.Session.Seek`,
+  native, 16 checkpoints): **29 ms** a frame at 1600×900, 5 ms at 900×600, 6 ms at 1280×720. So a small or medium picture
+  rewinds smoothly and a large one rewinds at 10–15 fps — choppy, but the motion is the same speed, which is what makes it
+  read as the sort running backwards rather than as a stutter.
+- **The choice is in the Watch popover** (algorithm, speed, loop), not a new dock button: it is a way of watching the sort.
+- **Turning Loop off mid-rewind finishes the trip home and stops on the original**, rather than snapping to the end. That
+  stop is *not* a finished sort — the frame says so (`home`) — so Auto-save never stores the unsorted picture as a run's
+  result. While the loop is on, nothing auto-saves mid-loop either: the animation never finishes, so Save and Export stay
+  deliberate.
+- **A deliberate Save still stores the finished sort, not what the loop came home to.** The frame that *is* the finished
+  sort says so (`finished`), the studio keeps those pixels, and `studio.result` — Save, Export and the thumbnail — prefers
+  them. Restarting clears them, so a paused replay stores what is on screen. Both of these came out of review, and both have an e2e that fails without them: one counts auto-saves after a
+  home stop, the other compares the uploaded `result` part against the `original` part byte for byte.
+- **Scrubbing means the way forward**: a seek resets the direction, so Resume after a drag sorts on from there.
+- **The setting is not remembered** between visits, for the same reason the panel's is not — the studio's own animation
+  settings (`speed` included) are not sticky, and one sticky knob out of nine would be odd.
 
 ## Tests (the specification, and where it is proved)
 
@@ -163,6 +191,10 @@ This also improves the existing `once` export, so it is a good separate commit e
   sort once on the way in, and is still coming back down at the end; with `--loop=false` the last frame is the original.
 - Panel e2e: choose Infinity, scrub to the end of the loop and assert the canvas is nearer the original than the middle
   of the loop is, scrub back down to prove a backward seek lands on the right frame, then export and check the GIF.
+- `web/src/lib/engine/animator.test.ts`: the loop helpers — where a finished sort goes, the pass a rewind frame lands on
+  (never past the original, always moving), and the turn at home.
+- `web/e2e/infinity.spec.ts`: with Loop on the state reads "rewinding" and the pass comes back down, then forward again;
+  pausing a rewind holds the picture; turning Loop off mid-rewind finishes the trip home and stops on the original.
 - Determinism: same recipe and settings give the same bytes, twice.
 
 ## Phases
@@ -170,12 +202,14 @@ This also improves the existing `once` export, so it is a good separate commit e
 1. **Sequence and export** — done: the sampler in both languages, the mode in `AnimSettings`, the panel control, the
    export. The preview needed no change beyond drawing whatever frame the sequence asks for.
 2. **CLI** — done: `--mode infinity`, same builder.
-3. **Live canvas** — not built. The studio's own sort still stops at `done`; looping it needs the rewind measurement
-   below, and may want its own issue.
+3. **Live canvas** — done: the worker drives the direction, the Watch popover has the toggle, and a rewind frame is a
+   seek through the session's own checkpoint cache. The measurements that shaped it are below.
 
 ## Out of scope
 
 - A true inverse sort, undo logs, or a per-pixel rewind.
 - Different easing or a different speed on the return leg (the return mirrors the outbound trip).
 - Audio, speed ramps, or a "boomerang with pauses" variant.
+- A different rewind pace in the live canvas than in an export. Both walk the passes at the sort's own rate; only the
+  frame rate differs, because a rewind frame is a seek.
 - Rewriting already-exported animations into infinity mode on the server. It is an export setting, not a post-process.

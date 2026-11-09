@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { ApiError } from './api';
-import { autoSaveAllowed, createLeaveGuard, saveButton, saveFailureReason } from './save-policy';
+import { autoSaveAllowed, createLeaveGuard, resultPixels, saveButton, saveFailureReason } from './save-policy';
 
 describe('when a run is saved by itself', () => {
 	test('only when the setting is on and the picture is not the bundled demo', () => {
@@ -62,5 +62,19 @@ describe('why a save failed', () => {
 		expect(saveFailureReason(new ApiError(500, 'internal', 'boom'))).toBeUndefined();
 		expect(saveFailureReason(new TypeError('Failed to fetch'))).toBeUndefined();
 		expect(saveFailureReason('weird')).toBeUndefined();
+	});
+});
+
+describe('resultPixels', () => {
+	test('prefers the finished sort kept from the frame that reported it', () => {
+		const shown = new Uint8ClampedArray([1, 2, 3, 4]);
+		const sorted = new Uint8ClampedArray([9, 9, 9, 9]);
+		expect(resultPixels(shown, sorted)).toBe(sorted);
+	});
+
+	test('falls back to the picture on screen', () => {
+		const shown = new Uint8ClampedArray([1, 2, 3, 4]);
+		expect(resultPixels(shown, null)).toBe(shown);
+		expect(resultPixels(null, null)).toBeNull();
 	});
 });

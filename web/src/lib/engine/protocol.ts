@@ -22,10 +22,11 @@ export type Request =
 	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }
-	| { id: number; type: 'animate'; speed: Speed } // prepare, reset and start streaming frames
+	| { id: number; type: 'animate'; speed: Speed; loop: boolean } // prepare, reset and start streaming frames
 	| { id: number; type: 'pause' }
 	| { id: number; type: 'resume' }
 	| { id: number; type: 'setSpeed'; speed: Speed }
+	| { id: number; type: 'setLoop'; loop: boolean }
 	| { id: number; type: 'restart' } // back to the original pixels, keep animating
 	| { id: number; type: 'seek'; pass: number } // pause, jump to the state after `pass` passes, answer with those pixels
 	| { id: number; type: 'maxPasses' } // an upper bound on the passes a stepped sort needs, after prepare
@@ -76,6 +77,15 @@ export type FrameEvent = {
 	pass: number;
 	done: boolean;
 	stepMs: number;
+	/** The loop is on its way back down to the original (the sort itself has finished). */
+	rewinding: boolean;
+	/** These pixels are the finished sort. With the loop on this is not the last frame, so it is the one to keep. */
+	finished: boolean;
+	/**
+	 * The animation stopped on the original because the loop was turned off on the way home, so these pixels are not a
+	 * finished sort: a store must not treat this as one.
+	 */
+	home: boolean;
 };
 
 /**

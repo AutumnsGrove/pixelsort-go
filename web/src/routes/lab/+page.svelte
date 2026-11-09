@@ -83,7 +83,7 @@
 			pass = 0;
 			paused = false;
 			animating = true;
-			stats = await client.animate(speed());
+			stats = await client.animate(speed(), false);
 			error = '';
 		} catch (e) {
 			animating = false;

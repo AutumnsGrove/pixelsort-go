@@ -135,7 +135,10 @@ describe('animation', () => {
 		progress: done ? 1 : 0.5,
 		pass: tag,
 		done,
-		stepMs: 1
+		stepMs: 1,
+		rewinding: false,
+		finished: done,
+		home: false
 	});
 	const deliver = (w: FakeWorker, f: ReturnType<typeof frameEvent>) =>
 		w.onmessage?.({ data: f } as unknown as MessageEvent<Response>);
@@ -143,7 +146,7 @@ describe('animation', () => {
 	test('frames reach subscribers in order and each is acknowledged after the listeners ran', async () => {
 		const seen: number[] = [];
 		client.onFrame((f) => seen.push(f.pass));
-		const p = client.animate(30);
+		const p = client.animate(30, false);
 		const w = workers[0]!;
 		w.reply({ id: 1, ok: true, stats: { lines: 1, intervals: 1, sortable: 1, frozen: 0 } });
 		await p;
@@ -173,7 +176,7 @@ describe('animation', () => {
 	});
 
 	test('a failed animate rejects with the message', async () => {
-		const p = client.animate(10);
+		const p = client.animate(10, false);
 		workers[0]!.reply({ id: 1, ok: false, error: 'configure first' });
 		await expect(p).rejects.toThrow('configure first');
 	});

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import './vendor/wasm_exec.js';
-import { adaptAuto, fixedSteps, type Speed } from './animator';
+import { adaptAuto, afterSort, fixedSteps, rewindDone, rewindTarget, type Speed } from './animator';
 import { EngineDownloadFailed, fetchEngine } from './loader';
 import type { FrameEvent, LoadingEvent, Request, Response } from './protocol';
 
@@ -57,10 +57,17 @@ function takePixels(strategy: 'copy' | 'view'): { rgba: ArrayBuffer } | { error:
 }
 
 // ---- animation: the worker drives the stepper and streams frames; the page acknowledges each one ----
+// With the loop on, the sort does not stop at the finished picture: it turns round and seeks back down through the
+// passes, so the canvas returns to the original and starts again. A rewind frame is a seek, and a seek replays from the
+// nearest checkpoint, so the way back costs more than the way in — the animation keeps its pace in *passes* per frame
+// and the frame rate simply drops on a big picture.
 const anim = {
 	running: false,
 	paused: false,
 	speed: 24 as Speed,
+	loop: false,
+	rewinding: false,
+	pass: 0,
 	carry: 0,
 	autoSteps: 1,
 	awaitingAck: false,
@@ -94,23 +101,59 @@ function tick(): void {
 		scheduleTick();
 		return;
 	}
+
+	// The same pass count drives both directions, so the way back mirrors the way in.
 	const t0 = performance.now();
-	const r = globalThis.pixelsort.step(steps);
+	const target = anim.rewinding ? rewindTarget(anim.pass, steps) : 0;
+	const r = anim.rewinding ? globalThis.pixelsort.seek(target) : globalThis.pixelsort.step(steps);
 	const stepMs = performance.now() - t0;
 	if (!r.ok) {
 		stopAnimation();
 		return;
 	}
+	anim.pass = r.pass;
 	if (anim.speed === 'auto') anim.autoSteps = adaptAuto(anim.autoSteps, stepMs);
+
+	const finished = !anim.rewinding && r.done; // the frame the sort actually completed on, loop or no loop
+	let done = r.done;
+	let home = false;
+	if (anim.rewinding) {
+		if (rewindDone(r.pass)) {
+			anim.rewinding = false; // at the original: the next frame goes forward again, unless the loop was turned off
+			if (!anim.loop) {
+				// Stopped on the original, which is not a finished sort: `home` says so, so nothing stores these pixels.
+				done = true;
+				home = true;
+				stopAnimation();
+			}
+		}
+	} else if (done) {
+		if (afterSort(anim.loop) === 'back') {
+			anim.rewinding = true;
+			done = false; // the sort is over, but the animation is not
+		} else {
+			stopAnimation();
+		}
+	}
+
 	const px = takePixels('copy');
 	if ('error' in px) {
 		stopAnimation();
 		return;
 	}
-	const frame: FrameEvent = { event: 'frame', rgba: px.rgba, progress: r.progress, pass: r.pass, done: r.done, stepMs };
+	const frame: FrameEvent = {
+		event: 'frame',
+		rgba: px.rgba,
+		progress: r.progress,
+		pass: r.pass,
+		done,
+		stepMs,
+		rewinding: anim.rewinding,
+		finished,
+		home
+	};
 	anim.awaitingAck = true;
 	self.postMessage(frame, [px.rgba]);
-	if (r.done) stopAnimation();
 }
 
 function startAnimation(): { ok: true } | { ok: false; error: string } {
@@ -119,6 +162,8 @@ function startAnimation(): { ok: true } | { ok: false; error: string } {
 	Object.assign(anim, {
 		running: true,
 		paused: false,
+		rewinding: false,
+		pass: 0,
 		carry: 0,
 		autoSteps: 1,
 		awaitingAck: false,
@@ -221,6 +266,7 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 			const prep = api.prepare();
 			if (!prep.ok) return { res: fail(req.id, prep.error), transfer: [] };
 			anim.speed = req.speed;
+			anim.loop = req.loop;
 			const started = startAnimation();
 			if (!started.ok) return { res: fail(req.id, started.error), transfer: [] };
 			return { res: { id: req.id, ok: true, stats: prep.stats }, transfer: [] };
@@ -238,6 +284,10 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 		case 'setSpeed':
 			anim.speed = req.speed;
 			return { res: { id: req.id, ok: true }, transfer: [] };
+		case 'setLoop':
+			// Turning the loop off mid-rewind finishes the trip home and stops there, which is what pressing Loop off means.
+			anim.loop = req.loop;
+			return { res: { id: req.id, ok: true }, transfer: [] };
 		case 'restart': {
 			const started = startAnimation();
 			return { res: started.ok ? { id: req.id, ok: true } : fail(req.id, started.error), transfer: [] };
@@ -252,13 +302,15 @@ function handle(req: Request): { res: Response; transfer: Transferable[] } {
 		}
 		case 'seek': {
 			// Scrubbing holds the animation where the person put it; Resume carries on from there (even if the sort had
-			// finished before they dragged back).
+			// finished before they dragged back). Scrubbing also means the way forward, not a rewind.
 			anim.paused = true;
 			const r = api.seek(req.pass);
 			if (!r.ok) return { res: fail(req.id, r.error), transfer: [] };
 			const px = takePixels('copy');
 			if ('error' in px) return { res: fail(req.id, px.error), transfer: [] };
 			anim.running = !r.done;
+			anim.rewinding = false;
+			anim.pass = r.pass;
 			clearTimeout(anim.timer);
 			return {
 				res: { id: req.id, ok: true, rgba: px.rgba, seek: { pass: r.pass, progress: r.progress, done: r.done } },

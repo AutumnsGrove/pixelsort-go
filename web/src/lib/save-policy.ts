@@ -4,6 +4,17 @@
 // "Auto-save runs" setting, off by default, brings the old behaviour back for people who want it.
 import { ApiError } from './api';
 
+/**
+ * The pixels a run stores as its result. Normally the picture on screen; but a loop that came home leaves the canvas on the
+ * original, so the finished sort kept from the frame that reported it wins.
+ */
+export function resultPixels(
+	sorted: Uint8ClampedArray | null,
+	finishedSort: Uint8ClampedArray | null
+): Uint8ClampedArray | null {
+	return finishedSort ?? sorted;
+}
+
 /** A run is stored by itself only when the setting is on and the picture is something the person brought, not the demo. */
 export function autoSaveAllowed(o: { autoSave: boolean; isSample: boolean }): boolean {
 	return o.autoSave && !o.isSample;

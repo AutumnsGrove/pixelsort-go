@@ -213,7 +213,9 @@
 		loadingText
 			? loadingText + (studio.engineLoad && studio.engineLoad.attempt > 1 ? ' (trying again)' : '')
 			: studio.run === 'animating'
-				? `pass ${studio.pass}`
+				? studio.rewinding
+					? 'rewinding'
+					: `pass ${studio.pass}`
 				: studio.run === 'paused'
 					? 'paused'
 					: studio.run === 'preparing'
@@ -256,14 +258,16 @@
 	const exportName = $derived(fileName(studio.name, studio.params.mode, exportFormat, String(studio.params.seed)));
 
 	async function doExport(): Promise<void> {
-		if (!studio.sorted || !studio.size) return;
+		// The same pixels Save stores: after a loop has come home the canvas is on the original, but the run is the sort.
+		const pixels = studio.result;
+		if (!pixels || !studio.size) return;
 		appBusy.exporting = true; // an update must wait for this: Settings shows "Finish your export first."
 		try {
 			const c = new OffscreenCanvas(exportW, exportH);
 			const src = new OffscreenCanvas(studio.size.w, studio.size.h);
 			src
 				.getContext('2d')!
-				.putImageData(new ImageData(new Uint8ClampedArray(studio.sorted), studio.size.w, studio.size.h), 0, 0);
+				.putImageData(new ImageData(new Uint8ClampedArray(pixels), studio.size.w, studio.size.h), 0, 0);
 			c.getContext('2d')!.drawImage(src, 0, 0, exportW, exportH);
 			const blob = await c.convertToBlob({ type: `image/${exportFormat}`, quality: exportQuality / 100 });
 			const a = document.createElement('a');
@@ -634,6 +638,15 @@
 							oninput={(e) => studio.setSpeed(Number(e.currentTarget.value))}
 							aria-label="Speed"
 						/></label
+					>
+					<label class="loop"
+						><input
+							type="checkbox"
+							checked={studio.loop}
+							onchange={(e) => studio.setLoop(e.currentTarget.checked)}
+							data-testid="loop"
+						/>
+						loop the sort <span>sort, unsort, start again</span></label
 					>
 				</div>
 			{/if}
@@ -1113,6 +1126,14 @@
 		gap: 2px;
 		font-size: 11px;
 		color: var(--dim);
+	}
+	.pop label.loop {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.pop label.loop span {
+		opacity: 0.7;
 	}
 	.pgrid {
 		display: grid;
