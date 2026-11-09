@@ -32,7 +32,9 @@ Branch `build/live-loop`. Two of the three things #23 had left: the question of 
   (`finished`), the studio keeps those pixels, and `resultPixels` prefers them. The e2e compares the upload's `result` and
   `original` parts as bytes — with one encoder they would be identical — and fails without the fix (checked).
 - **`studio.result` is the one answer** for both Save and the studio's Export download, and `restart()` clears the kept
-  sort, so a replay that is paused mid-way stores the frame on screen (the second review round caught both).
+  sort, so a replay that is paused mid-way stores the frame on screen (the second review round caught both). Both now have
+  their proof: `e2e/infinity.spec.ts` exports the same recipe three ways — plain, after a home stop, and paused mid-replay —
+  and compares the PNGs byte for byte (deterministic encoding). Reverting either fix fails it.
 - **Not persisted**, like the studio's other animation settings (even `speed` is local today).
 - **Verified:** `make check`, `go test -race ./...`, `pnpm --dir web check lint test` (412 tests), the new
   `e2e/infinity.spec.ts` twice for flakiness, and the full Playwright suite (215 tests). Not run: `make fuzz` (engine

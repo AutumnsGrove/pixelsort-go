@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 // The live loop: with "loop the sort" on, a finished sort turns round and walks back down through the passes to the
@@ -50,6 +51,15 @@ const watch = async (page: Page) => {
 	await expect(page.getByTestId('loop')).toBeVisible();
 };
 const closePopover = (page: Page) => page.keyboard.press('Escape');
+
+/** Export the picture as PNG and answer its bytes: the same recipe encodes to the same file every time. */
+async function exportPng(page: Page): Promise<Buffer> {
+	await page.getByTestId('export').click();
+	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-go').click()]);
+	const path = await download.path();
+	await page.keyboard.press('Escape'); // the export popover would sit over the dock
+	return readFileSync(path!);
+}
 
 const playAt = async (page: Page, speed: number, loop: boolean) => {
 	await watch(page);
@@ -128,4 +138,29 @@ test('pausing a rewind holds the picture, and turning the loop off finishes the 
 	const parts = api.parts();
 	expect(parts.result?.byteLength ?? 0).toBeGreaterThan(0);
 	expect(Buffer.compare(parts.result!, parts.original!)).not.toBe(0);
+});
+
+test('Export after a loop comes home still means the finished sort, and a replay means what it shows', async ({
+	page
+}) => {
+	await studio(page);
+	// The reference: the finished sort (Studio opens on it), exported the plain way. The stepped sort reaches exactly
+	// these pixels, so the same recipe encodes to the same bytes.
+	const sorted = await exportPng(page);
+
+	// Now the same picture, looped and stopped on the original: the download must still be that finished sort.
+	await playAt(page, SPEED, true);
+	await expect(page.getByTestId('state')).toHaveText('rewinding', { timeout: 60_000 });
+	await watch(page);
+	await page.getByTestId('loop').uncheck();
+	await closePopover(page);
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 60_000 });
+	expect(await scrubPass(page)).toBe(0); // the canvas is on the original
+	expect(Buffer.compare(await exportPng(page), sorted), 'the original exported instead of the sort').toBe(0);
+
+	// Start over replays from the beginning: paused mid-way, the picture on screen is what Save and Export mean.
+	await page.getByRole('button', { name: 'Start over' }).click();
+	await expect.poll(() => scrubPass(page), { timeout: 30_000 }).toBeGreaterThan(3);
+	await pausePlayback(page);
+	expect(Buffer.compare(await exportPng(page), sorted), 'a stale finished sort came back').not.toBe(0);
 });
