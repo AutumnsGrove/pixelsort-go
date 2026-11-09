@@ -1,5 +1,28 @@
 # Build notes
 
+## 2026-11-09 · issue #23 · infinity mode plan only, nothing built
+
+No code yet: the issue and `docs/dev/infinity-mode.md` are the whole change. The judgement calls the plan makes, so the
+next session does not re-litigate them:
+
+- **An unsort is a replay, not an inverse.** The return leg shows the same passes in reverse; the engine is a function of
+  its recipe and `Seek` already replays backwards from a checkpoint. An undo log is unbounded (a sort's swaps track its
+  inversions) and an inverse permutation is more code for a less interesting trajectory. So: no engine change, no golden
+  changes, no `EngineVersion` bump. If the build needs any of those, the design drifted.
+- **It is a longer `Sequence`, not a new pipeline.** `frames = seq.passes.length` already feeds the encoder header, the
+  estimate and the memory refusal, so only the sampler and the preview's stepping change. The export loop, encoders and
+  save path stay untouched.
+- **Both turnaround frames are dropped from the return leg** (`0..P` then `P-1..1`, `2N-2` frames). A naive
+  `passes + reverse(passes)` doubles the finished and original frames, which is a stutter exactly at the seam.
+- **`durationSec` is the round trip**, each leg half. Per-leg duration would quietly turn a 4 s setting into an 8 s file.
+- **Delays mirror the forward leg** and the hold sits on both turnarounds, not on pass 1.
+- **Mode defaults to `Once`** for the first release and is remembered per device. `Infinity` is the better demo; it
+  becomes the default once the rewind is measured smooth.
+- **Two costs are flagged, not guessed:** the return leg is all backward seeks (measure `P/32` passes a frame at the
+  checkpoint budget, then decide between a bigger `ckptBudget` for the animation session, cached preview frames, or
+  driving the preview from the export loop), and `MaxPasses` is a loose upper bound, so the dead tail freezes at each
+  turnaround. `Session.ExactPasses()` is the recommended fix for the second and is a separate commit.
+
 ## 2026-11-09 · docker-publish for the animation merge
 
 The first image build after #21 failed on `linux/arm64` in the web stage: `vite build` died with SIGILL under QEMU
