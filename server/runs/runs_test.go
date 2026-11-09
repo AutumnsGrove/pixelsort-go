@@ -124,8 +124,10 @@ func TestCreateOmitsKnownOriginal(t *testing.T) {
 	if _, _, err := e.tryCreate(spec{orig: 99, res: 6, thumb: 7, omitOriginal: true}); !errors.Is(err, runs.ErrInvalid) {
 		t.Fatalf("unknown original without a part: %v", err)
 	}
-	if blobFiles(t, e.root) != 5 {
-		t.Fatalf("a failed create left files: %d", blobFiles(t, e.root))
+	// The first run owns three blobs. The duplicate's redundant result and thumb are removed, and the failed create
+	// (unknown original, no part) leaves nothing.
+	if got := blobFiles(t, e.root); got != 3 {
+		t.Fatalf("%d files, want the first run's three", got)
 	}
 }
 

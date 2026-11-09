@@ -2,6 +2,22 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · review fixes (PR #21)
+
+Branch `build/animation-export`.
+
+- **A duplicate save no longer keeps a leaked animation.** `Create` now reads `video_id` before inserting: a run that
+  already has an animation keeps it, and every blob the duplicate request uploaded but did not reference is removed.
+  The test counts files and `images` rows for both GIFs.
+- **The panel draws its first frame on open.** `loading` went false only after `show(0)`, so the canvas did not exist yet.
+  It now waits for the canvas (`tick`) before the first seek; the e2e checks pixels before touching a control.
+- **A pending animation belongs to the look it was exported from.** `Studio.attachAnimation` records the save key and
+  size; `pendingFor` lets a save attach it only when the key still matches. An e2e exports, fails the save, changes the
+  angle, saves again and asserts no `video` part went up.
+- **The GIF palette samples real passes.** The export loop passed frame indexes where `prepare` expected pass numbers.
+- **Shared animations report their own size.** The manifest uses `run.Video.W/H` when known, falling back to the still
+  for older runs; the integration helper now uploads a 2x3 animation and the test checks it reaches the manifest.
+
 ## 2026-11-08 · issue #16 · animation polish
 
 Branch `build/animation-export`.
