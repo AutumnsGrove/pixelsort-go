@@ -39,7 +39,11 @@ export async function exportAnimation(opts: {
 	const { sequence, source, encoder, signal } = opts;
 	const total = sequence.passes.length;
 	if (signal?.aborted) throw aborted();
-	await encoder.prepare?.(source, spread(total, 8));
+	// The palette sampler wants pass numbers, not frame indexes.
+	await encoder.prepare?.(
+		source,
+		spread(total, 8).map((i) => sequence.passes[i] ?? 0)
+	);
 	for (let i = 0; i < total; i++) {
 		if (signal?.aborted) throw aborted();
 		const frame = await source(sequence.passes[i] ?? 0);

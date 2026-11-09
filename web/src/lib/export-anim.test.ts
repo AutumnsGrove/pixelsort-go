@@ -60,7 +60,7 @@ describe('exportAnimation', () => {
 		const seq = newSequence(100, 1000, 5, 0, 'linear');
 		const rec = new Recorder();
 		await exportAnimation({ sequence: seq, source: async (p) => fakeFrame(p), encoder: rec });
-		expect(rec.prepared).toEqual(spread(seq.passes.length, 8));
+		expect(rec.prepared).toEqual(spread(seq.passes.length, 8).map((i) => seq.passes[i]));
 	});
 
 	it('stops before the first frame when already cancelled', async () => {
