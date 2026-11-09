@@ -172,7 +172,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, originals map[i
 		if run.Title != nil {
 			name = runs.CleanName(*run.Title)
 		}
-		img := manifestImage{W: run.Result.W, H: run.Result.H, Mime: shown.Mime, Name: name}
+		w, h := run.Result.W, run.Result.H
+		if run.Video != nil && run.Video.W > 0 && run.Video.H > 0 {
+			w, h = run.Video.W, run.Video.H // the animation may be scaled down from the still
+		}
+		img := manifestImage{W: w, H: h, Mime: shown.Mime, Name: name}
 		if req.IncludeRecipe {
 			img.Recipe = run.Settings
 		}

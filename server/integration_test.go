@@ -127,7 +127,7 @@ func (s *site) uploadLookVideo(orig, res, thumb int, seed int, omitOriginal bool
 		"result":   map[string]any{"sha256": rs, "mime": "image/png", "w": 4, "h": 4},
 		"thumb":    map[string]any{"sha256": ts, "mime": "image/png", "w": 4, "h": 4}}
 	if video != nil {
-		meta["video"] = map[string]any{"sha256": videoSHA, "mime": "image/gif", "w": 4, "h": 4}
+		meta["video"] = map[string]any{"sha256": videoSHA, "mime": "image/gif", "w": 2, "h": 3}
 	}
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)

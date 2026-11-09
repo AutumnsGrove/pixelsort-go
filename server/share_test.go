@@ -234,7 +234,7 @@ func TestShareAnimatedRunSendsTheAnimation(t *testing.T) {
 		} `json:"images"`
 	}
 	_ = json.Unmarshal(f.objects[base+"/manifest.json"], &m)
-	if len(m.Images) != 1 || m.Images[0].Mime != "image/gif" || m.Images[0].W != 4 || m.Images[0].H != 4 {
+	if len(m.Images) != 1 || m.Images[0].Mime != "image/gif" || m.Images[0].W != 2 || m.Images[0].H != 3 {
 		t.Fatalf("manifest: %s", f.objects[base+"/manifest.json"])
 	}
 	if f.objects[base+"/thumbs/0"] == nil {
