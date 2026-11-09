@@ -22,9 +22,8 @@ async function smallSettings(page: Page): Promise<void> {
 
 test('the animation panel previews frames and exports a GIF', async ({ page }) => {
 	await openPanel(page);
-	await smallSettings(page);
-	await expect(page.getByTestId('anim-info')).toContainText('frames');
 
+	// The first frame must be drawn on open, before any control is touched.
 	const canvas = page.getByTestId('anim-canvas');
 	await expect(canvas).toBeVisible();
 	const nonBlank = await canvas.evaluate((c: HTMLCanvasElement) => {
@@ -35,6 +34,8 @@ test('the animation panel previews frames and exports a GIF', async ({ page }) =
 	});
 	expect(nonBlank).toBe(true);
 
+	await smallSettings(page);
+	await expect(page.getByTestId('anim-info')).toContainText('frames');
 	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
 	expect(download.suggestedFilename()).toMatch(/-anim\.gif$/);
 	await expect(page.getByTestId('anim-saved')).toContainText('.gif');

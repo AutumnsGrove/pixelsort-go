@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The animation panel: export-only controls, a preview of the exact frame sequence the export will write, and the
 	// export itself. It runs on its own engine session so the studio's live sort is untouched.
-	import { onMount } from 'svelte';
+	import { onMount, tick as nextTick } from 'svelte';
 	import { X, Play, Pause, Download, Square } from '@lucide/svelte';
 	import { studio } from '#lib/studio.svelte';
 	import {
@@ -94,6 +94,9 @@
 			session = s;
 			maxPasses = s.maxPasses;
 			await checkVideo();
+			// The canvas only exists once loading is false; wait for it before drawing the first frame.
+			loading = false;
+			await nextTick();
 			await show(0);
 		} catch {
 			error = 'The animation engine could not start. Close the panel and try again.';
