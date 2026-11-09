@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	ANIM_FORMATS,
+	ANIM_MODES,
 	DEFAULT_ANIM,
 	animFilename,
 	clampFrame,
@@ -37,6 +38,22 @@ describe('animation settings', () => {
 		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10, holdMs: 250 }, 50);
 		expect(seq.passes[0]).toBe(0);
 		expect(seq.passes[seq.passes.length - 1]).toBe(50);
+	});
+
+	it('is a one-way sort unless Infinity is chosen', () => {
+		expect(DEFAULT_ANIM.mode).toBe('once');
+		expect(ANIM_MODES.infinity.name).toBe('Infinity');
+		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10 }, 50);
+		expect(seq.passes[seq.passes.length - 1]).toBe(50);
+	});
+
+	it('walks back to the original in Infinity mode', () => {
+		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10, mode: 'infinity' }, 50);
+		expect(seq.passes[0]).toBe(0);
+		// The finished picture is the top of the loop and the last frame is on its way back down.
+		expect(Math.max(...seq.passes)).toBe(50);
+		expect(seq.passes[seq.passes.length - 1]).toBeLessThan(50);
+		expect(seq.passes[seq.passes.length - 1]).toBeGreaterThan(0);
 	});
 
 	it('reports impossible settings', () => {

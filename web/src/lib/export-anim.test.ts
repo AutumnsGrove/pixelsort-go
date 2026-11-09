@@ -26,7 +26,7 @@ class Recorder implements AnimEncoder {
 
 describe('exportAnimation', () => {
 	it('walks the sampler in order with the sampler delays', async () => {
-		const seq = newSequence(6, 400, 5, 100, 'linear'); // 2 frames: passes 0 and 6
+		const seq = newSequence(6, 400, 5, 100, 'linear', 'once', true); // 2 frames: passes 0 and 6
 		const rec = new Recorder();
 		const seen: number[] = [];
 		const blob = await exportAnimation({
@@ -44,8 +44,26 @@ describe('exportAnimation', () => {
 		expect(blob.type).toBe('application/x-test');
 	});
 
+	it('asks for the passes in loop order, so the return leg comes back down', async () => {
+		// Small passes because the fake frame carries the pass in its first byte.
+		const seq = newSequence(10, 1000, 10, 0, 'linear', 'infinity', true);
+		const rec = new Recorder();
+		const seen: number[] = [];
+		await exportAnimation({
+			sequence: seq,
+			source: async (p) => {
+				seen.push(p);
+				return fakeFrame(p);
+			},
+			encoder: rec
+		});
+		expect(seen).toEqual([0, 3, 5, 8, 10, 8, 5, 3]);
+		expect(rec.frames.map((f) => f.pass)).toEqual(seen);
+		expect(rec.finished).toBe(true);
+	});
+
 	it('reports progress once a frame', async () => {
-		const seq = newSequence(20, 1000, 5, 0, 'linear');
+		const seq = newSequence(20, 1000, 5, 0, 'linear', 'once', true);
 		const progress: number[] = [];
 		await exportAnimation({
 			sequence: seq,
@@ -57,14 +75,14 @@ describe('exportAnimation', () => {
 	});
 
 	it('gives the encoder the palette picks', async () => {
-		const seq = newSequence(100, 1000, 5, 0, 'linear');
+		const seq = newSequence(100, 1000, 5, 0, 'linear', 'once', true);
 		const rec = new Recorder();
 		await exportAnimation({ sequence: seq, source: async (p) => fakeFrame(p), encoder: rec });
 		expect(rec.prepared).toEqual(spread(seq.passes.length, 8).map((i) => seq.passes[i]));
 	});
 
 	it('stops before the first frame when already cancelled', async () => {
-		const seq = newSequence(10, 1000, 5, 0, 'linear');
+		const seq = newSequence(10, 1000, 5, 0, 'linear', 'once', true);
 		const rec = new Recorder();
 		const ac = new AbortController();
 		ac.abort();
@@ -75,7 +93,7 @@ describe('exportAnimation', () => {
 	});
 
 	it('stops at the next frame when cancelled mid-way', async () => {
-		const seq = newSequence(100, 1000, 10, 0, 'linear');
+		const seq = newSequence(100, 1000, 10, 0, 'linear', 'once', true);
 		const rec = new Recorder();
 		const ac = new AbortController();
 		await expect(

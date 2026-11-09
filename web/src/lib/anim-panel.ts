@@ -1,6 +1,6 @@
 // Animation panel state: the export-only settings, the size estimate and the preview's frame arithmetic. Pure, so the
 // component stays thin and these rules are tested without a browser.
-import { frameCount, newSequence, type Ease, type Sequence } from './anim-sampler';
+import { frameCount, newSequence, type Ease, type Mode, type Sequence } from './anim-sampler';
 import { DEVICES, type DeviceId } from './export-model';
 import { slug } from './naming';
 
@@ -14,6 +14,8 @@ export type AnimSettings = {
 	ease: Ease;
 	holdMs: number;
 	loop: boolean;
+	/** Once through the sort, or there and back again for a loop with no seam. */
+	mode: Mode;
 };
 
 export const DEFAULT_ANIM: AnimSettings = {
@@ -23,7 +25,8 @@ export const DEFAULT_ANIM: AnimSettings = {
 	durationSec: 4,
 	ease: 'ease-out',
 	holdMs: 500,
-	loop: true
+	loop: true,
+	mode: 'once'
 };
 
 export const ANIM_SCALES = [1, 0.75, 0.5, 0.25] as const;
@@ -39,12 +42,29 @@ export const ANIM_FORMATS: Record<AnimFormat, { name: string; ext: string; note:
 	webm: { name: 'WebM', ext: 'webm', note: 'Small and sharp with VP9. Needs WebCodecs.' }
 };
 
+export const ANIM_MODES: Record<Mode, { name: string; note: string }> = {
+	once: { name: 'Once', note: 'Sorts from the original to the finished picture.' },
+	infinity: {
+		name: 'Infinity',
+		note: 'Sorts, then unsorts back to the original. The loop has no seam.'
+	}
+};
+
 /** The frame plan for these settings and a sort with `maxPasses` passes. */
 export function sequenceFor(settings: AnimSettings, maxPasses: number): Sequence {
-	return newSequence(maxPasses, Math.round(settings.durationSec * 1000), settings.fps, settings.holdMs, settings.ease);
+	return newSequence(
+		maxPasses,
+		Math.round(settings.durationSec * 1000),
+		settings.fps,
+		settings.holdMs,
+		settings.ease,
+		settings.mode,
+		settings.loop
+	);
 }
 
-/** How many frames the settings ask for, before the sort's pass count is known. */
+/** How many frames the settings ask for, before the sort's pass count is known. Both modes build from the same
+ * duration (Infinity splits it between its legs), so this is a good estimate for either. */
 export function frameCountFor(settings: AnimSettings): number {
 	return frameCount(Math.round(settings.durationSec * 1000), settings.fps);
 }

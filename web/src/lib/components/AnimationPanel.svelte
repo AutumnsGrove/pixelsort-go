@@ -9,6 +9,7 @@
 		ANIM_FORMATS,
 		ANIM_FPS,
 		ANIM_HOLDS,
+		ANIM_MODES,
 		ANIM_SCALES,
 		DEFAULT_ANIM,
 		evenSize,
@@ -27,6 +28,7 @@
 		type AnimFormat,
 		type AnimSettings
 	} from '#lib/anim-panel';
+	import type { Mode } from '#lib/anim-sampler';
 	import { fmtBytes, fmtMP } from '#lib/export-model';
 	import { clientFrameSource, createEncoder, exportAnimation } from '#lib/export-anim';
 	import { scaleFrame } from '#lib/anim-frame';
@@ -39,6 +41,8 @@
 	let session = $state.raw<{ client: EngineClient; maxPasses: number; w: number; h: number } | null>(null);
 	let maxPasses = $state(0);
 	let index = $state(0);
+	/** The frame the canvas is actually showing; the scrubber and the canvas can disagree while a seek is in flight. */
+	let drawn = $state(0);
 	let playing = $state(false);
 	let speed = $state(1);
 	let loading = $state(true);
@@ -133,6 +137,7 @@
 		const r = await session.client.seek(seq.passes[at] ?? 0);
 		if (my !== drawSeq || r === 'superseded') return;
 		draw(r.rgba);
+		drawn = at;
 	}
 
 	function draw(rgba: Uint8ClampedArray): void {
@@ -254,6 +259,7 @@
 					style="aspect-ratio: {prev.w} / {prev.h}"
 					aria-label="Animation preview"
 					data-testid="anim-canvas"
+					data-frame={drawn}
 				></canvas>
 				<div class="transport">
 					<button
@@ -289,6 +295,22 @@
 			</div>
 
 			<div class="controls">
+				<div class="group">
+					<span class="eyebrow">Mode</span>
+					<div class="chips" role="radiogroup" aria-label="Mode" data-testid="anim-mode">
+						{#each Object.entries(ANIM_MODES) as [id, m] (id)}
+							<button
+								type="button"
+								role="radio"
+								aria-checked={settings.mode === id}
+								class:on={settings.mode === id}
+								onclick={() => change({ mode: id as Mode })}>{m.name}</button
+							>
+						{/each}
+					</div>
+					<p class="sub">{ANIM_MODES[settings.mode].note}</p>
+				</div>
+
 				<div class="group">
 					<span class="eyebrow">Format</span>
 					<div class="chips" role="radiogroup" aria-label="Format">
