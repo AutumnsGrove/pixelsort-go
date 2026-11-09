@@ -6,9 +6,9 @@ The build agent writes here; the reviewer reads here first. Newest entries at th
 
 Branch `build/animation-export`.
 
-- **A duplicate save no longer keeps a leaked animation.** `Create` now reads `video_id` before inserting: a run that
-  already has an animation keeps it, and every blob the duplicate request uploaded but did not reference is removed.
-  The test counts files and `images` rows for both GIFs.
+- **A duplicate save replaces the animation and leaves nothing behind.** `Create` updates `video_id` to the newest
+  export, deletes the replaced image row once no run points at it, removes its blob after commit, and also removes any
+  blob the request uploaded but did not reference. The test counts files and `images` rows for both GIFs.
 - **The panel draws its first frame on open.** `loading` went false only after `show(0)`, so the canvas did not exist yet.
   It now waits for the canvas (`tick`) before the first seek; the e2e checks pixels before touching a control.
 - **A pending animation belongs to the look it was exported from.** `Studio.attachAnimation` records the save key and

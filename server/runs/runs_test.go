@@ -721,8 +721,8 @@ func TestDeleteTrashedFreesTheAnimation(t *testing.T) {
 	}
 }
 
-// A second export of the same look keeps the first animation and does not leave the new blob or image row behind.
-func TestDuplicateKeepsTheFirstAnimationAndRemovesTheNewBlob(t *testing.T) {
+// A second export of the same look replaces the animation and removes the old blob and image row.
+func TestDuplicateReplacesTheAnimationAndRemovesTheOldBlob(t *testing.T) {
 	e := newEnv(t)
 	ob, os := img(nil, 21)
 	rb, rs := img(nil, 22)
@@ -756,8 +756,8 @@ func TestDuplicateKeepsTheFirstAnimationAndRemovesTheNewBlob(t *testing.T) {
 	if created || second.ID != first.ID {
 		t.Fatalf("second create: created %v id %d, want existing %d", created, second.ID, first.ID)
 	}
-	if second.Video == nil || second.Video.SHA256 != sha(gif1) {
-		t.Fatalf("second video = %+v, want the first animation", second.Video)
+	if second.Video == nil || second.Video.SHA256 != sha(gif2) {
+		t.Fatalf("second video = %+v, want the new animation", second.Video)
 	}
 	if n := blobFiles(t, e.root); n != 4 {
 		t.Fatalf("%d files, want the four the first run owns", n)
@@ -765,7 +765,7 @@ func TestDuplicateKeepsTheFirstAnimationAndRemovesTheNewBlob(t *testing.T) {
 	for _, tc := range []struct {
 		sha  string
 		want int
-	}{{sha(gif1), 1}, {sha(gif2), 0}} {
+	}{{sha(gif1), 0}, {sha(gif2), 1}} {
 		var n int
 		if err := e.svc.DB.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM images WHERE sha256 = ?", tc.sha).Scan(&n); err != nil {
 			t.Fatal(err)
