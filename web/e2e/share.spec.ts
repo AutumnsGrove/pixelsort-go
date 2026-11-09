@@ -84,7 +84,7 @@ async function mockServer(page: Page, opts: { features?: { share: boolean; fetch
 	return m;
 }
 
-test('share a picture with its original: the original goes up without metadata, then revoke it from Albums', async ({
+test('share a picture with its original: the original goes up without metadata, then revoke it from shared albums', async ({
 	page
 }) => {
 	await page.goto('/archive'); // any page of the app, so the canvas helper has a document
@@ -108,7 +108,7 @@ test('share a picture with its original: the original goes up without metadata, 
 	expect(body).not.toContain('SecretCam');
 
 	await page.getByRole('button', { name: 'Done' }).click();
-	await page.getByRole('tab', { name: 'albums' }).click();
+	await page.getByRole('tab', { name: 'shared albums' }).click();
 	const row = page.getByTestId('share-row');
 	await expect(row).toContainText('Sunset ridge');
 	await expect(row).toContainText('1 picture');
@@ -119,12 +119,12 @@ test('share a picture with its original: the original goes up without metadata, 
 	expect(m.revoked).toEqual(['abcdefghijklmnopqrstuvwxyz']);
 });
 
-test('without the Worker there is no Share button and no Albums tab', async ({ page }) => {
+test('without the Worker there is no Share button and no shared albums tab', async ({ page }) => {
 	await mockServer(page, { features: { share: false, fetch: false } });
 	await page.goto('/archive');
 	await expect(page.getByTestId('run')).toHaveCount(1);
 	await expect(page.getByRole('button', { name: /^Share / })).toHaveCount(0);
-	await expect(page.getByRole('tab', { name: 'albums' })).toHaveCount(0);
+	await expect(page.getByRole('tab', { name: 'shared albums' })).toHaveCount(0);
 });
 
 test('a failed share says what is safe and offers to try again', async ({ page }) => {

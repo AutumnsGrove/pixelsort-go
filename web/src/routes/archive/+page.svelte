@@ -17,9 +17,19 @@
 	import { describe } from '#lib/errors';
 	import { saveFailureReason } from '#lib/save-policy';
 
+	type TabID = 'all' | 'starred' | 'trash' | 'albums';
+	// The ids match the URL and the state; the labels are what the chips read. `albums` says "shared albums" because
+	// "Albums" alone left Autumn asking where her shared links had gone.
+	const TABS: { id: TabID; label: string }[] = [
+		{ id: 'all', label: 'all' },
+		{ id: 'starred', label: 'starred' },
+		{ id: 'trash', label: 'trash' },
+		{ id: 'albums', label: 'shared albums' }
+	];
+
 	const api = new ServerBackend();
 	const shares = new ShareBackend();
-	let tab = $state<'all' | 'starred' | 'trash' | 'albums'>('all');
+	let tab = $state<TabID>('all');
 	let features = $state<Features>({ share: false, fetch: false });
 	let sharing = $state<ApiRun[] | null>(null);
 	let q = $state('');
@@ -259,7 +269,7 @@
 			lines.push(
 				`${counts.shared} ${counts.shared === 1 ? 'picture is' : 'pictures are'} in a shared link. The shared ${
 					counts.shared === 1 ? 'copy stays' : 'copies stay'
-				} up until you revoke ${counts.shared === 1 ? 'it' : 'them'} in Albums.`
+				} up until you revoke ${counts.shared === 1 ? 'it' : 'them'} in shared albums.`
 			);
 		if (kind !== 'restore' && counts.starred)
 			lines.push(`${counts.starred} ${counts.starred === 1 ? 'picture is' : 'pictures are'} starred.`);
@@ -379,12 +389,12 @@
 	{/if}
 	<div class="bar">
 		<div class="chips" role="tablist">
-			{#each features.share ? ['all', 'starred', 'trash', 'albums'] : ['all', 'starred', 'trash'] as t (t)}<button
+			{#each features.share ? TABS : TABS.filter((t) => t.id !== 'albums') as t (t.id)}<button
 					type="button"
 					role="tab"
-					aria-selected={tab === t}
-					class:on={tab === t}
-					onclick={() => (tab = t as typeof tab)}>{t}</button
+					aria-selected={tab === t.id}
+					class:on={tab === t.id}
+					onclick={() => (tab = t.id)}>{t.label}</button
 				>{/each}
 		</div>
 		<input
