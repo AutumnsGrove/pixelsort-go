@@ -114,6 +114,7 @@ function tick(): void {
 	anim.pass = r.pass;
 	if (anim.speed === 'auto') anim.autoSteps = adaptAuto(anim.autoSteps, stepMs);
 
+	const finished = !anim.rewinding && r.done; // the frame the sort actually completed on, loop or no loop
 	let done = r.done;
 	let home = false;
 	if (anim.rewinding) {
@@ -148,6 +149,7 @@ function tick(): void {
 		done,
 		stepMs,
 		rewinding: anim.rewinding,
+		finished,
 		home
 	};
 	anim.awaitingAck = true;

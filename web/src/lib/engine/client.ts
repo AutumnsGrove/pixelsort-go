@@ -34,6 +34,8 @@ export type Frame = {
 	done: boolean;
 	stepMs: number;
 	rewinding: boolean;
+	/** These pixels are the finished sort (with the loop on, this is mid-animation rather than the last frame). */
+	finished: boolean;
 	/** The animation stopped on the original (the loop was turned off on the way home), not on a finished sort. */
 	home: boolean;
 };
@@ -362,6 +364,7 @@ export class EngineClient {
 			done: f.done,
 			stepMs: f.stepMs,
 			rewinding: f.rewinding,
+			finished: f.finished,
 			home: f.home
 		};
 		for (const cb of this.frameListeners) cb(frame);

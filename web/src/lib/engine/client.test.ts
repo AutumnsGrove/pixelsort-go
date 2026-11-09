@@ -137,6 +137,7 @@ describe('animation', () => {
 		done,
 		stepMs: 1,
 		rewinding: false,
+		finished: done,
 		home: false
 	});
 	const deliver = (w: FakeWorker, f: ReturnType<typeof frameEvent>) =>

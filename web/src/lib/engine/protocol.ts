@@ -79,6 +79,8 @@ export type FrameEvent = {
 	stepMs: number;
 	/** The loop is on its way back down to the original (the sort itself has finished). */
 	rewinding: boolean;
+	/** These pixels are the finished sort. With the loop on this is not the last frame, so it is the one to keep. */
+	finished: boolean;
 	/**
 	 * The animation stopped on the original because the loop was turned off on the way home, so these pixels are not a
 	 * finished sort: a store must not treat this as one.

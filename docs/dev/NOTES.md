@@ -27,6 +27,10 @@ Branch `build/live-loop`. Two of the three things #23 had left: the question of 
   Auto-save on the studio stored the *unsorted* picture as the run's result. The frame now carries `home`, and the store
   skips auto-save for it; `e2e/infinity.spec.ts` fails without the guard (checked by reverting it). While the loop is on
   nothing auto-saves mid-loop either, because the animation never finishes there: Save and Export stay deliberate.
+- **A deliberate Save after a home stop stores the finished sort.** The reviewer's non-blocking note: the canvas is on the
+  original, so `saveRun` was storing the original as the run's result. The frame that is the finished sort now says so
+  (`finished`), the studio keeps those pixels, and `resultPixels` prefers them. The e2e compares the upload's `result` and
+  `original` parts as bytes — with one encoder they would be identical — and fails without the fix (checked).
 - **Not persisted**, like the studio's other animation settings (even `speed` is local today).
 - **Verified:** `make check`, `go test -race ./...`, `pnpm --dir web check lint test` (412 tests), the new
   `e2e/infinity.spec.ts` twice for flakiness, and the full Playwright suite (215 tests). Not run: `make fuzz` (engine

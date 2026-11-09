@@ -4,16 +4,32 @@ import { expect, test, type Page } from '@playwright/test';
 // original, then starts again. The rewind is a seek per frame, so the animation keeps its pace in passes and the frame
 // rate does what the machine allows.
 
-/** A stand-in gallery API that counts the runs it is asked to store. */
-async function fakeGallery(page: Page): Promise<{ saves: () => number }> {
+/** A stand-in gallery API that counts the runs it is asked to store and keeps their multipart parts. */
+async function fakeGallery(page: Page): Promise<{ saves: () => number; parts: () => Record<string, Buffer> }> {
 	let saves = 0;
+	let parts: Record<string, Buffer> = {};
 	await page.route('**/api/images/check', (r) => r.fulfill({ json: { exists: false } }));
 	await page.route('**/api/runs', async (r) => {
 		if (r.request().method() !== 'POST') return r.fallback();
 		saves++;
+		parts = multipart(r.request().postDataBuffer()!, r.request().headers()['content-type'] ?? '');
 		return r.fulfill({ status: 201, json: { id: saves } });
 	});
-	return { saves: () => saves };
+	return { saves: () => saves, parts: () => parts };
+}
+
+/** The parts of a multipart upload, by field name. Binary-safe: every part is kept as raw bytes. */
+function multipart(body: Buffer, contentType: string): Record<string, Buffer> {
+	const boundary = /boundary=(.+)$/.exec(contentType)?.[1];
+	if (!boundary) return {};
+	const out: Record<string, Buffer> = {};
+	for (const chunk of body.toString('latin1').split(`--${boundary}`)) {
+		const name = /name="([^"]+)"/.exec(chunk)?.[1];
+		const start = chunk.indexOf('\r\n\r\n');
+		if (!name || start < 0) continue;
+		out[name] = Buffer.from(chunk.slice(start + 4, chunk.lastIndexOf('\r\n')), 'latin1');
+	}
+	return out;
 }
 
 const studio = async (page: Page) => {
@@ -104,4 +120,12 @@ test('pausing a rewind holds the picture, and turning the loop off finishes the 
 	// Stopping on the original is not a finished sort, and auto-save must not store it as one.
 	await page.waitForTimeout(3500);
 	expect(api.saves(), 'storing the unsorted picture').toBe(0);
+
+	// A deliberate Save at that point still stores the *result*, not the original the canvas happens to show: with the
+	// same encoder, storing the original would make the two parts byte-for-byte equal.
+	await page.getByTestId('save').click();
+	await expect.poll(() => api.saves(), { timeout: 15_000 }).toBe(1);
+	const parts = api.parts();
+	expect(parts.result?.byteLength ?? 0).toBeGreaterThan(0);
+	expect(Buffer.compare(parts.result!, parts.original!)).not.toBe(0);
 });
