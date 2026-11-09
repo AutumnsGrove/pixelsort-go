@@ -1,5 +1,20 @@
 # Build notes
 
+## 2026-11-09 · the Shape helper's missing deploy recipe (committed straight to `main`)
+
+Autumn went looking for how to turn the Shape helper on and found nothing: `PIXELSORT_OPENROUTER_KEY` was documented in
+`docs/api.md` (as an API fact) but not in `deploy/.env.example` or `docs/deploy.md`, so the deploy instructions never
+mentioned the one variable that turns the feature on. Fixed here, docs only: the key and the optional model in
+`.env.example`, and a "Shape helper (optional)" section in `docs/deploy.md` with the cost, the restart, the
+`/api/features` check, the clear refusals for a bad key or a text-only model, and the 2-at-once / 12-a-minute guard.
+
+- The key is a person's account, so the actual setup is on the "Needs Autumn" list, not here.
+- `deploy/test-install.sh` fails 16 of 26 checks **on macOS** and passes on Linux: `install.sh` uses GNU `sed -i`, which BSD
+  sed reads as a bad command. Pre-existing (checked by stashing this change), left alone; run it on the host or in CI.
+- Not verified against a live OpenRouter account: the default model `deepseek/deepseek-v4.1-flash-1017` is listed with
+  `input_modalities: ["text", "image"]`, and the server checks that before sending, so a wrong model is refused with a
+  sentence rather than a failed request.
+
 ## 2026-11-09 · sticky animation settings (committed straight to `main`)
 
 Autumn asked for this one to skip the branch/PR/review loop, so it is a direct commit on `main`. Everything else in
@@ -449,6 +464,8 @@ on R2) and P8-T12 (the homelab docs are pushed).
    a dedicated `pixelsort-backups` bucket and R2 token instead of the interim `vaultwarden-backups` prefix;
    `/lab/bench` on a phone and the table in `docs/perf.md`.
 3. ~~Delete `DESKTOP-HANDOFF.md` when the update and rollback have both been exercised.~~ Done: the file is gone.
+4. **Shape helper** · create an OpenRouter key, put `PIXELSORT_OPENROUTER_KEY=…` in `~/Pixelsort/.env`, `docker compose up -d`,
+   and check `curl -s localhost:8895/api/features` says `"helper":true`. Steps in `docs/deploy.md`, "Shape helper".
 
 ## 2026-11-05 · Deploy results (desktop session)
 

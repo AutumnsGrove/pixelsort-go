@@ -50,6 +50,29 @@ It also creates the `pixelsort-share` R2 bucket if it is missing, sets the Worke
 
 To rotate the secret: change `WORKER_SHARED_SECRET`, run the workflow by hand, then update `.env` and restart. 
 
+## Shape helper (optional)
+
+"Ask for a shape" asks a vision model to pick things out of the picture. It is off unless the server has an OpenRouter key;
+with no key the route does not exist, `GET /api/features` says `"helper": false`, and Settings says so. *Cut out this object*
+needs none of this and always works.
+
+1. **you** — On [openrouter.ai](https://openrouter.ai/keys) create a key and put a few dollars of credit on the account (a request is
+   a 512 px copy of the picture and a sentence, so it costs a fraction of a cent; a key with no credit answers `402`).
+2. **you** — Add it to `.env` next to `docker-compose.yml`, as `PIXELSORT_OPENROUTER_KEY=sk-or-…`. No spaces or line breaks
+   around it: the server refuses to start and says which variable is at fault rather than running with a mangled key.
+3. Restart the container so it reads the new environment: `docker compose up -d` (add `--force-recreate` if `docker compose ps`
+   shows the old start time). Nothing else changes: the key is read at start and never leaves the process.
+4. Check it: `curl -s localhost:8895/api/features | grep -o '"helper":[a-z]*'` prints `"helper":true`, and Settings → Shape helper
+   says it is on. The first request on each device shows the notice about what is sent.
+
+`PIXELSORT_HELPER_MODEL` overrides the model (`vendor/name`, and it must accept pictures). The default is
+`deepseek/deepseek-v4.1-flash-1017`, which reads images. A model that does not take pictures is refused with a sentence
+naming it rather than a failed request; so is a model the provider does not list. Two requests run at once and twelve a
+minute, so a runaway tab cannot spend the account.
+
+The key is the same one for every device on this server: there is no per-device or per-person key, and no way to turn the
+helper on for one browser only.
+
 ## What updates, and what does not
 
 | | How it updates |
