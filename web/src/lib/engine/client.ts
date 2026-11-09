@@ -34,6 +34,8 @@ export type Frame = {
 	done: boolean;
 	stepMs: number;
 	rewinding: boolean;
+	/** The animation stopped on the original (the loop was turned off on the way home), not on a finished sort. */
+	home: boolean;
 };
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
 
@@ -359,7 +361,8 @@ export class EngineClient {
 			pass: f.pass,
 			done: f.done,
 			stepMs: f.stepMs,
-			rewinding: f.rewinding
+			rewinding: f.rewinding,
+			home: f.home
 		};
 		for (const cb of this.frameListeners) cb(frame);
 		this.worker?.postMessage({ id: this.nextId++, type: 'ack' } satisfies Request);

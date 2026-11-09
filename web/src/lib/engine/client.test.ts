@@ -136,7 +136,8 @@ describe('animation', () => {
 		pass: tag,
 		done,
 		stepMs: 1,
-		rewinding: false
+		rewinding: false,
+		home: false
 	});
 	const deliver = (w: FakeWorker, f: ReturnType<typeof frameEvent>) =>
 		w.onmessage?.({ data: f } as unknown as MessageEvent<Response>);

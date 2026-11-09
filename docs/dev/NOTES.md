@@ -23,6 +23,10 @@ Branch `build/live-loop`. Two of the three things #23 had left: the question of 
   scrubbing resets the direction, so Resume after a drag sorts on from there.
 - **The state line says "rewinding"**, which is what the e2e watches for; the progress bar and the scrubber both walk
   back down with it, which is honest about where the animation is.
+- **A stop at the original is not a finished sort.** Review caught the first version reporting the home frame as `done`, so with
+  Auto-save on the studio stored the *unsorted* picture as the run's result. The frame now carries `home`, and the store
+  skips auto-save for it; `e2e/infinity.spec.ts` fails without the guard (checked by reverting it). While the loop is on
+  nothing auto-saves mid-loop either, because the animation never finishes there: Save and Export stay deliberate.
 - **Not persisted**, like the studio's other animation settings (even `speed` is local today).
 - **Verified:** `make check`, `go test -race ./...`, `pnpm --dir web check lint test` (412 tests), the new
   `e2e/infinity.spec.ts` twice for flakiness, and the full Playwright suite (215 tests). Not run: `make fuzz` (engine

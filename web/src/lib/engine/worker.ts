@@ -115,11 +115,14 @@ function tick(): void {
 	if (anim.speed === 'auto') anim.autoSteps = adaptAuto(anim.autoSteps, stepMs);
 
 	let done = r.done;
+	let home = false;
 	if (anim.rewinding) {
 		if (rewindDone(r.pass)) {
 			anim.rewinding = false; // at the original: the next frame goes forward again, unless the loop was turned off
 			if (!anim.loop) {
+				// Stopped on the original, which is not a finished sort: `home` says so, so nothing stores these pixels.
 				done = true;
+				home = true;
 				stopAnimation();
 			}
 		}
@@ -144,7 +147,8 @@ function tick(): void {
 		pass: r.pass,
 		done,
 		stepMs,
-		rewinding: anim.rewinding
+		rewinding: anim.rewinding,
+		home
 	};
 	anim.awaitingAck = true;
 	self.postMessage(frame, [px.rgba]);

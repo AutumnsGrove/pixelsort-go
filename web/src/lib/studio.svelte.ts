@@ -258,7 +258,10 @@ class Studio {
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
-				if (this.autoSaving()) this.saver.schedule(this.saveKey(), true);
+				// A loop switched off on the way home stops on the original: that is not a finished sort, so it is not stored
+				// as one. (While the loop is on the animation never finishes, so nothing is stored mid-loop either: Save and
+				// Export stay deliberate.)
+				if (!f.home && this.autoSaving()) this.saver.schedule(this.saveKey(), true);
 			}
 		});
 	}

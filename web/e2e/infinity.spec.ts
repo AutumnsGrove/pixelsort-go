@@ -4,6 +4,18 @@ import { expect, test, type Page } from '@playwright/test';
 // original, then starts again. The rewind is a seek per frame, so the animation keeps its pace in passes and the frame
 // rate does what the machine allows.
 
+/** A stand-in gallery API that counts the runs it is asked to store. */
+async function fakeGallery(page: Page): Promise<{ saves: () => number }> {
+	let saves = 0;
+	await page.route('**/api/images/check', (r) => r.fulfill({ json: { exists: false } }));
+	await page.route('**/api/runs', async (r) => {
+		if (r.request().method() !== 'POST') return r.fallback();
+		saves++;
+		return r.fulfill({ status: 201, json: { id: saves } });
+	});
+	return { saves: () => saves };
+}
+
 const studio = async (page: Page) => {
 	await page.goto('/studio');
 	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
@@ -69,6 +81,9 @@ test('with the loop on the sort comes back to the original and starts again', as
 });
 
 test('pausing a rewind holds the picture, and turning the loop off finishes the trip home', async ({ page }) => {
+	// Auto-save on, so a stop at the original is offered every chance to store the unsorted picture by mistake.
+	await page.addInitScript(() => localStorage.setItem('pixelsort.settings', JSON.stringify({ autoSave: true })));
+	const api = await fakeGallery(page);
 	await studio(page);
 	await playAt(page, SPEED, true);
 	await expect(page.getByTestId('state')).toHaveText('rewinding', { timeout: 60_000 });
@@ -86,4 +101,7 @@ test('pausing a rewind holds the picture, and turning the loop off finishes the 
 	expect(await scrubPass(page)).toBe(0);
 	// The finished sort is still the whole sort: the scrubber's end did not move.
 	expect(Number(await page.getByTestId('scrub').getAttribute('max'))).toBeGreaterThan(12);
+	// Stopping on the original is not a finished sort, and auto-save must not store it as one.
+	await page.waitForTimeout(3500);
+	expect(api.saves(), 'storing the unsorted picture').toBe(0);
 });

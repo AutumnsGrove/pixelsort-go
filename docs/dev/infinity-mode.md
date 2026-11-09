@@ -161,7 +161,10 @@ Design decisions worth knowing:
   rewinds smoothly and a large one rewinds at 10–15 fps — choppy, but the motion is the same speed, which is what makes it
   read as the sort running backwards rather than as a stutter.
 - **The choice is in the Watch popover** (algorithm, speed, loop), not a new dock button: it is a way of watching the sort.
-- **Turning Loop off mid-rewind finishes the trip home and stops on the original**, rather than snapping to the end.
+- **Turning Loop off mid-rewind finishes the trip home and stops on the original**, rather than snapping to the end. That
+  stop is *not* a finished sort — the frame says so (`home`) — so Auto-save never stores the unsorted picture as a run's
+  result. While the loop is on, nothing auto-saves mid-loop either: the animation never finishes, so Save and Export stay
+  deliberate.
 - **Scrubbing means the way forward**: a seek resets the direction, so Resume after a drag sorts on from there.
 - **The setting is not remembered** between visits, for the same reason the panel's is not — the studio's own animation
   settings (`speed` included) are not sticky, and one sticky knob out of nine would be odd.
