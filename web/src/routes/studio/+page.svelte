@@ -213,7 +213,9 @@
 		loadingText
 			? loadingText + (studio.engineLoad && studio.engineLoad.attempt > 1 ? ' (trying again)' : '')
 			: studio.run === 'animating'
-				? `pass ${studio.pass}`
+				? studio.rewinding
+					? 'rewinding'
+					: `pass ${studio.pass}`
 				: studio.run === 'paused'
 					? 'paused'
 					: studio.run === 'preparing'
@@ -634,6 +636,15 @@
 							oninput={(e) => studio.setSpeed(Number(e.currentTarget.value))}
 							aria-label="Speed"
 						/></label
+					>
+					<label class="loop"
+						><input
+							type="checkbox"
+							checked={studio.loop}
+							onchange={(e) => studio.setLoop(e.currentTarget.checked)}
+							data-testid="loop"
+						/>
+						loop the sort <span>sort, unsort, start again</span></label
 					>
 				</div>
 			{/if}
@@ -1113,6 +1124,14 @@
 		gap: 2px;
 		font-size: 11px;
 		color: var(--dim);
+	}
+	.pop label.loop {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.pop label.loop span {
+		opacity: 0.7;
 	}
 	.pgrid {
 		display: grid;

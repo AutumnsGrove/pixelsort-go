@@ -98,6 +98,10 @@ class Studio {
 	progress = $state(0);
 	pass = $state(0);
 	speed = $state(40);
+	/** Loop the sort: a finished sort walks back down to the original and starts again. */
+	loop = $state(false);
+	/** The loop is on its way back down (the sort itself has finished). */
+	rewinding = $state(false);
 	presetId = $state<string | null>(null);
 	applied = $state<Recipe | null>(null);
 	customName = $state<string | null>(null);
@@ -250,6 +254,7 @@ class Studio {
 			this.progress = f.progress;
 			this.pass = f.pass;
 			this.maxPass = Math.max(this.maxPass, f.pass);
+			this.rewinding = f.rewinding;
 			this.onFrame?.(f.rgba, this.size.w, this.size.h);
 			if (f.done) {
 				this.run = 'done';
@@ -384,6 +389,7 @@ class Studio {
 			this.timings = r.timings;
 			this.progress = 1;
 			this.run = 'done';
+			this.rewinding = false;
 			this.onFrame?.(r.rgba, this.size.w, this.size.h);
 			if (this.autoSaving()) this.saver.schedule(this.saveKey());
 		} catch (e) {
@@ -423,8 +429,9 @@ class Studio {
 			this.maxPass = 0;
 			this.stepped = true;
 			this.scrubbed = false;
+			this.rewinding = false;
 			this.run = 'animating';
-			await this.client.animate(this.speed);
+			await this.client.animate(this.speed, this.loop);
 		} catch (e) {
 			this.fail(e);
 		}
@@ -465,6 +472,7 @@ class Studio {
 			this.progress = r.progress;
 			this.pass = r.pass;
 			this.maxPass = Math.max(this.maxPass, r.pass);
+			this.rewinding = false;
 			this.run = r.done ? 'done' : 'paused';
 			this.onFrame?.(r.rgba, this.size.w, this.size.h);
 		} catch (e) {
@@ -478,6 +486,7 @@ class Studio {
 		this.pass = 0;
 		this.maxPass = 0;
 		this.scrubbed = false;
+		this.rewinding = false;
 		this.run = 'animating';
 		await this.client?.restart();
 	}
@@ -485,6 +494,12 @@ class Studio {
 	setSpeed(v: number): void {
 		this.speed = v;
 		void this.client?.setSpeed(v);
+	}
+
+	/** Turn the loop on or off. Off means a rewind still finishes its trip home, then stops on the original. */
+	setLoop(v: boolean): void {
+		this.loop = v;
+		void this.client?.setLoop(v);
 	}
 
 	/** Sends the tiling and its class rules to the engine, then re-sorts. */
