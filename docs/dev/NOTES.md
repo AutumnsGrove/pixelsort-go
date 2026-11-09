@@ -2,6 +2,21 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · animation polish
+
+Branch `build/animation-export`.
+
+- **A regression the e2e caught:** the Animated badge's `position: relative` on the Archive card's open button painted the
+  button above the star/share/bin overlay, so Share opened the viewer. The badge now positions against the card and the
+  share suite is green again.
+- **Export is refused, not just warned, over the whole device budget.** The browser encoders keep the finished file in
+  memory, so an oversized estimate used to be an out-of-memory crash. `memoryRefusal` disables Export and names the size;
+  `memoryWarning` at half the budget stays a nudge.
+- **Permanent delete now has an explicit animation-GC test** (four blobs before, zero after), alongside the existing
+  trash/re-parent tests.
+- **`animation-export.md` records what was built** and the deviations (pass bound, repeated frames, Mediabunny, ordered
+  web dithering, even video sizes, in-memory encoders), with the acceptance list pointing at the tests.
+
 ## 2026-11-08 · issue #16 · animation export, phase 4 (MP4/WebM)
 
 Branch `build/animation-export`.
