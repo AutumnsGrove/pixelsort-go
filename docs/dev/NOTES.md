@@ -1,5 +1,33 @@
 # Build notes
 
+## 2026-11-09 · issue #23 · the dead tail, and the live canvas (PR #26)
+
+Branch `build/live-loop`. Two of the three things #23 had left: the question of the dead tail, and phase 3.
+
+- **The dead tail is measured, and not worth the fix.** `MaxPasses` is 0–3% loose on photographs (2% at 1600×900, 3% at
+  800×600, 9% with `length` 100), 16% only on a 320×240 thumbnail where the bound's fixed `+2` dominates. Insertion,
+  merge and reveal are exact. `Session.ExactPasses()` would cost a whole extra sort at panel open — right when the preview
+  should appear — to trim a freeze shorter than the default 500 ms hold. Not built. Numbers are in `infinity-mode.md` so
+  nobody re-opens it without a new reason.
+- **The live canvas loops in the worker.** When a stepped sort finishes and Loop is on, the worker flips direction and
+  **seeks** back down a frame at a time; the page only sees frames. Only two new pieces of state (`loop`, `rewinding`) and
+  one `setLoop` request; with Loop off nothing changes at all.
+- **The rewind keeps the forward pass rate and lets the frame rate drop.** A rewind frame is a seek, so it replays from the
+  nearest checkpoint. Measured natively (16 checkpoints): 29 ms a frame at 1600×900, 5–6 ms at 900×600 and 1280×720. So
+  small and medium pictures rewind smoothly and a big one rewinds at 10–15 fps — the same motion speed, fewer frames,
+  which reads as the sort running backwards rather than as a stutter. The alternative (advance a whole checkpoint segment
+  per frame) would look three times too fast on the way home.
+- **The loop lives in the Watch popover**, next to the algorithm and the speed: it is a way of watching the sort, not a
+  new dock button.
+- **Turning Loop off mid-rewind finishes the trip home and stops on the original** rather than snapping to the end, and
+  scrubbing resets the direction, so Resume after a drag sorts on from there.
+- **The state line says "rewinding"**, which is what the e2e watches for; the progress bar and the scrubber both walk
+  back down with it, which is honest about where the animation is.
+- **Not persisted**, like the studio's other animation settings (even `speed` is local today).
+- **Verified:** `make check`, `go test -race ./...`, `pnpm --dir web check lint test` (412 tests), the new
+  `e2e/infinity.spec.ts` twice for flakiness, and the full Playwright suite (215 tests). Not run: `make fuzz` (engine
+  untouched), `make image-test`.
+
 ## 2026-11-09 · issue #23 · infinity mode built (PR #25)
 
 Branch `build/infinity-mode`. Infinity mode: sort, then unsort back to the original, loop with no seam. Mode control in the
