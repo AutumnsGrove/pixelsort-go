@@ -1,7 +1,7 @@
 # Infinity mode (sort → unsort → loop)
 
-Status: **planned, not built** (issue [#23](https://github.com/AutumnsGrove/pixelsort-go/issues/23)). Builds on
-`animation-export.md`, which is already shipped.
+Status: **built and tested**, phases 1 and 2 (issue [#23](https://github.com/AutumnsGrove/pixelsort-go/issues/23), branch
+`build/infinity-mode`). Phase 3 (the live canvas) is not built. Builds on `animation-export.md`, which is already shipped.
 
 ## The idea
 
@@ -9,6 +9,35 @@ Watch a sort start from the original picture, run to the finished one, then run 
 repeat forever. Exported, the loop has no seam: the last frame flows into the first through the same motion.
 
 Two surfaces, one rule: the panel's preview and every export. A third (the live studio canvas) is a later phase.
+
+## What was built
+
+| Piece | Where |
+|---|---|
+| The round trip, both languages, identical arithmetic | `web/src/lib/anim-sampler.ts` (`roundTrip`, `newSequence`), `internal/anim/sampler.go` (`RoundTrip`, `NewSequence`) |
+| Mode in the panel's settings and a Mode control | `web/src/lib/anim-panel.ts` (`ANIM_MODES`, `AnimSettings.mode`), `AnimationPanel.svelte` |
+| `--mode once|infinity` on the CLI | `cmd/pixelsort-go/render.go` |
+| A walker that can rewind, so a round trip is not one full sort per return frame | `internal/anim/walk.go` |
+
+### Where the implementation differs from the plan
+
+- **`nextFrame` did not need to change.** The plan expected the preview's stepping to become direction-aware. It does
+  not: the sequence already *is* the direction, so playback is still a plain 0, 1, 2 … wrap. Less code, and the preview
+  cannot disagree with the file.
+- **The mode is not remembered per device.** The panel remembers none of its animation settings today, so persisting
+  only the mode would be odd. It starts at `Once` every time; make all of the panel's settings sticky together, later.
+- **`Walk` grew a small checkpoint cache.** The CLI's walker only stepped forward, and showing an earlier pass would have
+  meant replaying from the original for every return-leg frame — one full sort per frame. It now keeps up to sixteen
+  clones (a 96 MB budget, the same estimate as the engine session's scrub cache) so a rewind replays from the nearest.
+  `anim.NewSequence(..., Infinity, ...)` and a file therefore cost about one sort forward plus one stride per frame back.
+- **The dead tail is still there.** `Session.ExactPasses()` is not built: the CLI and the studio must pick the same
+  passes (they are ports of each other), so it has to land in both at once, and that is its own commit. Meanwhile a
+  long animation still freezes on the finished picture before the turnaround, at both ends of every loop.
+- **The loop holds at both ends and can close itself.** Frame 0 (the original) gets the end-hold as well as the finished
+  picture, and `loop=false` appends the original as a closing frame so a one-shot export ends where it began.
+- **The loop has about as many frames as a `once` export of the same duration.** Splitting the duration between the two
+  legs means 4 s at 24 fps is 96 frames once and 94 frames as a loop, so the size estimate, the memory refusal and the
+  user's expectation of "4 seconds" all still hold.
 
 ## The one thing that makes it cheap: an unsort is a replay, not an inverse
 
@@ -125,11 +154,11 @@ This also improves the existing `once` export, so it is a good separate commit e
 
 ## Phases
 
-1. **Sequence and export** — the sampler in both languages, the mode in `AnimSettings`, the panel control, preview
-   stepping, export. This is the feature; everything else is polish. Roughly a day.
-2. **CLI** — `--mode infinity`, same builder.
-3. **Live canvas** — the studio's own sort loops instead of stopping at `done` (`studio.svelte.ts` `RunState`), driven by
-   the worker's rewind pacing. Only after the measurement above; it may want its own issue.
+1. **Sequence and export** — done: the sampler in both languages, the mode in `AnimSettings`, the panel control, the
+   export. The preview needed no change beyond drawing whatever frame the sequence asks for.
+2. **CLI** — done: `--mode infinity`, same builder.
+3. **Live canvas** — not built. The studio's own sort still stops at `done`; looping it needs the rewind measurement
+   below, and may want its own issue.
 
 ## Out of scope
 

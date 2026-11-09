@@ -25,6 +25,7 @@ no rotated edges, no transparent corners.*
   free to freeze, turn, re-key or re-cut. One pass, one buffer, no seams.
 - **Take the sort with you.** Export the process as a GIF, APNG, MP4 or WebM from the studio, or as GIF/APNG (plus a PNG sequence for ffmpeg)
   from the CLI with `render --anim`; exports land in the Archive and share like images, frame-for-frame deterministic.
+  Infinity mode plays the sort and then unsorts back to the original, so the loop has no seam.
 - **Everything runs on your device.** The server serves files and stores results; it never touches pixels.
 
 ## Try it
