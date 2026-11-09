@@ -45,7 +45,13 @@
 	const otherEngine = $derived(run.engine_version && run.engine_version !== ENGINE_VERSION);
 	const ext = $derived(run.result.mime === 'image/jpeg' ? 'jpeg' : run.result.mime === 'image/webp' ? 'webp' : 'png');
 	const animExt = $derived(
-		run.video?.mime === 'video/mp4' ? 'mp4' : run.video?.mime === 'video/webm' ? 'webm' : 'apng'
+		run.video?.mime === 'image/gif'
+			? 'gif'
+			: run.video?.mime === 'video/mp4'
+				? 'mp4'
+				: run.video?.mime === 'video/webm'
+					? 'webm'
+					: 'apng'
 	);
 	const download = $derived(
 		fileName(name, String(run.settings.mode ?? 'sort'), ext, String(run.seed)) // the same file name Studio's export gives

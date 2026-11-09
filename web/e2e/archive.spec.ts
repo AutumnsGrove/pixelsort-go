@@ -49,6 +49,7 @@ const OLD: Run = { ...base(8), parent_run_id: 7, settings: { mode: 'edges', angl
 const THIRD: Run = { ...base(9), title: 'Third look', settings: { mode: 'random', angle: 5, seed: 9 }, seed: 9 };
 /** A run with a saved animation. */
 const ANIMATED: Run = { ...base(10), title: 'Moving ridge', video: { ...img('d'), mime: 'image/gif' } };
+const VIDEO_RUN: Run = { ...base(11), title: 'Moving clip', video: { ...img('e'), mime: 'video/mp4' } };
 
 type Fake = {
 	patches: { id: number; title: unknown }[];
@@ -254,7 +255,17 @@ test('a run with an animation shows a badge and plays the animation in the viewe
 	await card(page).getByTestId('run-open').click();
 	const viewer = page.getByTestId('viewer');
 	await expect(viewer.getByTestId('viewer-animation')).toBeVisible();
-	await expect(viewer.getByTestId('viewer-anim-download')).toBeVisible();
+	await expect(viewer.getByTestId('viewer-anim-download')).toHaveAttribute('download', /-anim-\d+\.gif$/);
+});
+
+test('a video run plays in a video element', async ({ page }) => {
+	await gallery(page, { runs: [VIDEO_RUN] });
+	await page.goto('/archive');
+	await card(page).getByTestId('run-open').click();
+	const viewer = page.getByTestId('viewer');
+	await expect(viewer.getByTestId('viewer-video')).toBeVisible();
+	await expect(viewer.getByTestId('viewer-image')).toHaveCount(0);
+	await expect(viewer.getByTestId('viewer-anim-download')).toHaveAttribute('download', /-anim-\d+\.mp4$/);
 });
 
 test('a card opens the viewer: the picture, the recipe in words, Esc closes and focus goes back', async ({ page }) => {
