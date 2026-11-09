@@ -75,6 +75,17 @@ export function memoryWarning(format: AnimFormat, frames: number, px: number, de
 	return `About ${Math.round(bytes / 1e6)} MB in memory: too much for a ${DEVICES[device].name.toLowerCase()}. Try fewer frames, a shorter duration or a smaller scale.`;
 }
 
+/**
+ * A refusal when the whole animation would not fit in the tab's budget. Unlike memoryWarning (half the budget, a nudge),
+ * this disables Export: the encoders keep the finished file in memory, so going over is an out-of-memory crash.
+ */
+export function memoryRefusal(format: AnimFormat, frames: number, px: number, device: DeviceId): string | null {
+	const bytes = estimateBytes(format, frames, px);
+	const budget = DEVICES[device].budgetMB * 1e6;
+	if (bytes <= budget) return null;
+	return `This export would need about ${Math.round(bytes / 1e6)} MB, more than a ${DEVICES[device].name.toLowerCase()} can hold. Use a smaller scale, a shorter duration or fewer frames.`;
+}
+
 /** The preview canvas keeps the export's shape but caps its long edge, so a 2 MP export does not draw a 2 MP canvas. */
 export function previewSize(w: number, h: number, maxEdge = 520): { w: number; h: number } {
 	const long = Math.max(w, h);

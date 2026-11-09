@@ -7,6 +7,7 @@ import {
 	evenSize,
 	estimateBytes,
 	frameCountFor,
+	memoryRefusal,
 	memoryWarning,
 	nextFrame,
 	outputSize,
@@ -65,6 +66,12 @@ describe('size and memory', () => {
 	it('warns when the file would be too big to hold', () => {
 		expect(memoryWarning('gif', 10, 1000, 'desktop')).toBeNull();
 		expect(memoryWarning('apng', 1200, 8e6, 'phone')).toContain('too much');
+	});
+
+	it('refuses an export that cannot fit at all', () => {
+		expect(memoryRefusal('gif', 10, 1000, 'desktop')).toBeNull();
+		const refusal = memoryRefusal('apng', 1200, 8e6, 'phone');
+		expect(refusal).toContain('more than');
 	});
 
 	it('caps the preview canvas but keeps its shape', () => {

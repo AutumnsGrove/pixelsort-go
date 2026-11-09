@@ -16,6 +16,7 @@
 		animFilename,
 		clampFrame,
 		estimateBytes,
+		memoryRefusal,
 		memoryWarning,
 		nextFrame,
 		outputSize,
@@ -64,6 +65,7 @@
 	const prev = $derived(previewSize(out.w, out.h));
 	const estimate = $derived(estimateBytes(settings.format, frames, out.w * out.h));
 	const warning = $derived(memoryWarning(settings.format, frames, out.w * out.h, device));
+	const refusal = $derived(memoryRefusal(settings.format, frames, out.w * out.h, device));
 	const problem = $derived(settingsProblem(settings));
 	const name = $derived(animFilename(studio.name, settings.format));
 
@@ -179,7 +181,7 @@
 	}
 
 	async function doExport(): Promise<void> {
-		if (!session || !size || problem || !supported(settings.format)) return;
+		if (!session || !size || problem || refusal || !supported(settings.format)) return;
 		pause();
 		exporting = true;
 		error = null;
@@ -363,6 +365,7 @@
 				{out.w}×{out.h} · {fmtMP(out.w * out.h)} · {frames} frames · about {fmtBytes(estimate)} · {name}
 			</p>
 			{#if warning}<p class="warn" role="note" data-testid="anim-memory">{warning}</p>{/if}
+			{#if refusal}<p class="fail" role="alert" data-testid="anim-refusal">{refusal}</p>{/if}
 			{#if problem}<p class="warn" role="note">{problem}</p>{/if}
 			{#if error}<p class="fail" role="alert" data-testid="anim-error">{error}</p>{/if}
 			{#if saved}<p class="good" role="status" data-testid="anim-saved">Saved {saved}. Check your downloads.</p>{/if}
@@ -392,7 +395,7 @@
 					<button
 						class="btn pri"
 						type="button"
-						disabled={!!problem || loading || !session || !supported(settings.format)}
+						disabled={!!problem || !!refusal || loading || !session || !supported(settings.format)}
 						onclick={doExport}
 						data-testid="anim-export"
 					>
