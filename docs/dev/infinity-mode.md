@@ -94,30 +94,37 @@ estimate before the cap bites.
    One shared helper builds the round trip so the panel preview, the export and the CLI cannot disagree.
 2. **Panel.** One control: Mode `Once` / `Infinity`, default `Once` for the first release and remembered per device in
    `settings.svelte.ts`. Default `Infinity` is the nicer demo and the obvious follow-up once the rewind is smooth.
-3. **Preview.** `nextFrame` becomes direction-aware (bounds tip at both ends: 0 → 1 forward, `2N-2` → `2N-3` back),
-   which needs the return leg's pixels from the same `show(i)` the panel already calls. `once` keeps today's behaviour.
-   The scrubber is already pass-indexed, so it just ranges over the loop.
+3. **Preview.** Nothing: `nextFrame` stays a plain wrap, because the sequence already carries the direction (0 → 1 →
+   `2N-2` → 0). The plan expected direction-aware stepping here; see "Where the implementation differs" above.
 4. **Export.** Nothing. GIF/APNG keep their `loop` flag; MP4/WebM loop in the Archive viewer and the shared page, which
    both already carry `<video loop>`.
 5. **CLI.** `render --anim --mode infinity`, same sequence builder, so a scripted export matches the studio byte for byte.
 
-## The wrinkle to measure: every return-leg frame is a backward seek
+## The wrinkle that was measured: every return-leg frame is a backward seek
 
 A backward `Seek` clones the nearest checkpoint and replays forward, so a rewind frame costs about *stride/2* passes, and
 the checkpoint stride doubles as the cache fills (`ckptFirstStride`, `ckptBudget` = 96 MB). With ~16 checkpoints that is
-`P/32` passes a frame: at 24 fps, roughly `0.75P` passes a second. Forward playback is adaptive — `animator.ts` targets
-16 ms — but the rewind is a fixed rate, so a long odd-even sort on a big picture may stutter on the way back.
+`P/32` passes a frame: at 24 fps, roughly `0.75P` passes a second. Forward playback adapts — `animator.ts` targets 16 ms
+— but the rewind is at a fixed rate.
 
-Plan: measure it on the largest picture we ship, then pick from
+Measured on the largest picture we ship (`web/static/samples/forest.jpg`, 1600×900 at 50%, odd-even at 30°, 4 s at
+24 fps, GIF, arm64):
 
-- raise `ckptBudget` for the animation session only (it already owns a second session, so the studio is unaffected);
-- cache the *preview-scaled* frames the return leg needs (about 1 MB each at the panel's 520 px cap — affordable only if
-  the frame count stays small, so this needs a limit rather than a guess);
-- or, if neither is enough, drive the preview from the export loop instead of the worker, which walks forward once.
+| | Wall time | File |
+|---|---|---|
+| `--mode once` (96 frames) | 5.5 s | 23.0 MB |
+| `--mode infinity` (94 frames) | 7.4 s | 22.3 MB |
 
-Do not pick one before measuring. Note the result at the top of `NOTES.md` with the number.
+The return leg costs about a third extra, and the file is the same size because the loop has the same number of frames.
+The existing checkpoint cache is enough, so none of the three fixes below were needed: no bigger budget, no cached
+preview frames, no driving the preview from the export loop. The preview does not stutter on this picture either.
 
-Export pays the same cost once, so a 4 s round trip should still finish in seconds; if it does not, the same fix applies.
+If a much larger picture does stutter while rewinding, the options are, in order: raise `ckptBudget` for the animation
+session only (it already owns a second session, so the studio is unaffected); cache the *preview-scaled* frames the
+return leg needs (about 1 MB each at the panel's 520 px cap, so this needs a frame limit rather than a guess); or drive
+the preview from the export loop, which walks forward once.
+
+## The other wrinkle: the dead tail becomes visible
 
 ## The other wrinkle: the dead tail becomes visible
 
@@ -142,8 +149,8 @@ This also improves the existing `once` export, so it is a good separate commit e
   a leg is never shorter than `MinFrames`.
 - Property: for any `P` and `N`, the loop reversed is itself mirrored — `passes[k] == passes[2N-3-k]` for the middle,
   and the two legs are the same list seen from opposite ends. (No `rapid` needed on the web side; `rapid` on the Go side.)
-- `web/src/lib/anim-panel.test.ts`: the mode is part of `AnimSettings`, has a default, and survives a settings round trip;
-  `nextFrame` turns at both ends and only stops when not looping.
+- `web/src/lib/anim-panel.test.ts`: the mode is part of `AnimSettings` and its default is `once`, and `nextFrame` still
+  loops or stops at the end. (It did not need to learn about direction; see above.)
 - `web/src/lib/export-anim.test.ts`: the source is called in sequence order, so the return leg asks for descending passes,
   and frames reach the encoder in time order.
 - `cmd/pixelsort-go/render_anim_test.go`: the last frame of a `--mode infinity` export is pass 0's picture, and the frame

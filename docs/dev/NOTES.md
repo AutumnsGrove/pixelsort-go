@@ -23,6 +23,11 @@ panel, `--mode infinity` on the CLI.
   picture before the turnaround — at both ends of every loop now. It has to land in the Go and TS samplers together to keep
   them ports of each other, so it is its own commit. The CLI test that hit it first now asserts the turnaround by pixels
   rather than by frame count.
+- **The rewind was measured, and did not need fixing.** 1600×900 at 50%, odd-even at 30°, 4 s at 24 fps, GIF, arm64:
+  5.5 s and 23.0 MB for `once`, 7.4 s and 22.3 MB for `infinity`. A third more time, the same file size, no stutter in the
+  preview — so the existing checkpoint cache stays as it is. Numbers are in `infinity-mode.md`.
+- **The hold moved, and the label moved with it:** the panel says "Hold at both ends" in Infinity mode, and `--hold`'s
+  help says so too.
 - **Verified:** `make check`, `make test`, `pnpm --dir web check lint test` (407 tests), and the animation panel e2e
   (8 tests, including the new Infinity one). Not run: `make fuzz` (nothing in the engine changed), `make image-test`.
 
