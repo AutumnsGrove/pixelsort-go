@@ -680,3 +680,41 @@ func TestCreateWithVideoAndDuplicateAttach(t *testing.T) {
 		t.Fatalf("Get lost the video: %+v", got.Video)
 	}
 }
+
+// Permanently deleting a run frees its animation too, not only the original, result and thumb.
+func TestDeleteTrashedFreesTheAnimation(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 11)
+	rb, rs := img(nil, 12)
+	tb, ts := img(nil, 13)
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	gs := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(gs[:])
+	m := runs.Meta{
+		Settings: []byte(`{"mode":"random"}`), Seed: 9, EngineVersion: "1",
+		Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+		Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+		Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+		Video:    &runs.ImageMeta{SHA256: gh, W: 1, H: 1},
+	}
+	p := runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb), Video: bytes.NewReader(gifBytes)}
+	r, _, err := e.svc.Create(context.Background(), m, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := blobFiles(t, e.root); n != 4 {
+		t.Fatalf("%d files, want original, result, thumb and animation", n)
+	}
+	if _, err := e.svc.Trash(context.Background(), []int64{r.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.DeleteTrashed(context.Background(), []int64{r.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if n := blobFiles(t, e.root); n != 0 {
+		t.Fatalf("%d files left after permanent delete", n)
+	}
+	if _, err := e.svc.Get(context.Background(), r.ID); !errors.Is(err, runs.ErrNotFound) {
+		t.Fatalf("run still readable: %v", err)
+	}
+}
