@@ -20,6 +20,9 @@ Archive and can be shared the same way images are.
 | Archive storage and viewer | `server/runs`, `server/blob`, `RunViewer.svelte`, `archive/+page.svelte` |
 | Sharing | `server/share`, `worker/src/{validate,viewer}.ts` |
 
+Infinity mode (sort, then unsort back to the original, looping with no seam) is in `infinity-mode.md`. It reuses this
+pipeline unchanged: it only hands the export loop a longer `Sequence`.
+
 ### Where the implementation differs from the plan
 
 - **The pass total is a bound, not exact.** Odd-even only ends after two quiet passes, so `Plan.MaxPasses` computes an

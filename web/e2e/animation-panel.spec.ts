@@ -129,3 +129,48 @@ test('the preview scrubs, plays and closes without disturbing the studio', async
 	await expect(page.getByRole('dialog', { name: 'Animate' })).toHaveCount(0);
 	await expect(page.getByTestId('state')).toHaveText(before ?? 'done');
 });
+
+/** The canvas pixels once the preview has drawn frame `i`. */
+async function canvasAt(page: Page, i: number): Promise<number[]> {
+	await page.getByTestId('anim-scrub').fill(String(i));
+	await expect(page.getByTestId('anim-canvas')).toHaveAttribute('data-frame', String(i));
+	return page
+		.getByTestId('anim-canvas')
+		.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data));
+}
+
+/** How far apart two canvases are, summed over every colour channel. */
+function distance(a: number[], b: number[]): number {
+	let sum = 0;
+	for (let i = 0; i < a.length; i += 4) {
+		sum += Math.abs((a[i] ?? 0) - (b[i] ?? 0)) + Math.abs((a[i + 1] ?? 0) - (b[i + 1] ?? 0));
+		sum += Math.abs((a[i + 2] ?? 0) - (b[i + 2] ?? 0));
+	}
+	return sum;
+}
+
+test('Infinity sorts and then unsorts back to the original', async ({ page }) => {
+	await openPanel(page);
+	await smallSettings(page);
+	await page.getByRole('radio', { name: 'Infinity' }).click();
+	await expect(page.getByTestId('anim-mode')).toContainText('Infinity');
+
+	const frames = Number(await page.getByTestId('anim-scrub').getAttribute('max')) + 1;
+	expect(frames).toBeGreaterThan(8);
+
+	const first = await canvasAt(page, 0);
+	const middle = await canvasAt(page, Math.floor(frames / 2));
+	const last = await canvasAt(page, frames - 1);
+	// The last frame is on its way back to the original; halfway through the loop is deep in the sort.
+	expect(last).not.toEqual(first);
+	expect(distance(last, first)).toBeLessThan(distance(middle, first));
+
+	// Coming back down is a backward seek: it must land on a frame of the loop, not on the one before it.
+	const back = await canvasAt(page, frames - 3);
+	expect(back).not.toEqual(last);
+	expect(back).not.toEqual(first);
+
+	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
+	expect(download.suggestedFilename()).toMatch(/-anim\.gif$/);
+	await expect(page.getByTestId('anim-saved')).toContainText('.gif');
+});

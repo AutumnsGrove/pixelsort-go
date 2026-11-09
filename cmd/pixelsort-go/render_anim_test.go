@@ -238,3 +238,89 @@ func TestRenderAnimationErrors(t *testing.T) {
 		})
 	}
 }
+
+// frameRedss reads a PNG frame sequence in file order.
+func frameReds(t *testing.T, dir string) [][]int {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out [][]int
+	for _, e := range entries {
+		out = append(out, redsOf(readPNG(t, filepath.Join(dir, e.Name()))))
+	}
+	return out
+}
+
+func sameReds(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestRenderInfinityGoesThereAndBack(t *testing.T) {
+	dir := t.TempDir()
+	in, recipe, instant := writeAnimInputs(t, dir)
+	frames := filepath.Join(dir, "frames")
+	if err := runRender(t, "--in", in, "--recipe", recipe, "--frames", frames,
+		"--fps", "10", "--duration", "2", "--ease", "linear", "--hold", "0", "--mode", "infinity"); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	got := frameReds(t, frames)
+	if len(got) < 8 {
+		t.Fatalf("only %d frames: too few for a round trip", len(got))
+	}
+	if original := redsOf(readPNG(t, in)); !sameReds(got[0], original) {
+		t.Fatalf("the loop starts at %v, want the original %v", got[0], original)
+	}
+
+	// The finished picture is reached on the way in, and the last frame is on its way back down.
+	sorted := redsOf(readPNG(t, instant))
+	peak := -1
+	for i, reds := range got {
+		if sameReds(reds, sorted) {
+			peak = i
+			break
+		}
+	}
+	if peak <= 0 || peak >= len(got)-1 {
+		t.Fatalf("the finished sort is at frame %d of %d, so it is not a round trip", peak, len(got))
+	}
+	if sameReds(got[peak-1], sorted) {
+		t.Fatal("the frame before the finished sort is already finished")
+	}
+	if sameReds(got[len(got)-1], sorted) || sameReds(got[len(got)-1], got[0]) {
+		t.Fatal("the last frame is still the original: the loop closes early")
+	}
+}
+
+func TestRenderInfinityClosedLoopEndsAtTheOriginal(t *testing.T) {
+	dir := t.TempDir()
+	in, recipe, _ := writeAnimInputs(t, dir)
+	out := filepath.Join(dir, "out.apng")
+	if err := runRender(t, "--in", in, "--recipe", recipe, "--anim", out, "--loop=false",
+		"--fps", "10", "--duration", "2", "--ease", "linear", "--hold", "0", "--mode", "infinity"); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	last := redsOf(lastAPNGFrame(t, out))
+	if original := redsOf(readPNG(t, in)); !sameReds(last, original) {
+		t.Fatalf("a loop that does not repeat ends at %v, want the original %v", last, original)
+	}
+}
+
+func TestRenderRejectsAnUnknownMode(t *testing.T) {
+	dir := t.TempDir()
+	in, recipe, _ := writeAnimInputs(t, dir)
+	err := runRender(t, "--in", in, "--recipe", recipe, "--anim", filepath.Join(dir, "out.gif"),
+		"--mode", "sideways")
+	if err == nil || !strings.Contains(err.Error(), "--mode") {
+		t.Fatalf("got %v, want an error naming --mode", err)
+	}
+}

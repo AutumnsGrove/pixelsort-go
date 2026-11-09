@@ -3,6 +3,8 @@
 // decides where a pixel goes.
 package anim
 
+import "slices"
+
 // Ease is how time maps to passes. Linear walks the sort at a constant rate; EaseOut pushes through the early passes
 // faster, where most of the visible movement is.
 type Ease string
@@ -83,7 +85,8 @@ func Sample(total, frames int, ease Ease) []int {
 
 // Sequence is a complete frame plan: which pass each frame shows and how long it stays on screen.
 type Sequence struct {
-	// Passes has one entry per frame, non-decreasing; use with Stepper/Seek in order.
+	// Passes has one entry per frame, in the order the frames are shown: up through the sort, and back down again for
+	// an Infinity loop.
 	Passes []int
 	// DelaysMS has one entry per frame in milliseconds, with the end-hold already added to the last.
 	DelaysMS []int
@@ -93,11 +96,63 @@ type Sequence struct {
 	FPS int
 }
 
+// Mode is how a sequence plays. Once walks the sort from the original to the finished picture; Infinity walks it there
+// and back again, so the last frame flows into the first with no seam.
+type Mode string
+
+const (
+	// Once is a one-way sort: the original, then the finished picture.
+	Once Mode = "once"
+	// Infinity sorts, then unsorts back to the original. The return leg is the same passes replayed backwards, so it is
+	// exact: the engine is a function of its recipe (see engine/README.md).
+	Infinity Mode = "infinity"
+)
+
+// RoundTrip turns a forward sequence into a round trip: the forward frames, then the same passes back down to the first.
+// The leading run of the original pass and the trailing run of the last one are dropped from the return leg, so a frame
+// is never shown twice at a turnaround (which would read as a stutter exactly where the loop should breathe). The hold
+// sits on both ends, and with loop false the closing frame is added so the animation still ends where it began.
+func RoundTrip(forward Sequence, holdMS int, loop bool) Sequence {
+	n := len(forward.Passes)
+	if n == 0 {
+		return forward
+	}
+	first, last := forward.Passes[0], forward.Passes[n-1]
+	lo := 0
+	for lo+1 < n && forward.Passes[lo+1] == first {
+		lo++
+	}
+	hi := n - 1
+	for hi > 0 && forward.Passes[hi-1] == last {
+		hi--
+	}
+	passes := slices.Clone(forward.Passes)
+	delays := slices.Clone(forward.DelaysMS)
+	for i := hi - 1; i > lo; i-- {
+		passes = append(passes, forward.Passes[i])
+		delays = append(delays, forward.DelaysMS[i])
+	}
+	hold := max(0, holdMS)
+	if len(delays) > 0 {
+		delays[0] += hold
+	}
+	if !loop {
+		passes = append(passes, first)
+		delays = append(delays, forward.DelaysMS[0]+hold)
+	}
+	return Sequence{Passes: passes, DelaysMS: delays, Ease: forward.Ease, FPS: forward.FPS}
+}
+
 // NewSequence builds the frame plan for a sort with `total` passes (Stepper.MaxPasses) and the requested duration,
-// frame rate, end-hold and easing.
-func NewSequence(total, durationMS, fps, holdMS int, ease Ease) Sequence {
+// frame rate, end-hold and easing. In Infinity mode the duration is split between the two legs, so the loop lasts as
+// long as the settings say it does.
+func NewSequence(total, durationMS, fps, holdMS int, ease Ease, mode Mode, loop bool) Sequence {
 	fps = min(MaxFPS, max(1, fps))
-	frames := FrameCount(durationMS, fps)
+	ms := durationMS
+	if mode == Infinity {
+		ms = max(1, (durationMS+1)/2)
+	}
+	frames := FrameCount(ms, fps)
 	used := Linear
 	if ease == EaseOut && frames <= total+1 {
 		used = EaseOut
@@ -111,5 +166,9 @@ func NewSequence(total, durationMS, fps, holdMS int, ease Ease) Sequence {
 	if holdMS > 0 {
 		delays[frames-1] += holdMS
 	}
-	return Sequence{Passes: passes, DelaysMS: delays, Ease: used, FPS: fps}
+	seq := Sequence{Passes: passes, DelaysMS: delays, Ease: used, FPS: fps}
+	if mode == Infinity {
+		return RoundTrip(seq, holdMS, loop)
+	}
+	return seq
 }

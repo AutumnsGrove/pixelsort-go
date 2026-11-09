@@ -1,5 +1,40 @@
 # Build notes
 
+## 2026-11-09 · issue #23 · infinity mode built (PR #25)
+
+Branch `build/infinity-mode`. Infinity mode: sort, then unsort back to the original, loop with no seam. Mode control in the
+panel, `--mode infinity` on the CLI.
+
+- **The unsort is a replay, as planned.** No engine change, no golden change, no `EngineVersion` bump. The return leg is
+  the forward leg's passes in reverse, and the whole feature is a longer `Sequence`; the export loop, the three encoders,
+  the memory guard and the save path are untouched.
+- **`nextFrame` did not need changing** — the plan said the preview's stepping would become direction-aware, but the
+  sequence already carries the direction, so playback is still a plain wrap. Removed from the plan rather than built.
+- **Both turnaround frames are dropped** (`0..P` then `P-1..1`), and runs of a repeated endpoint are dropped too, for the
+  case where a short sort gets more frames than passes. A loop never shows the same pass twice at the seam.
+- **`durationSec` is split between the legs**, so 4 s at 24 fps is 96 frames once and 94 as a loop: the size estimate,
+  the memory refusal and "4 seconds" all still mean what they say.
+- **The CLI's `Walk` can rewind now**, with up to sixteen checkpoints on a 96 MB budget (the session's scrub estimate).
+  Without them a round trip would replay the whole sort once per return-leg frame. `TestWalkRewindsToTheSameFrames` and
+  `TestRenderInfinityGoesThereAndBack` pin the pixels.
+- **The mode is not persisted** (the panel remembers none of its settings today), and it defaults to `Once`, so nobody's
+  current exports change under them.
+- **Not done: `Session.ExactPasses()`.** `MaxPasses` is a loose bound, so a long animation still freezes on the finished
+  picture before the turnaround — at both ends of every loop now. It has to land in the Go and TS samplers together to keep
+  them ports of each other, so it is its own commit. The CLI test that hit it first now asserts the turnaround by pixels
+  rather than by frame count.
+- **The rewind was measured, and did not need fixing.** 1600×900 at 50%, odd-even at 30°, 4 s at 24 fps, GIF, arm64:
+  5.5 s and 23.0 MB for `once`, 7.4 s and 22.3 MB for `infinity`. A third more time, the same file size, no stutter in the
+  preview — so the existing checkpoint cache stays as it is. Numbers are in `infinity-mode.md`.
+- **The hold moved, and the label moved with it:** the panel says "Hold at both ends" in Infinity mode, and `--hold`'s
+  help says so too.
+- **A review catch worth keeping:** the sequence now needs to know whether the file loops (a closed loop has an extra
+  frame), and the answer depends on the format, not only on the checkbox. Our viewers always loop a video, so MP4/WebM
+  force `loop` regardless of a GIF setting the person turned off earlier; `loopsByItself` is that rule, used by both the
+  sequence and the preview's stepping.
+- **Verified:** `make check`, `make test`, `pnpm --dir web check lint test` (407 tests), and the animation panel e2e
+  (8 tests, including the new Infinity one). Not run: `make fuzz` (nothing in the engine changed), `make image-test`.
+
 ## 2026-11-09 · issue #23 · infinity mode plan only, nothing built
 
 No code yet: the issue and `docs/dev/infinity-mode.md` are the whole change. The judgement calls the plan makes, so the

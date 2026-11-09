@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
 	ANIM_FORMATS,
+	ANIM_MODES,
 	DEFAULT_ANIM,
 	animFilename,
 	clampFrame,
 	evenSize,
 	estimateBytes,
 	frameCountFor,
+	loopsByItself,
 	memoryRefusal,
 	memoryWarning,
 	nextFrame,
@@ -37,6 +39,38 @@ describe('animation settings', () => {
 		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10, holdMs: 250 }, 50);
 		expect(seq.passes[0]).toBe(0);
 		expect(seq.passes[seq.passes.length - 1]).toBe(50);
+	});
+
+	it('is a one-way sort unless Infinity is chosen', () => {
+		expect(DEFAULT_ANIM.mode).toBe('once');
+		expect(ANIM_MODES.infinity.name).toBe('Infinity');
+		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10 }, 50);
+		expect(seq.passes[seq.passes.length - 1]).toBe(50);
+	});
+
+	it('walks back to the original in Infinity mode', () => {
+		const seq = sequenceFor({ ...base, durationSec: 2, fps: 10, mode: 'infinity' }, 50);
+		expect(seq.passes[0]).toBe(0);
+		// The finished picture is the top of the loop and the last frame is on its way back down.
+		expect(Math.max(...seq.passes)).toBe(50);
+		expect(seq.passes[seq.passes.length - 1]).toBeLessThan(50);
+		expect(seq.passes[seq.passes.length - 1]).toBeGreaterThan(0);
+	});
+
+	it('loops videos whether or not the GIF setting was turned off', () => {
+		// A GIF with Loop off, then switched to MP4: our viewers always loop a video, so the sequence must not close.
+		expect(loopsByItself({ ...base, loop: false })).toBe(false);
+		expect(loopsByItself({ ...base, loop: false, format: 'mp4' })).toBe(true);
+		expect(loopsByItself({ ...base, loop: false, format: 'webm' })).toBe(true);
+		expect(loopsByItself({ ...base, loop: false, format: 'apng' })).toBe(false);
+
+		const still = { ...base, mode: 'infinity' as const, durationSec: 2, fps: 10 };
+		expect(sequenceFor({ ...still, format: 'mp4', loop: false }, 50).passes).toEqual(
+			sequenceFor({ ...still, format: 'mp4', loop: true }, 50).passes
+		);
+		expect(sequenceFor({ ...still, format: 'gif', loop: false }, 50).passes).toHaveLength(
+			sequenceFor({ ...still, format: 'gif', loop: true }, 50).passes.length + 1
+		);
 	});
 
 	it('reports impossible settings', () => {
