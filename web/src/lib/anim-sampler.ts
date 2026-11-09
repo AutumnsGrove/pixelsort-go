@@ -54,14 +54,62 @@ export type Sequence = {
 	fps: number;
 };
 
-/** Builds the plan for a sort with `total` passes (the engine's MaxPasses). */
-export function newSequence(total: number, durationMs: number, fps: number, holdMs: number, ease: Ease): Sequence {
+/**
+ * How a sequence plays. `once` walks the sort from the original to the finished picture; `infinity` walks it there and
+ * back again, so the last frame flows into the first with no seam.
+ */
+export type Mode = 'once' | 'infinity';
+
+/**
+ * Turns a forward sequence into a round trip: the forward frames, then the same passes back down to the first. The
+ * leading run of the original pass and the trailing run of the last one are dropped from the return leg, so a frame is
+ * never shown twice at a turnaround (which would read as a stutter exactly where the loop should breathe). The hold sits
+ * on both ends, and with `loop` off the closing frame is added so the animation still ends where it began.
+ */
+export function roundTrip(forward: Sequence, holdMs: number, loop: boolean): Sequence {
+	const n = forward.passes.length;
+	const first = forward.passes[0] ?? 0;
+	const last = forward.passes[n - 1] ?? 0;
+	let lo = 0;
+	while (lo + 1 < n && forward.passes[lo + 1] === first) lo++;
+	let hi = n - 1;
+	while (hi > 0 && forward.passes[hi - 1] === last) hi--;
+	const passes = forward.passes.slice();
+	const delaysMs = forward.delaysMs.slice();
+	for (let i = hi - 1; i > lo; i--) {
+		passes.push(forward.passes[i] ?? 0);
+		delaysMs.push(forward.delaysMs[i] ?? 0);
+	}
+	const hold = Math.max(0, holdMs);
+	if (delaysMs.length > 0) delaysMs[0] = (delaysMs[0] ?? 0) + hold;
+	if (!loop) {
+		passes.push(first);
+		delaysMs.push((forward.delaysMs[0] ?? 0) + hold);
+	}
+	return { passes, delaysMs, ease: forward.ease, fps: forward.fps };
+}
+
+/**
+ * Builds the plan for a sort with `total` passes (the engine's MaxPasses). In `infinity` mode the duration is split
+ * between the two legs, so the loop lasts as long as the settings say it does.
+ */
+export function newSequence(
+	total: number,
+	durationMs: number,
+	fps: number,
+	holdMs: number,
+	ease: Ease,
+	mode: Mode,
+	loop: boolean
+): Sequence {
 	const f = Math.min(MAX_FPS, Math.max(1, fps));
-	const frames = frameCount(durationMs, f);
+	const ms = mode === 'infinity' ? Math.max(1, Math.round(durationMs / 2)) : durationMs;
+	const frames = frameCount(ms, f);
 	const used: Ease = ease === 'ease-out' && frames <= total + 1 ? 'ease-out' : 'linear';
 	const passes = sample(total, frames, used);
 	const base = Math.max(1, Math.floor(1000 / f));
 	const delaysMs = new Array<number>(frames).fill(base);
 	if (holdMs > 0) delaysMs[frames - 1] = (delaysMs[frames - 1] ?? base) + holdMs;
-	return { passes, delaysMs, ease: used, fps: f };
+	const seq = { passes, delaysMs, ease: used, fps: f };
+	return mode === 'infinity' ? roundTrip(seq, holdMs, loop) : seq;
 }
