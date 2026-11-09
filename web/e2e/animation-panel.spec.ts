@@ -165,6 +165,11 @@ test('Infinity sorts and then unsorts back to the original', async ({ page }) =>
 	expect(last).not.toEqual(first);
 	expect(distance(last, first)).toBeLessThan(distance(middle, first));
 
+	// Coming back down is a backward seek: it must land on a frame of the loop, not on the one before it.
+	const back = await canvasAt(page, frames - 3);
+	expect(back).not.toEqual(last);
+	expect(back).not.toEqual(first);
+
 	const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('anim-export').click()]);
 	expect(download.suggestedFilename()).toMatch(/-anim\.gif$/);
 	await expect(page.getByTestId('anim-saved')).toContainText('.gif');

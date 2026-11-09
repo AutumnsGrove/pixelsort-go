@@ -375,7 +375,7 @@
 				</div>
 
 				<div class="group">
-					<span class="eyebrow">End hold</span>
+					<span class="eyebrow">{settings.mode === 'infinity' ? 'Hold at both ends' : 'End hold'}</span>
 					<div class="chips">
 						{#each ANIM_HOLDS as h (h)}
 							<button type="button" class:on={settings.holdMs === h} onclick={() => change({ holdMs: h })}

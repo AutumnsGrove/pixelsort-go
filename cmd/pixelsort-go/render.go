@@ -52,7 +52,7 @@ func newRender() *cobra.Command {
 	f.Float64Var(&o.durationSec, "duration", 5, "animation length in seconds (the whole loop with --mode infinity)")
 	f.StringVar(&o.ease, "ease", "ease-out", "pacing: linear or ease-out")
 	f.StringVar(&o.mode, "mode", "once", "once or infinity: infinity sorts, then unsorts back to the original")
-	f.IntVar(&o.holdMS, "hold", 500, "extra milliseconds the last frame stays")
+	f.IntVar(&o.holdMS, "hold", 500, "extra milliseconds the last frame stays (both ends with --mode infinity)")
 	f.Float64Var(&o.scale, "scale", 1, "animation scale, (0, 1]")
 	f.BoolVar(&o.loop, "loop", true, "loop GIF and APNG forever")
 	return c
