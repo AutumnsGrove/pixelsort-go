@@ -6,7 +6,7 @@
 ARG VERSION=dev
 
 # ---- 1. the engine, compiled to WebAssembly ----
-FROM golang:1.27 AS go-wasm
+FROM --platform=$BUILDPLATFORM golang:1.27 AS go-wasm
 WORKDIR /src
 COPY go.mod go.sum ./
 # Behind a TLS-intercepting proxy, pass its CA as a build secret: docker build --secret id=ca,src=/path/ca.crt .
@@ -23,7 +23,7 @@ RUN GOOS=js GOARCH=wasm go build -trimpath \
  && cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" /out/wasm_exec.js
 
 # ---- 2. the web app (needs the WASM and Go's loader) ----
-FROM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /web
 COPY web/package.json web/pnpm-lock.yaml ./
@@ -36,7 +36,9 @@ COPY --from=go-wasm /out/wasm_exec.js ./src/lib/engine/vendor/wasm_exec.js
 RUN pnpm build
 
 # ---- 3. the server binary, with the web app embedded ----
-FROM golang:1.27 AS go-server
+# The build stages above only emit platform-independent files (wasm, static assets), so they run on the build platform
+# once instead of under QEMU for every target. The server is cross-compiled for the target here.
+FROM --platform=$BUILDPLATFORM golang:1.27 AS go-server
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=secret,id=ca,required=false \
@@ -44,8 +46,10 @@ RUN --mount=type=secret,id=ca,required=false \
 COPY . .
 COPY --from=web /web/build ./server/spa/build
 ARG VERSION
+ARG TARGETOS
+ARG TARGETARCH
 ENV CGO_ENABLED=0
-RUN go build -tags embedweb -trimpath \
+RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -tags embedweb -trimpath \
       -ldflags "-s -w -X github.com/AutumnsGrove/pixelsort-go/internal/version.Version=${VERSION}" \
       -o /out/pixelsort-go ./cmd/pixelsort-go
 

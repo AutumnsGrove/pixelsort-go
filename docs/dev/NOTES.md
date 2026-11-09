@@ -1,5 +1,14 @@
 # Build notes
 
+## 2026-11-09 · docker-publish for the animation merge
+
+The first image build after #21 failed on `linux/arm64` in the web stage: `vite build` died with SIGILL under QEMU
+(exit 132). The wasm and web stages only emit platform-independent files, so they now run on `$BUILDPLATFORM` once; the
+Go server stage is on `$BUILDPLATFORM` too and cross-compiles with `GOOS=$TARGETOS GOARCH=$TARGETARCH`. A local
+`docker buildx build --platform linux/amd64,linux/arm64` completes.
+
+
+
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
 ## 2026-11-08 · issue #16 · review fixes (PR #21)
