@@ -121,13 +121,21 @@
 			>
 		</div>
 		<label
-			>Animation speed {settings.speed} steps/s<input
+			>Animation speed {settings.speed} passes/s<input
 				type="range"
 				min="1"
 				max="400"
 				value={settings.speed}
 				oninput={(e) => updateSettings({ speed: Number(e.currentTarget.value) })}
 			/></label
+		>
+		<label
+			><input
+				type="checkbox"
+				data-testid="loop-setting"
+				checked={settings.loop}
+				onchange={(e) => updateSettings({ loop: e.currentTarget.checked })}
+			/> loop the sort (sort, unsort, start again)</label
 		>
 	</section>
 	<section class="glass card">

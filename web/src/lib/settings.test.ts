@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
-import { DEFAULTS, DEVICE_RES, sanitize, workCopy, workRes } from './settings';
+import { DEFAULT_ANIM } from './anim-panel';
+import { DEFAULTS, DEVICE_RES, sanitize, sanitizeAnim, workCopy, workRes } from './settings';
 
 test('garbage is dropped, numbers are clamped, real values survive', () => {
 	const bad = sanitize({
@@ -51,4 +52,33 @@ test('auto-save defaults to off, and only a real boolean changes it', () => {
 	expect(sanitize({ autoSave: false })).toEqual({ autoSave: false });
 	expect(sanitize({ autoSave: 'yes' })).toEqual({});
 	expect(sanitize({ autoSave: 1 })).toEqual({});
+});
+
+test('the animation panel settings are remembered field by field', () => {
+	const stored = {
+		format: 'mp4',
+		scale: 0.5,
+		fps: 15,
+		durationSec: 8,
+		ease: 'linear',
+		holdMs: 1000,
+		loop: false,
+		mode: 'infinity'
+	};
+	expect(sanitize({ anim: stored }).anim).toEqual(stored);
+	expect(DEFAULTS.anim).toEqual(DEFAULT_ANIM);
+});
+
+test('one bad animation setting keeps the rest, and unknown ones are ignored', () => {
+	const a = sanitizeAnim({ format: 'bmp', mode: 'infinity', fps: 47, scale: 0.75, paused: true });
+	expect(a).toEqual({ ...DEFAULT_ANIM, mode: 'infinity', scale: 0.75 });
+	expect(sanitizeAnim({})).toEqual(DEFAULT_ANIM);
+	for (const v of [null, 'x', 5, []]) expect(sanitizeAnim(v)).toBeNull();
+});
+
+test('the studio remembers its speed and whether the sort loops', () => {
+	expect(DEFAULTS.speed).toBe(40);
+	expect(DEFAULTS.loop).toBe(false);
+	expect(sanitize({ speed: 120, loop: true })).toEqual({ speed: 120, loop: true });
+	expect(sanitize({ loop: 'yes' })).toEqual({});
 });

@@ -12,7 +12,7 @@ import { packRecipe, unpackRecipe } from './run-recipe';
 import { askHelper, helperCopy, helperErrorText, stepLabel, type HelperEvent, type HelperProposal } from './helper';
 import { cutoutName, outlineSvg, refusalText, TOLERANCE } from './cutout-shape';
 import type { CutoutResult } from './engine/client';
-import { settings } from './settings.svelte';
+import { settings, updateSettings } from './settings.svelte';
 import { autoSaveAllowed, resultPixels, saveFailureReason, type SaveState } from './save-policy';
 import { LinkError, loadFromUrl, ShareBackend, type Features } from './share';
 
@@ -103,9 +103,14 @@ class Studio {
 	run = $state<RunState>('idle');
 	progress = $state(0);
 	pass = $state(0);
-	speed = $state(40);
-	/** Loop the sort: a finished sort walks back down to the original and starts again. */
-	loop = $state(false);
+	/** How fast the sort runs, in passes a second: the stored setting, so a change anywhere sticks. */
+	get speed(): number {
+		return settings.speed;
+	}
+	/** Loop the sort: a finished sort walks back down to the original. The stored setting, as above. */
+	get loop(): boolean {
+		return settings.loop;
+	}
 	/** The loop is on its way back down (the sort itself has finished). */
 	rewinding = $state(false);
 	presetId = $state<string | null>(null);
@@ -507,13 +512,13 @@ class Studio {
 	}
 
 	setSpeed(v: number): void {
-		this.speed = v;
+		updateSettings({ speed: v });
 		void this.client?.setSpeed(v);
 	}
 
 	/** Turn the loop on or off. Off means a rewind still finishes its trip home, then stops on the original. */
 	setLoop(v: boolean): void {
-		this.loop = v;
+		updateSettings({ loop: v });
 		void this.client?.setLoop(v);
 	}
 

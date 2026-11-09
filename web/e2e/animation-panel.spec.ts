@@ -174,3 +174,19 @@ test('Infinity sorts and then unsorts back to the original', async ({ page }) =>
 	expect(download.suggestedFilename()).toMatch(/-anim\.gif$/);
 	await expect(page.getByTestId('anim-saved')).toContainText('.gif');
 });
+
+test('the panel remembers its settings for the next visit', async ({ page }) => {
+	await openPanel(page);
+	await page.getByRole('radio', { name: 'Infinity' }).click();
+	await page.getByRole('radio', { name: 'APNG' }).click();
+	await page.getByRole('button', { name: '25%' }).click();
+	await page.getByRole('button', { name: '2s' }).click();
+	await page.getByTestId('anim-close').click();
+
+	await page.reload();
+	await openPanel(page);
+	await expect(page.getByRole('radio', { name: 'Infinity' })).toHaveAttribute('aria-checked', 'true');
+	await expect(page.getByRole('radio', { name: 'APNG' })).toHaveAttribute('aria-checked', 'true');
+	await expect(page.getByRole('button', { name: '25%' })).toHaveClass(/on/);
+	await expect(page.getByRole('button', { name: '2s' })).toHaveClass(/on/);
+});

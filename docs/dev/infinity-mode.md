@@ -26,8 +26,9 @@ Three surfaces, one rule: the panel's preview, every export, and the live studio
 - **`nextFrame` did not need to change.** The plan expected the preview's stepping to become direction-aware. It does
   not: the sequence already *is* the direction, so playback is still a plain 0, 1, 2 … wrap. Less code, and the preview
   cannot disagree with the file.
-- **The mode is not remembered per device.** The panel remembers none of its animation settings today, so persisting
-  only the mode would be odd. It starts at `Once` every time; make all of the panel's settings sticky together, later.
+- **The panel's settings are remembered, all of them.** They live in the app settings store (`settings.anim`, validated
+  field by field by `sanitizeAnim`), so the next export starts where the last one left off, and Settings → Reset puts
+  everything back.
 - **`Walk` grew a small checkpoint cache.** The CLI's walker only stepped forward, and showing an earlier pass would have
   meant replaying from the original for every return-leg frame — one full sort per frame. It now keeps up to sixteen
   clones (a 96 MB budget, the same estimate as the engine session's scrub cache) so a rewind replays from the nearest.
@@ -97,8 +98,9 @@ estimate before the cap bites.
 1. **Sampler, both languages.** `newSequence` gains a mode (`once` | `infinity`) in `web/src/lib/anim-sampler.ts` and
    `internal/anim/sampler.go`, which stay ports of each other (integer arithmetic, same vectors in both tests, as today).
    One shared helper builds the round trip so the panel preview, the export and the CLI cannot disagree.
-2. **Panel.** One control: Mode `Once` / `Infinity`, default `Once` for the first release and remembered per device in
-   `settings.svelte.ts`. Default `Infinity` is the nicer demo and the obvious follow-up once the rewind is smooth.
+2. **Panel.** One control: Mode `Once` / `Infinity`. Default `Once`, and the whole panel's settings are remembered per
+   device (see "Where the implementation differs"). Default `Infinity` is the nicer demo and the obvious follow-up now
+   that the rewind is measured smooth.
 3. **Preview.** Nothing: `nextFrame` stays a plain wrap, because the sequence already carries the direction (0 → 1 →
    `2N-2` → 0). The plan expected direction-aware stepping here; see "Where the implementation differs" above.
 4. **Export.** Nothing. GIF/APNG keep their `loop` flag; MP4/WebM loop in the Archive viewer and the shared page, which
@@ -170,8 +172,9 @@ Design decisions worth knowing:
   them. Restarting clears them, so a paused replay stores what is on screen. Both of these came out of review, and both have an e2e that fails without them: one counts auto-saves after a
   home stop, the other compares the uploaded `result` part against the `original` part byte for byte.
 - **Scrubbing means the way forward**: a seek resets the direction, so Resume after a drag sorts on from there.
-- **The setting is not remembered** between visits, for the same reason the panel's is not — the studio's own animation
-  settings (`speed` included) are not sticky, and one sticky knob out of nine would be odd.
+- **The loop and the speed are remembered** (`settings.loop`, `settings.speed`), and the studio reads them straight from
+  the store rather than keeping a copy, so a change on the Settings page and a change in the Watch popover cannot drift
+  apart. The Settings page's speed slider, which had never been wired to the studio, now really does set it.
 
 ## Tests (the specification, and where it is proved)
 

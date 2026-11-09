@@ -164,3 +164,17 @@ test('Export after a loop comes home still means the finished sort, and a replay
 	await pausePlayback(page);
 	expect(Buffer.compare(await exportPng(page), sorted), 'a stale finished sort came back').not.toBe(0);
 });
+
+test('the loop and the speed are remembered', async ({ page }) => {
+	await studio(page);
+	await watch(page);
+	await page.getByLabel('Speed').fill('30');
+	await page.getByTestId('loop').check();
+	await closePopover(page);
+
+	await page.reload();
+	await expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
+	await watch(page);
+	await expect(page.getByTestId('loop')).toBeChecked();
+	await expect(page.getByLabel('Speed')).toHaveValue('30');
+});

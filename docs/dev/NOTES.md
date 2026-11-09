@@ -1,5 +1,22 @@
 # Build notes
 
+## 2026-11-09 · sticky animation settings (committed straight to `main`)
+
+Autumn asked for this one to skip the branch/PR/review loop, so it is a direct commit on `main`. Everything else in
+`AGENTS.md` still held: tests first, `make check`, one small commit.
+
+- **The animation panel's settings are stored**, all eight of them (`settings.anim`), so the next export starts where the
+  last one left off. `sanitizeAnim` checks each field against the choices the panel actually offers, so a store written by
+  an older version keeps whatever it still recognises instead of resetting the lot.
+- **The studio's speed and loop are stored too**, and the studio now reads them straight out of the settings store
+  instead of keeping its own `$state`. That killed a latent mismatch: the Settings page has always had a "Animation speed"
+  slider that nothing consumed, so it now really drives Studio. Its default went from 24 to **40**, which is what Studio
+  had been using, so nobody's first visit feels different; the label says "passes/s" because that is what the number is.
+- **Settings grew a "loop the sort" checkbox** next to the speed, so both places agree and Reset to defaults clears both.
+- **Verified:** `pnpm --dir web check lint test` (417 tests), the panel and infinity e2e suites (13 tests, including two
+  new stickiness tests that reload the page), and the full Playwright suite. Go and the engine are untouched, so no
+  `make check` beyond the web side was needed, but it was run anyway.
+
 ## 2026-11-09 · issue #23 · the dead tail, and the live canvas (PR #26)
 
 Branch `build/live-loop`. Two of the three things #23 had left: the question of the dead tail, and phase 3.

@@ -4,6 +4,7 @@
 	import { onMount, tick as nextTick } from 'svelte';
 	import { X, Play, Pause, Download, Square } from '@lucide/svelte';
 	import { studio } from '#lib/studio.svelte';
+	import { settings as prefs, updateSettings } from '#lib/settings.svelte';
 	import {
 		ANIM_DURATIONS,
 		ANIM_FORMATS,
@@ -11,7 +12,6 @@
 		ANIM_HOLDS,
 		ANIM_MODES,
 		ANIM_SCALES,
-		DEFAULT_ANIM,
 		evenSize,
 		PREVIEW_SPEEDS,
 		animFilename,
@@ -38,7 +38,8 @@
 
 	let { onclose }: { onclose: () => void } = $props();
 
-	let settings = $state<AnimSettings>({ ...DEFAULT_ANIM });
+	/** The panel's settings are the stored ones, so the next export starts where this one left off. */
+	const settings = $derived(prefs.anim);
 	let session = $state.raw<{ client: EngineClient; maxPasses: number; w: number; h: number } | null>(null);
 	let maxPasses = $state(0);
 	let index = $state(0);
@@ -182,7 +183,7 @@
 
 	function change(patch: Partial<AnimSettings>): void {
 		pause();
-		settings = { ...settings, ...patch };
+		updateSettings({ anim: { ...prefs.anim, ...patch } });
 		saved = null;
 		if (patch.scale !== undefined || patch.fps !== undefined) void checkVideo();
 		void show(clampFrame(index, frames));
