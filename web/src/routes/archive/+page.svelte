@@ -731,7 +731,6 @@
 		opacity: 1;
 	}
 	.open {
-		position: relative;
 		display: block;
 		width: 100%;
 		padding: 0;
