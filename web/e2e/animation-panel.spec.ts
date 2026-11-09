@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const waitDone = (page: Page) => expect(page.getByTestId('state')).toHaveText('done', { timeout: 20_000 });
@@ -67,6 +68,12 @@ test('exports MP4 and WebM when WebCodecs can encode them', async ({ page }) => 
 	expect(webmDownload.suggestedFilename()).toMatch(/\.webm$/);
 	const webmBytes = readFileSync((await webmDownload.path())!);
 	expect(Array.from(webmBytes.subarray(0, 4))).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+});
+
+test('the panel has no accessibility violations', async ({ page }) => {
+	await openPanel(page);
+	const results = await new AxeBuilder({ page }).include('[data-testid="anim-panel"]').analyze();
+	expect(results.violations).toEqual([]);
 });
 
 test('an export sends the animation with the saved run', async ({ page }) => {

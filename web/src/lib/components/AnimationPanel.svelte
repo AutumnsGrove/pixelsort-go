@@ -48,6 +48,8 @@
 	let saved = $state<string | null>(null);
 	let video = $state<VideoSupport>({ mp4: false, webm: false, note: null });
 	let canvas: HTMLCanvasElement | undefined = $state();
+	let card: HTMLDivElement | undefined = $state();
+	let previousFocus: HTMLElement | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let abort: AbortController | null = null;
 	let drawSeq = 0;
@@ -70,11 +72,14 @@
 	const name = $derived(animFilename(studio.name, settings.format));
 
 	onMount(() => {
+		previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		card?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
 		void open();
 		return () => {
 			pause();
 			abort?.abort();
 			session?.client.dispose();
+			previousFocus?.focus();
 		};
 	});
 
@@ -221,16 +226,16 @@
 </script>
 
 <div class="er" role="dialog" aria-modal="true" aria-label="Animate" data-testid="anim-panel">
-	<div class="er-card glass">
-		<header>
+	<div class="er-card glass" bind:this={card}>
+		<div class="head">
 			<div>
 				<div class="eyebrow">Animate</div>
 				<h3>Save the sorting</h3>
 			</div>
-			<button class="round" type="button" onclick={onclose} aria-label="Close" data-testid="anim-close">
+			<button class="round" type="button" onclick={onclose} aria-label="Close" data-autofocus data-testid="anim-close">
 				<X size={17} />
 			</button>
-		</header>
+		</div>
 
 		{#if loading}
 			<p class="sub" data-testid="anim-loading">Setting up a second engine session…</p>
@@ -427,7 +432,7 @@
 		display: grid;
 		gap: 14px;
 	}
-	header {
+	.head {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
