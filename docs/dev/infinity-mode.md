@@ -166,8 +166,8 @@ Design decisions worth knowing:
   result. While the loop is on, nothing auto-saves mid-loop either: the animation never finishes, so Save and Export stay
   deliberate.
 - **A deliberate Save still stores the finished sort, not what the loop came home to.** The frame that *is* the finished
-  sort says so (`finished`), the studio keeps those pixels, and `resultPixels` prefers them for the run's result and
-  thumbnail. Both of these came out of review, and both have an e2e that fails without them: one counts auto-saves after a
+  sort says so (`finished`), the studio keeps those pixels, and `studio.result` — Save, Export and the thumbnail — prefers
+  them. Restarting clears them, so a paused replay stores what is on screen. Both of these came out of review, and both have an e2e that fails without them: one counts auto-saves after a
   home stop, the other compares the uploaded `result` part against the `original` part byte for byte.
 - **Scrubbing means the way forward**: a seek resets the direction, so Resume after a drag sorts on from there.
 - **The setting is not remembered** between visits, for the same reason the panel's is not — the studio's own animation

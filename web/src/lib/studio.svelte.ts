@@ -96,6 +96,10 @@ class Studio {
 	sorted = $state<Uint8ClampedArray | null>(null);
 	/** The finished sort, kept because a loop that comes home leaves the canvas on the original again. */
 	finishedSort = $state<Uint8ClampedArray | null>(null);
+	/** The pixels Save and Export mean: the finished sort, not whatever a loop happens to be showing. */
+	get result(): Uint8ClampedArray | null {
+		return resultPixels(this.sorted, this.finishedSort);
+	}
 	run = $state<RunState>('idle');
 	progress = $state(0);
 	pass = $state(0);
@@ -497,6 +501,7 @@ class Studio {
 		this.maxPass = 0;
 		this.scrubbed = false;
 		this.rewinding = false;
+		this.finishedSort = null; // a replay from the start is not the finished sort any more
 		this.run = 'animating';
 		await this.client?.restart();
 	}
@@ -818,7 +823,7 @@ class Studio {
 	}
 
 	private async saveRun(): Promise<void> {
-		const pixels = resultPixels(this.sorted, this.finishedSort);
+		const pixels = this.result;
 		if (!this.size || !this.original || !pixels) return;
 		const key = this.saveKey(); // changes made while this uploads are a new look, not part of this save
 		const { w, h } = this.size;
