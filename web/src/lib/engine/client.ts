@@ -27,7 +27,14 @@ export type CutoutResult =
 	  }
 	| { ok: false; reason: 'too-big' | 'too-small'; message: string };
 
-export type Frame = { rgba: Uint8ClampedArray; progress: number; pass: number; done: boolean; stepMs: number };
+export type Frame = {
+	rgba: Uint8ClampedArray;
+	progress: number;
+	pass: number;
+	done: boolean;
+	stepMs: number;
+	rewinding: boolean;
+};
 export type RunResult = { rgba: Uint8ClampedArray; stats: Stats; timings: Timings };
 
 export type SeekResult = { rgba: Uint8ClampedArray; pass: number; progress: number; done: boolean };
@@ -219,8 +226,8 @@ export class EngineClient {
 	}
 
 	/** Prepares the current recipe and starts streaming frames. A later run() or animate() replaces it. */
-	async animate(speed: Speed): Promise<Stats> {
-		const res = await this.send({ type: 'animate', speed }, []);
+	async animate(speed: Speed, loop: boolean): Promise<Stats> {
+		const res = await this.send({ type: 'animate', speed, loop }, []);
 		if (!res.ok) throw new Error(res.error);
 		if (!res.stats) throw new Error('animate answered without stats');
 		return res.stats;
@@ -233,6 +240,10 @@ export class EngineClient {
 	}
 	async setSpeed(speed: Speed): Promise<void> {
 		await this.expectOk(this.send({ type: 'setSpeed', speed }, []));
+	}
+	/** Loop the sort: a finished sort walks back down to the original instead of stopping. */
+	async setLoop(loop: boolean): Promise<void> {
+		await this.expectOk(this.send({ type: 'setLoop', loop }, []));
 	}
 	async restart(): Promise<void> {
 		await this.expectOk(this.send({ type: 'restart' }, []));
@@ -347,7 +358,8 @@ export class EngineClient {
 			progress: f.progress,
 			pass: f.pass,
 			done: f.done,
-			stepMs: f.stepMs
+			stepMs: f.stepMs,
+			rewinding: f.rewinding
 		};
 		for (const cb of this.frameListeners) cb(frame);
 		this.worker?.postMessage({ id: this.nextId++, type: 'ack' } satisfies Request);

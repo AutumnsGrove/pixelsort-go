@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { adaptAuto, fixedSteps, MAX_STEPS_PER_FRAME } from './animator';
+import { adaptAuto, afterSort, fixedSteps, MAX_STEPS_PER_FRAME, rewindDone, rewindTarget } from './animator';
 
 describe('fixedSteps', () => {
 	test.each([
@@ -38,5 +38,31 @@ describe('adaptAuto', () => {
 		expect(adaptAuto(10, 10000)).toBe(5);
 		expect(adaptAuto(1, 10000)).toBe(1);
 		expect(adaptAuto(300, 0.001)).toBe(300);
+	});
+});
+
+describe('the loop', () => {
+	test('a finished sort stops, unless it is looping', () => {
+		expect(afterSort(false)).toBe('stop');
+		expect(afterSort(true)).toBe('back');
+	});
+
+	test('a rewind frame steps back by the same count as a forward one', () => {
+		expect(rewindTarget(40, 3)).toBe(37);
+		expect(rewindTarget(3, 3)).toBe(0);
+	});
+
+	test('a rewind never goes below the original and always moves', () => {
+		expect(rewindTarget(1, 9)).toBe(0);
+		expect(rewindTarget(0, 9)).toBe(0);
+		expect(rewindTarget(5, 0)).toBe(4); // a stalled pace still turns round rather than standing still
+		expect(rewindTarget(5, -2)).toBe(4);
+		expect(rewindTarget(5, 2.7)).toBe(3);
+	});
+
+	test('the loop turns forward at the original', () => {
+		expect(rewindDone(0)).toBe(true);
+		expect(rewindDone(-1)).toBe(true);
+		expect(rewindDone(1)).toBe(false);
 	});
 });

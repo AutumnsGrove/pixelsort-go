@@ -22,3 +22,20 @@ export function adaptAuto(currentSteps: number, batchMs: number): number {
 	const bounded = Math.min(currentSteps * 2, Math.max(currentSteps / 2, wanted));
 	return Math.min(MAX_STEPS_PER_FRAME, Math.max(1, Math.round(bounded)));
 }
+
+// ---- the loop: what the animation does when the sort reaches the end ----
+
+/** Where the animation goes once the sort reaches its last pass. */
+export function afterSort(loop: boolean): 'stop' | 'back' {
+	return loop ? 'back' : 'stop';
+}
+
+/** The pass a rewind frame lands on: closer to the original by `steps`, and never past it. */
+export function rewindTarget(pass: number, steps: number): number {
+	return Math.max(0, pass - Math.max(1, Math.floor(steps)));
+}
+
+/** Whether a rewind has reached the original, so the loop turns forward again. */
+export function rewindDone(pass: number): boolean {
+	return pass <= 0;
+}
