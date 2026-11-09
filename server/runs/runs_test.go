@@ -718,3 +718,58 @@ func TestDeleteTrashedFreesTheAnimation(t *testing.T) {
 		t.Fatalf("run still readable: %v", err)
 	}
 }
+
+// A second export of the same look keeps the first animation and does not leave the new blob or image row behind.
+func TestDuplicateKeepsTheFirstAnimationAndRemovesTheNewBlob(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 21)
+	rb, rs := img(nil, 22)
+	tb, ts := img(nil, 23)
+	gif1 := []byte("GIF89a\x02\x00\x01\x00\x00\x00\x00;")
+	gif2 := []byte("GIF89a\x01\x00\x02\x00\x00\x00\x00;")
+	sha := func(b []byte) string {
+		s := sha256.Sum256(b)
+		return hex.EncodeToString(s[:])
+	}
+	meta := func(gif []byte) runs.Meta {
+		return runs.Meta{
+			Settings: []byte(`{"mode":"random"}`), Seed: 12, EngineVersion: "1",
+			Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+			Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+			Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+			Video:    &runs.ImageMeta{SHA256: sha(gif), W: 2, H: 1},
+		}
+	}
+	parts := func(gif []byte) runs.Parts {
+		return runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb), Video: bytes.NewReader(gif)}
+	}
+	first, _, err := e.svc.Create(context.Background(), meta(gif1), parts(gif1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, created, err := e.svc.Create(context.Background(), meta(gif2), parts(gif2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created || second.ID != first.ID {
+		t.Fatalf("second create: created %v id %d, want existing %d", created, second.ID, first.ID)
+	}
+	if second.Video == nil || second.Video.SHA256 != sha(gif1) {
+		t.Fatalf("second video = %+v, want the first animation", second.Video)
+	}
+	if n := blobFiles(t, e.root); n != 4 {
+		t.Fatalf("%d files, want the four the first run owns", n)
+	}
+	for _, tc := range []struct {
+		sha  string
+		want int
+	}{{sha(gif1), 1}, {sha(gif2), 0}} {
+		var n int
+		if err := e.svc.DB.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM images WHERE sha256 = ?", tc.sha).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n != tc.want {
+			t.Fatalf("images rows for %s: %d, want %d", tc.sha[:8], n, tc.want)
+		}
+	}
+}

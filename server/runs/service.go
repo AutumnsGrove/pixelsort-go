@@ -136,20 +136,32 @@ func (s *Service) Create(ctx context.Context, m Meta, p Parts) (run Run, created
 		return Run{}, false, err
 	} else if found {
 		if m.Video != nil {
-			// The look is already stored; exporting an animation of it attaches the animation instead of making a twin.
-			vid, err := ensureImage(ctx, tx, "video", *m.Video, blobs, now)
-			if err != nil {
-				return Run{}, false, err
+			// The look is already stored; attach an animation only if it has none. A second export of the same look keeps
+			// the first animation rather than replacing it.
+			var videoID sql.NullInt64
+			if err := tx.QueryRowContext(ctx, "SELECT video_id FROM runs WHERE id = ?", id).Scan(&videoID); err != nil {
+				return Run{}, false, fmt.Errorf("runs: read existing video: %w", err)
 			}
-			if _, err := tx.ExecContext(ctx, "UPDATE runs SET video_id = ? WHERE id = ? AND video_id IS NULL", vid, id); err != nil {
-				return Run{}, false, fmt.Errorf("runs: attach video: %w", err)
+			if !videoID.Valid {
+				vid, err := ensureImage(ctx, tx, "video", *m.Video, blobs, now)
+				if err != nil {
+					return Run{}, false, err
+				}
+				if _, err := tx.ExecContext(ctx, "UPDATE runs SET video_id = ? WHERE id = ?", vid, id); err != nil {
+					return Run{}, false, fmt.Errorf("runs: attach video: %w", err)
+				}
 			}
 		}
 		if err := tx.Commit(); err != nil {
 			return Run{}, false, fmt.Errorf("runs: commit: %w", err)
 		}
 		existing, gerr := s.Get(ctx, id)
-		fresh = nil // the blobs were already known; nothing of ours to remove
+		// Anything this request uploaded but did not end up referencing (a second animation, a redundant result) is
+		// removed. deleteIfUnreferenced checks the rows, so the attached animation and already-known images stay.
+		for _, sha := range fresh {
+			_ = s.deleteIfUnreferenced(ctx, sha)
+		}
+		fresh = nil
 		return existing, false, gerr
 	}
 
