@@ -23,8 +23,8 @@ no rotated edges, no transparent corners.*
   frame is guaranteed to equal the instant result.
 - **Regions, not reassembly.** Masks and geometric segmentation are one idea: a map of cells and classes, each
   free to freeze, turn, re-key or re-cut. One pass, one buffer, no seams.
-- **Take the sort with you.** Export the process as a GIF, APNG, MP4 or WebM from the studio, or from the CLI with
-  `render --anim`; exports land in the Archive and share like images, frame-for-frame deterministic.
+- **Take the sort with you.** Export the process as a GIF, APNG, MP4 or WebM from the studio, or as GIF/APNG (plus a PNG sequence for ffmpeg)
+  from the CLI with `render --anim`; exports land in the Archive and share like images, frame-for-frame deterministic.
 - **Everything runs on your device.** The server serves files and stores results; it never touches pixels.
 
 ## Try it

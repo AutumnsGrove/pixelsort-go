@@ -360,10 +360,18 @@
 					</div>
 				</div>
 
-				<label class="row">
-					<input type="checkbox" checked={settings.loop} onchange={(e) => change({ loop: e.currentTarget.checked })} />
-					Loop forever
-				</label>
+				{#if isVideo}
+					<p class="sub">Videos loop in the Archive and on shared pages; other players follow their own setting.</p>
+				{:else}
+					<label class="row">
+						<input
+							type="checkbox"
+							checked={settings.loop}
+							onchange={(e) => change({ loop: e.currentTarget.checked })}
+						/>
+						Loop forever
+					</label>
+				{/if}
 			</div>
 
 			<p class="sub" data-testid="anim-info">
