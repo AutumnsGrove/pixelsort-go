@@ -17,6 +17,8 @@ export type ApiRun = {
 	original: ApiImage;
 	result: ApiImage;
 	thumb: ApiImage;
+	/** The exported animation (GIF, APNG or video), when one was saved with this run. */
+	video?: ApiImage | null;
 	settings: Record<string, unknown>;
 	seed: number;
 	engine_version: string;
@@ -148,6 +150,8 @@ export class ServerBackend {
 		original: Blob;
 		result: Blob;
 		thumb: Blob;
+		/** The animation to attach, when exporting one, with its own (possibly scaled) size. */
+		video?: { blob: Blob; w: number; h: number } | null;
 		w: number;
 		h: number;
 		title?: string | null;
@@ -155,7 +159,12 @@ export class ServerBackend {
 		parentRunId?: number | null;
 	}): Promise<ApiRun> {
 		const hash = async (b: Blob) => sha256Hex(await b.arrayBuffer());
-		const [os, rs, ts] = await Promise.all([hash(r.original), hash(r.result), hash(r.thumb)]);
+		const [os, rs, ts, vs] = await Promise.all([
+			hash(r.original),
+			hash(r.result),
+			hash(r.thumb),
+			r.video ? hash(r.video.blob) : Promise.resolve('')
+		]);
 		const { exists } = await this.post<{ exists: boolean }>('/api/images/check', { sha256: os });
 		const meta = {
 			settings: r.settings,
@@ -166,13 +175,15 @@ export class ServerBackend {
 			parent_run_id: r.parentRunId ?? null,
 			original: { sha256: os, mime: r.original.type, w: r.w, h: r.h },
 			result: { sha256: rs, mime: r.result.type, w: r.w, h: r.h },
-			thumb: { sha256: ts, mime: r.thumb.type, w: 0, h: 0 }
+			thumb: { sha256: ts, mime: r.thumb.type, w: 0, h: 0 },
+			video: r.video ? { sha256: vs, mime: r.video.blob.type, w: r.video.w, h: r.video.h } : null
 		};
 		const form = new FormData();
 		form.set('meta', JSON.stringify(meta));
 		if (!exists) form.set('original', r.original, 'original');
 		form.set('result', r.result, 'result');
 		form.set('thumb', r.thumb, 'thumb');
+		if (r.video) form.set('video', r.video.blob, 'video');
 		return this.json('/api/runs', { method: 'POST', body: form });
 	}
 }

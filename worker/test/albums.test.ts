@@ -66,6 +66,16 @@ test('wrong content type is 415', async () => {
 	expect((await call('PUT', `/api/albums/${ID}/images/0`, png, { type: 'text/html' })).status).toBe(415);
 });
 
+test('animations and video are accepted types', async () => {
+	for (const type of ['image/gif', 'image/apng', 'video/mp4', 'video/webm']) {
+		expect((await call('PUT', `/api/albums/${ID}/images/0`, png, { type })).status).toBe(200);
+	}
+	const withVideo = JSON.stringify({ v: 1, created: 1, expires: null, images: [{ w: 4, h: 3, mime: 'video/mp4' }] });
+	expect((await call('PUT', `/api/albums/${ID}/manifest.json`, withVideo)).status).toBe(200);
+	const withAvif = JSON.stringify({ v: 1, created: 1, expires: null, images: [{ w: 4, h: 3, mime: 'image/avif' }] });
+	expect((await call('PUT', `/api/albums/${ID}/manifest.json`, withAvif)).status).toBe(400);
+});
+
 test('31 MB is 413 and is not stored', async () => {
 	const big = new Uint8Array(31 * 1024 * 1024);
 	expect((await call('PUT', `/api/albums/${ID}/images/5`, big, { type: 'image/png' })).status).toBe(413);

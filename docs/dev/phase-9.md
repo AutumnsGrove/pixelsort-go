@@ -25,7 +25,7 @@ on the instant result.
 ### P9-T02 · Video recording of the animation
 
 **Goal.** Save the animation as a video in the gallery.
-**Superseded by [`animation-export.md`](animation-export.md)** (offline frame-by-frame render; GIF, MP4/WebM and APNG; CLI support). The spec below is kept for history.
+**Superseded by [`animation-export.md`](animation-export.md)**, which is now built (offline frame-by-frame render; GIF, MP4/WebM and APNG; CLI support). The spec below is kept for history.
 **Spec.** `canvas.captureStream()` plus `MediaRecorder` to WebM while animating; stored as `kind = 'video'` (the schema and `video_id`
 already exist); the Archive viewer plays it; the share album can include it (opt-in, size-capped).
 **Acceptance.** A recorded animation plays back in the viewer; the video is deleted when its run is permanently deleted (blob GC);

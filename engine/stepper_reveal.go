@@ -22,8 +22,9 @@ func (f *reveal) step(s *Stepper) {
 	}
 }
 
-func (f *reveal) done() bool        { return f.cursor >= len(f.idx) }
-func (f *reveal) weight() int       { return len(f.idx) }
+func (f *reveal) done() bool  { return f.cursor >= len(f.idx) }
+func (f *reveal) weight() int { return len(f.idx) }
+
 func (f *reveal) progress() float64 { return float64(f.cursor) / float64(len(f.idx)) }
 
 // clone copies the cursor; the order buffer is scratch, so the copy gets its own.

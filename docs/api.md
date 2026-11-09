@@ -16,7 +16,7 @@ A **run** looks like:
 ```json
 { "id": 12, "created_at": 1700000000,
   "original": {"sha256": "…", "mime": "image/png", "w": 4032, "h": 2520, "bytes": 123},
-  "result":   {…}, "thumb": {…},
+  "result":   {…}, "thumb": {…}, "video": null,
   "settings": {"mode": "random", "angle": 45}, "seed": 7, "engine_version": "1", "duration_ms": 123,
   "parent_run_id": null, "source_url": null, "starred": false, "title": null, "notes": null, "trashed_at": null, "tags": [] }
 ```
@@ -68,8 +68,9 @@ controls when they are off.
 
 ### `POST /api/shares`
 JSON `{"run_ids":[1,2],"include_recipe":false,"include_original":false,"expires_in_days":30|null,"title":"…"}`, or
-`multipart/form-data` with the same JSON in a `meta` field plus one `orig-<run_id>` file per run. Uploads the results
-(and thumbnails) to the Worker, then the manifest last, and records the share. Returns `201`
+`multipart/form-data` with the same JSON in a `meta` field plus one `orig-<run_id>` file per run. Uploads each run's
+animation when it has one (otherwise its result) and its thumbnail to the Worker, then the manifest last, and records
+the share. A shared animation is capped at 25 MB (`400 bad_request` above that); GIF, APNG, MP4 and WebM are allowed. Returns `201`
 `{"id":"…26 chars…","url":"https://…/a/<id>","expires_at":null}`. `include_original` needs a browser re-encoded,
 metadata-stripped original for every run (`400 originals_required` without them): a stored original is never sent as is.
 If any upload fails the partial album is removed and nothing is recorded (`502 upstream_failed`).
@@ -108,11 +109,13 @@ A request that cannot run gets a plain error envelope instead of a stream: `400`
 Create a run. `multipart/form-data`: a `meta` field (JSON) first, then the files `original` (omit it when the server
 already has that image: ask `POST /api/images/check`), `result` and `thumb`. `meta`:
 `{"settings":{…},"seed":7,"engine_version":"1","duration_ms":123,"parent_run_id":null,"source_url":null,"title":null,
-"original":{"sha256":"…","mime":"image/png","w":1,"h":1},"result":{…},"thumb":{…}}`. Hashes are lowercase SHA-256 hex and
+"original":{"sha256":"…","mime":"image/png","w":1,"h":1},"result":{…},"thumb":{…},"video":null}`. `video` is optional:
+`{"sha256":"…","mime":"image/gif","w":1,"h":1}` plus a `video` file declares an animation (GIF, APNG, MP4 or WebM). Hashes are lowercase SHA-256 hex and
 are verified against the bytes. `settings` is a free-form JSON object (the sort params, plus `regions` and `mask` when the look
 has cells or protected areas); the whole `meta` may be up to 1 MiB. `parent_run_id` names the run this one was branched from. Returns `201` with the run, or `200` with the existing run when the same original, settings,
-seed and engine version were already saved (auto-save is idempotent). Errors: `400 bad_request` (bad meta, unknown original,
-bad parent), `400 hash_mismatch`, `400 bad_type` (only PNG, JPEG, WebP and GIF are accepted), `413 too_large`.
+seed and engine version were already saved (auto-save is idempotent). A duplicate with a `video` attaches the animation to
+that run when it has none. Errors: `400 bad_request` (bad meta, unknown original, bad parent), `400 hash_mismatch`,
+`400 bad_type` (only PNG, JPEG, WebP, GIF, APNG, MP4 and WebM are accepted), `413 too_large`.
 `curl -F 'meta={…}' -F original=@a.png -F result=@b.png -F thumb=@t.png localhost:8895/api/runs`
 
 ### `GET /api/runs`

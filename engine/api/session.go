@@ -331,6 +331,16 @@ func (s *Session) Reset() error {
 	return nil
 }
 
+// MaxPasses is an upper bound on the passes a stepped sort of the prepared plan needs: stepping that many times always
+// finishes, and the last pixels equal the instant result. An animation asks for it before the first pass so frames can
+// be spread over the whole sort. It needs Prepare.
+func (s *Session) MaxPasses() (int, error) {
+	if s.plan == nil {
+		return 0, fmt.Errorf("api: max passes before prepare: %w", ErrState)
+	}
+	return s.plan.MaxPasses(), nil
+}
+
 // MaxStepsPerCall bounds Step's n so one call cannot monopolise the worker for long.
 const MaxStepsPerCall = 10000
 

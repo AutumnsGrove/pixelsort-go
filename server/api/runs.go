@@ -62,7 +62,7 @@ func (a *API) createRun(w http.ResponseWriter, r *http.Request) {
 	for _, x := range []struct {
 		name string
 		dst  *io.Reader
-	}{{"original", &parts.Original}, {"result", &parts.Result}, {"thumb", &parts.Thumb}} {
+	}{{"original", &parts.Original}, {"result", &parts.Result}, {"thumb", &parts.Thumb}, {"video", &parts.Video}} {
 		rd, closeFn, err := open(x.name)
 		if err != nil {
 			fail(w, err)

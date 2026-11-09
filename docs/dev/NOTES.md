@@ -2,6 +2,183 @@
 
 The build agent writes here; the reviewer reads here first. Newest entries at the top of each section.
 
+## 2026-11-08 · issue #16 · review fixes (PR #21)
+
+Branch `build/animation-export`.
+
+- **A duplicate save replaces the animation and leaves nothing behind.** `Create` updates `video_id` to the newest
+  export, deletes the replaced image row once no run points at it, removes its blob after commit, and also removes any
+  blob the request uploaded but did not reference. The test counts files and `images` rows for both GIFs.
+- **The panel draws its first frame on open.** The stage mounts as soon as the session exists, so the canvas is there,
+  but the loading marker (and the e2e's wait) stays until `show(0)` has drawn a frame. The first-frame pixel check is
+  therefore not racing the worker seek.
+- **A pending animation belongs to the look it was exported from.** `Studio.attachAnimation` records the save key and
+  size; `pendingFor` lets a save attach it only when the key still matches. An e2e exports, fails the save, changes the
+  angle, saves again and asserts no `video` part went up.
+- **The GIF palette samples real passes.** The export loop passed frame indexes where `prepare` expected pass numbers.
+- **Shared animations report their own size.** The manifest uses `run.Video.W/H` when known, falling back to the still
+  for older runs; the integration helper now uploads a 2x3 animation and the test checks it reaches the manifest.
+
+## 2026-11-08 · issue #16 · animation polish
+
+Branch `build/animation-export`.
+
+- **A regression the e2e caught:** the Animated badge's `position: relative` on the Archive card's open button painted the
+  button above the star/share/bin overlay, so Share opened the viewer. The badge now positions against the card and the
+  share suite is green again.
+- **Export is refused, not just warned, over the whole device budget.** The browser encoders keep the finished file in
+  memory, so an oversized estimate used to be an out-of-memory crash. `memoryRefusal` disables Export and names the size;
+  `memoryWarning` at half the budget stays a nudge.
+- **Permanent delete now has an explicit animation-GC test** (four blobs before, zero after), alongside the existing
+  trash/re-parent tests.
+- **`animation-export.md` records what was built** and the deviations (pass bound, repeated frames, Mediabunny, ordered
+  web dithering, even video sizes, in-memory encoders), with the acceptance list pointing at the tests.
+
+## 2026-11-08 · issue #16 · animation export, phase 4 (MP4/WebM)
+
+Branch `build/animation-export`.
+
+- **Mediabunny 1.65.2 replaces the plan's `mp4-muxer`/`webm-muxer`.** Both of those are deprecated upstream (the author
+  points at Mediabunny), so adopting them would have added dead dependencies. Mediabunny is MPL-2.0 and tree-shakes to a
+  **224 KB** lazy chunk; it is imported only by `anim-video.ts`, which the export loop loads on demand. The main bundle is
+  unchanged in practice.
+- **Feature detection does not import Mediabunny.** `anim-video-support.ts` probes `VideoEncoder.isConfigSupported` with
+  raw WebCodecs strings (H.264 level 4.0, VP9 profile 0, VP8), so the panel can ask on open without pulling the muxer.
+  The panel disables MP4/WebM with a title and, when neither works, shows a sentence; GIF/APNG stay available.
+- **Video dimensions are even.** H.264 rejects odd sizes, so video outputs round down to an even width and height
+  (`evenSize`); the support probe uses that same size. MP4 uses `fastStart: 'in-memory'` so it plays before the whole file
+  arrives. WebM prefers VP9 and falls back to VP8; MP4 uses AVC.
+- **Frame timing is the sampler's actual delay**, including the end hold, so a video's last frame stays as long as the GIF/
+  APNG one. There is no audio track.
+- **The Archive and sharing needed no further change**: phase 6 already stores `video/*` blobs and the viewer plays them,
+  and phase 7 already sends them to the Worker with a 25 MB cap.
+- **Tests:** `anim-video.test.ts` (no WebCodecs means both formats off with an explanation), `anim-panel` (even sizes,
+  video estimate smaller than GIF), `export-anim` (clear refusal when a codec is missing), and the e2e panel exports MP4
+  and WebM and checks the `ftyp` / EBML signatures, alongside the existing GIF/APNG/download/save tests.
+
+## 2026-11-08 · issue #16 · animation export, phase 7 (sharing)
+
+Branch `build/animation-export`.
+
+- **A shared run sends its animation instead of its still result.** `share.Service` picks `run.Video` when present, keeps
+  the run's result dimensions for the manifest (the web stores video width/height as 0) and keeps the still thumbnail.
+  Still-only runs are unchanged, including the re-encoded original path.
+- **The 25 MB cap is server-side.** `share.MaxAnimationBytes` refuses a larger animation with `400` and a sentence naming
+  the size; the Worker's own object cap is 30 MB, so the server is the tighter one.
+- **Worker types widened**: `image/gif`, `image/apng`, `video/mp4` and `video/webm` are accepted for album objects and in
+  the manifest. APNG usually arrives as `image/png` (it shares the PNG signature), which already worked.
+- **Public pages render video.** The viewer keeps the `<img>` for stills, GIF and APNG and swaps in a muted looping
+  `<video controls playsinline>` for `video/*`; the CSP gained `media-src 'self'` and the format row says MP4/WEBM. The
+  strip stays thumbnails, and Download still saves the item at its own path.
+- **Tests:** server share integration (the album's image bytes are the GIF, manifest MIME/dimensions, thumbnail present),
+  Worker `albums.test.ts` (the four new types accepted, `image/avif` still refused) and `public.test.ts` (media CSP,
+  video element and MIME in the page). `pdg`/`pnpm check` for the Worker is clean.
+
+## 2026-11-08 · issue #16 · animation export, phase 6 (Archive)
+
+Branch `build/animation-export`.
+
+- **A run carries one optional animation.** The schema already had `runs.video_id` and the `video` image kind; the gap was
+  the plumbing. `runs.Run` gained `Video *ImageInfo` (null for a plain sort), the queries left-join the video image,
+  `Meta.Video`/`Parts.Video` accept it, and `POST /api/runs` reads an optional `video` multipart part. Blob GC and usage
+  already counted `video_id`, so permanent delete needed no change.
+- **Exporting an already-saved look attaches instead of duplicating.** The duplicate check returns the existing run; when
+  the request carries a video and that run has none, the same transaction sets `video_id`. This is what makes "Save, then
+  export an animation" work without a second run.
+- **The panel hands the blob to the next save.** `Studio.pendingAnimation` is set after a successful export; `save()`
+  treats a pending animation as a reason to save even when the look is unchanged, and clears it only after the save
+  succeeds, so a failed upload can be retried.
+- **The viewer plays the animation.** GIF/APNG (which sniff as `image/png`, so the MIME alone cannot tell them apart) and
+  MP4/WebM (video MIME) are both rendered from `video.sha256`; still runs keep `viewer-image`. A second Download button
+  saves the animation. Archive cards show an "Animated" badge.
+- **MP4/WebM are accepted by the store already** (`video/mp4`, `video/webm` in the blob allowlist) even though the web
+  encoder for them is phase 4, so the server needs no further change then.
+- **Tests:** `server/runs` (create with video, duplicate attach, Get), a real-HTTP integration test (upload a run, then the
+  same look with a GIF, expect `200` and the video on the run), `api.test.ts` (the form carries `video` and `meta.video`),
+  and archive/animation-panel e2e (badge, viewer animation, export uploads a `video` part).
+
+## 2026-11-08 · issue #16 · animation export, phase 5 (the panel)
+
+Branch `build/animation-export`.
+
+- **A separate panel, opened from a Film button in the studio toolbar** (and included in the Escape layering). It renders
+  from the studio's current picture and look and never edits them. `Studio.animationSession()` builds a second
+  `EngineClient` with the same image, tiling, mask spec and params, so a live sort on screen is untouched. It is disposed
+  when the panel closes.
+- **The preview walks the export's own `Sequence`.** `anim-panel.ts` is pure (settings, estimate, preview cap, playback
+  arithmetic) with Vitest coverage. The canvas is capped at 520 px on its long edge but keeps the export's shape; the
+  same sampler passes and delays drive play/pause, the scrubber and the 0.25x–4x speeds.
+- **GIF needs the palette before its first frame**, so the encoder samples up to eight frames first and the preview/export
+  then restarts at pass 0. The panel shows progress per frame and cancels at the next frame boundary.
+- **Both exports download and then call `studio.save()`**, matching the still export's rule that an export is deliberate.
+  Archive storage and sharing are the next phases; nothing is uploaded yet.
+- **The engine wasm must be rebuilt for `maxPasses`.** `make wasm` updates the gitignored `web/static/engine.wasm`; the
+  first e2e run failed with `t.maxPasses is not a function` until it was. CI builds it, so this only bit this checkout.
+- **Tests:** `anim-panel.test.ts` (frames, sequence, size, warning, playback, name) and
+  `e2e/animation-panel.spec.ts` (preview draws, GIF download, APNG download, scrub/play/close leaves the studio state
+  alone). The full web suite is 398 unit tests, `pnpm check`, `pnpm lint` and the new e2e spec green.
+
+## 2026-11-08 · issue #16 · animation export, phase 3 (web encoders and loop)
+
+Branch `build/animation-export`.
+
+- **One new dependency: `gifenc` 1.0.3 (MIT, 172 kB unpacked).** It is imported only by `anim-gif.ts`, which the export
+  loop loads with `await import(...)`, so Vite code-splits it out of the main bundle until an export starts. We use its
+  `quantize`, `applyPalette` and container; the palette and pacing stay ours.
+- **GIF dithering is ordered (Bayer 8x8), not Floyd-Steinberg.** gifenc maps colours to the palette itself, so error
+  diffusion would need our own mapper behind its API. The Bayer offset is cheap per pixel and breaks banding; the CLI
+  still uses Floyd-Steinberg. This is a visible difference only in gradients.
+- **APNG is in-repo.** `anim-apng.ts` filters each frame, deflates it with `CompressionStream('deflate')` (the zlib stream
+  IDAT needs) and writes the acTL/fcTL/IDAT/fdAT chunks with CRCs. The frame count is declared in acTL up front.
+- **The export loop is pure orchestration** (`export-anim.ts`): sampler passes in order, `clientFrameSource` seeks and
+  scales, the encoder sees frames one at a time, progress and an `AbortSignal` are honoured. Tests use fake sources and
+  encoders, plus a small GIF/LZW decoder and APNG chunk reader, so they need no browser or engine.
+- **`maxPasses` now calls `prepare()` in the worker.** Asking straight after `configure` is the panel's flow; previously
+  `Session.MaxPasses` needed a prepared plan and the panel would have had to animate first.
+- **Nearest-neighbour scaling** in `anim-frame.ts` replaces the canvas resize for exports. It is deterministic, works in
+  Node tests and keeps the preview and the written file identical.
+
+## 2026-11-08 · issue #16 · animation export, phase 2 (CLI)
+
+Branch `build/animation-export`.
+
+- **`render` now takes `--anim` and `--frames` as well as `--out`.** All three may be given at once. `--anim` picks the
+  encoder from the extension: `.gif`, `.apng`, or `.png` (APNG). Other extensions are refused by name, as are an unknown
+  `--ease`, an out-of-range `--fps`, `--hold` below zero and a `--scale` outside `(0, 1]`. `--out` still writes the
+  instant PNG exactly as before.
+- **Both encoders stream.** `internal/anim` has its own GIF writer (standard library `compress/lzw` plus GIF block
+  framing) and APNG writer (each frame through `image/png`, re-framed as `fcTL`/`fdAT`), so a two second 2 MP export
+  never holds the frame list. `image/gif`'s `EncodeAll` would have needed every paletted frame in memory.
+- **GIF needs two walks.** One global palette means the colours must be known before the first frame. The CLI walks up
+  to eight frames spread across the sequence, samples 25k pixels each, runs median cut, then walks again to encode with
+  Floyd-Steinberg dithering. This doubles the stepping cost of a GIF export; APNG and `--frames` walk once.
+- **`--scale` is nearest-neighbour.** No new image dependency; it is deterministic and cheap, and the plan only asked
+  for the existing `SCALES` values. The browser still uses the canvas for a smoother downscale.
+- **Tests:** `internal/anim` covers median cut (exact colours when they fit, 64/256 slots, empty input), the mapper
+  (exact colours, flat images without dithering, grey dithered across black and white), GIF round-trip through
+  `image/gif`, APNG chunk order/sequence/delays/CRC/first-frame decode, and the CLI end to end (GIF frame count and
+  final sort, APNG last frame equals the instant result, `--frames` names, scaling, errors). A real 400x225 forest
+  sample produced a 3.1 MB GIF and a 9.1 MB APNG at 20 fps for 2 s.
+
+## 2026-11-08 · issue #16 · animation export, phase 1 (sampler)
+
+Branch `build/animation-export`.
+
+- **`Stepper.MaxPasses` is an upper bound, not the exact pass count.** The plan said the total is "known after `Prepare`";
+  it is not. Odd-even only stops after two quiet passes, so the exact end is data-dependent. `Plan.MaxPasses` computes a
+  bound from the interval/algorithm mix instead (odd-even `longest+2`, insertion `longest-1`, merge `ceil(log2 longest)`,
+  reveal its chunk count). A property test checks that stepping that many passes always reaches `Plan.Sort`; a second test
+  keeps the bound within `longest/5` of the real count. The bound is free (no stepper allocation), which matters at 2 MP.
+- **Frames repeat when there are more frames than passes.** The plan asked for strictly increasing passes, which is
+  impossible for a five second export of a ten-pass merge sort. `Sample` therefore returns a non-decreasing list: strictly
+  increasing whenever `frames <= passes+1`, and repeating passes evenly otherwise. When repeats are needed the easing falls
+  back to linear so they do not pile up at the end. The sampler tests state both branches.
+- **Integer-only sampling.** Time-to-pass uses integer arithmetic (linear rounding and the quadratic ease-out
+  `total*i*(2*den-i)/den^2`) rather than floats, so the Go CLI and the TypeScript studio cannot disagree at a boundary.
+  A shared vector table in `internal/anim/sampler_test.go` and `web/src/lib/anim-sampler.test.ts` pins the same results.
+- **`Session.MaxPasses` and a `maxPasses` worker request** expose the bound to the studio without changing `engine.Stats`.
+
+
 ## 2026-11-07 · issue #15 follow-up · there was no way out of the brush
 
 On `main` at Autumn's request.

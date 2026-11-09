@@ -62,6 +62,35 @@ test('saveRun uploads the original when it is new', async () => {
 	expect((calls[1]!.init!.body as FormData).has('original')).toBe(true);
 });
 
+test('saveRun attaches an animation and leaves video out when there is none', async () => {
+	const png = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
+	const gif = new Blob([new Uint8Array([71, 73, 70])], { type: 'image/gif' });
+	const send = async (video?: { blob: Blob; w: number; h: number }) => {
+		const { backend, calls } = fake([json({ exists: true }), json({ id: 7 }, 201)]);
+		await backend.saveRun({
+			settings: {},
+			seed: 1,
+			engineVersion: '1',
+			durationMs: 5,
+			original: png,
+			result: png,
+			thumb: png,
+			video,
+			w: 1,
+			h: 1
+		});
+		return calls[1]!.init!.body as FormData;
+	};
+	const withVideo = await send({ blob: gif, w: 320, h: 200 });
+	expect(withVideo.has('video')).toBe(true);
+	const meta = JSON.parse(withVideo.get('meta') as string);
+	expect(meta.video).toMatchObject({ mime: 'image/gif' });
+	expect(meta.video.sha256).toMatch(/^[0-9a-f]{64}$/);
+	const without = await send();
+	expect(without.has('video')).toBe(false);
+	expect(JSON.parse(without.get('meta') as string).video).toBeNull();
+});
+
 test('error responses become ApiError with the server code', async () => {
 	const { backend } = fake([json({ error: { code: 'too_large', message: 'big' } }, 413)]);
 	await expect(backend.usage()).rejects.toMatchObject({ status: 413, code: 'too_large' });

@@ -83,3 +83,10 @@ describe('sanitizeAll', () => {
 		expect(sanitizeAll(null)).toEqual({});
 	});
 });
+
+test('animation extensions are kept, not turned into png', () => {
+	expect(fileName('Ridge', 'anim', 'gif', 7)).toBe('ridge-anim-7.gif');
+	expect(fileName('Ridge', 'anim', 'apng', 7)).toBe('ridge-anim-7.apng');
+	expect(fileName('Ridge', 'anim', 'mp4', 7)).toBe('ridge-anim-7.mp4');
+	expect(fileName('Ridge', 'anim', 'webm', 7)).toBe('ridge-anim-7.webm');
+});

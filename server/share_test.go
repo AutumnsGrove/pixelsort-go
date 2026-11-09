@@ -2,6 +2,8 @@ package server_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -195,6 +197,48 @@ func TestShareCreateUploadsSignedAlbumManifestLast(t *testing.T) {
 	s.expect(res, body, 200)
 	if !strings.Contains(string(body), `"shared":true`) {
 		t.Errorf("run: %s", body)
+	}
+}
+
+// An animated run shares its animation, not the still result, and keeps the still as the thumbnail.
+func TestShareAnimatedRunSendsTheAnimation(t *testing.T) {
+	f := newFakeWorker(t)
+	s := newSite(t, withWorker(f))
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	sum := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(sum[:])
+	res, body := s.uploadLookVideo(1, 2, 3, 7, false, map[string]any{"mode": "random", "angle": 45}, nil, gifBytes, gh)
+	s.expect(res, body, 201)
+	var run struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(body, &run); err != nil || run.ID == 0 {
+		t.Fatalf("%s %v", body, err)
+	}
+
+	res, body = s.do("POST", "/api/shares", map[string]any{"run_ids": []int64{run.ID}})
+	s.expect(res, body, 201)
+	var out shareOut
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatal(err)
+	}
+	base := "/api/albums/" + out.ID
+	if !bytes.Equal(f.objects[base+"/images/0"], gifBytes) {
+		t.Error("the album image is not the animation")
+	}
+	var m struct {
+		Images []struct {
+			W    int    `json:"w"`
+			H    int    `json:"h"`
+			Mime string `json:"mime"`
+		} `json:"images"`
+	}
+	_ = json.Unmarshal(f.objects[base+"/manifest.json"], &m)
+	if len(m.Images) != 1 || m.Images[0].Mime != "image/gif" || m.Images[0].W != 2 || m.Images[0].H != 3 {
+		t.Fatalf("manifest: %s", f.objects[base+"/manifest.json"])
+	}
+	if f.objects[base+"/thumbs/0"] == nil {
+		t.Error("no thumbnail")
 	}
 }
 

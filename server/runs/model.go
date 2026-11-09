@@ -30,11 +30,13 @@ type ImageInfo struct {
 
 // Run is one saved sort.
 type Run struct {
-	ID            int64           `json:"id"`
-	CreatedAt     int64           `json:"created_at"`
-	Original      ImageInfo       `json:"original"`
-	Result        ImageInfo       `json:"result"`
-	Thumb         ImageInfo       `json:"thumb"`
+	ID        int64     `json:"id"`
+	CreatedAt int64     `json:"created_at"`
+	Original  ImageInfo `json:"original"`
+	Result    ImageInfo `json:"result"`
+	Thumb     ImageInfo `json:"thumb"`
+	// Video is the exported animation (GIF, APNG, MP4 or WebM), or nil for a plain sort.
+	Video         *ImageInfo      `json:"video"`
 	Settings      json.RawMessage `json:"settings"`
 	Seed          int64           `json:"seed"`
 	EngineVersion string          `json:"engine_version"`

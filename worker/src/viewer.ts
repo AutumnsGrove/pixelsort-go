@@ -32,7 +32,7 @@ export function safeJson(v: unknown): string {
 }
 
 export function csp(nonce: string): string {
-	return `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+	return `default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 }
 
 export function newNonce(): string {
@@ -51,7 +51,7 @@ a{color:inherit}
 .read{display:flex;gap:18px;color:var(--dim);font-size:11px}
 .page{display:grid;grid-template-columns:1fr 360px;grid-template-rows:1fr auto;min-height:100vh}
 .stage{display:grid;place-items:center;padding:96px 48px 18px;position:relative}
-.stage img{max-width:100%;max-height:calc(100vh - 250px);box-shadow:0 0 0 1px var(--faint),0 40px 120px rgba(255,90,54,.2),0 20px 60px rgba(0,0,0,.7)}
+.stage img,.stage video{max-width:100%;max-height:calc(100vh - 250px);box-shadow:0 0 0 1px var(--faint),0 40px 120px rgba(255,90,54,.2),0 20px 60px rgba(0,0,0,.7)}
 .nav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border:1px solid var(--faint);border-radius:50%;font-size:19px}
 .nav.l{left:10px}.nav.r{right:10px}
 .cap{position:absolute;left:48px;bottom:-6px;font:italic 17px var(--serif);color:var(--dim)}
@@ -102,10 +102,10 @@ var d=JSON.parse(document.getElementById('data').textContent);var id=d.id,imgs=d
 var $=function(s){return document.querySelector(s)};
 function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove('on')},2000)}
 function row(a,b){var r=document.createElement('div'),x=document.createElement('span'),y=document.createElement('span');x.textContent=a;y.textContent=b;r.append(x,y);return r}
-function show(n){i=(n+imgs.length)%imgs.length;var it=imgs[i];var im=$('#img');im.src='/a/'+id+'/'+i;im.alt=it.name||'';
+function show(n){i=(n+imgs.length)%imgs.length;var it=imgs[i];var im=$('#img'),vid=$('#vid');var isVid=it.mime.indexOf('video/')===0;im.style.display=isVid?'none':'block';vid.style.display=isVid?'block':'none';if(isVid){vid.src='/a/'+id+'/'+i;var pr=vid.play();if(pr&&pr.catch)pr.catch(function(){})}else{vid.pause();vid.removeAttribute('src');im.src='/a/'+id+'/'+i;im.alt=it.name||''}
 $('#cap').textContent=(it.name?it.name+' \\u2014 ':'')+(i+1)+' of '+imgs.length;
 document.querySelectorAll('#strip button').forEach(function(b,k){b.classList.toggle('on',k===i)});
-var m=$('#meta');m.replaceChildren();[['image',it.name||'#'+(i+1)],['size',it.w+' \\u00d7 '+it.h],['format',it.mime.replace('image/','').toUpperCase()]].forEach(function(x){var a=document.createElement('span'),b=document.createElement('span');a.textContent=x[0];b.textContent=x[1];m.append(a,b)});
+var m=$('#meta');m.replaceChildren();[['image',it.name||'#'+(i+1)],['size',it.w+' \\u00d7 '+it.h],['format',it.mime.split('/')[1].toUpperCase()]].forEach(function(x){var a=document.createElement('span'),b=document.createElement('span');a.textContent=x[0];b.textContent=x[1];m.append(a,b)});
 var box=$('#recipeBox');if(box){var rows=$('#recipe');rows.replaceChildren();var r=it.recipe;if(r){Object.keys(r).forEach(function(k){var v=r[k];rows.append(row(k,typeof v==='object'?JSON.stringify(v):String(v)))});box.style.display='block'}else box.style.display='none'}}
 $('#prev').onclick=function(){show(i-1)};$('#next').onclick=function(){show(i+1)};
 $('#strip').addEventListener('click',function(e){var b=e.target.closest('button');if(b)show(+b.dataset.k)});
@@ -125,7 +125,7 @@ export function viewerPage(id: string, m: Manifest, nonce: string, nowS: number)
 		.join('');
 	const exp = daysLeft(m.expires, nowS);
 	const body = `<header class="top"><a class="word" href="/" aria-label="pixelsort-go">pixelsort<i>GO</i></a><div class="read"><span>shared album</span><span><b>${m.images.length}</b> image${m.images.length === 1 ? '' : 's'}</span>${exp ? `<span>${exp}</span>` : ''}</div></header>
-<div class="page"><section class="stage"><button class="nav l" id="prev" aria-label="Previous">←</button><img id="img" alt=""><button class="nav r" id="next" aria-label="Next">→</button><div class="cap" id="cap"></div></section>
+<div class="page"><section class="stage"><button class="nav l" id="prev" aria-label="Previous">←</button><img id="img" alt=""><video id="vid" controls loop muted playsinline style="display:none"></video><button class="nav r" id="next" aria-label="Next">→</button><div class="cap" id="cap"></div></section>
 <div class="strip" id="strip">${strip}</div>
 <aside class="side"><div><div class="eyebrow">A gallery from pixelsort-go</div><h1>${escapeHtml(title)}</h1></div>
 <div class="meta" id="meta"></div>

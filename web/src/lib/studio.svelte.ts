@@ -24,6 +24,7 @@ import { LocalStorageBackend } from './storage';
 import { ShapeLibrary, nextShapeName, type SavedShape } from './shape-library';
 import type { Ring } from './shape-tidy';
 import { cardsToClassDefs, defaultCards, kindCounts, newCard, type RegionCard } from './region-cards';
+import { pendingFor, type PendingAnimation } from './animation-save';
 
 /** One card per possible kind (the "random" pattern can make eight); the first three start with a little personality. */
 function startingCards(): Record<number, RegionCard> {
@@ -173,6 +174,8 @@ class Studio {
 	/** Why the last save failed, for the error catalog ('disk', 'timeout', or unsaid). */
 	saveReason = $state<'disk' | 'timeout' | undefined>(undefined);
 	private saving = $state(false);
+	/** An animation exported from the panel, tied to the look it was exported from. */
+	pendingAnimation: PendingAnimation | null = null;
 	/** The look that was last stored, so Save knows whether pressing it again would change anything. */
 	private lastSavedKey = $state<string | null>(null);
 	/** Fingerprint of the original pixels: two pictures with the same corners are not the same picture. */
@@ -385,6 +388,28 @@ class Studio {
 			if (this.autoSaving()) this.saver.schedule(this.saveKey());
 		} catch (e) {
 			this.fail(e);
+		}
+	}
+
+	/**
+	 * A second engine session set up exactly like the studio's current picture and look, for the animation panel. It
+	 * never touches the live session, so opening the panel cannot disturb a sort on screen. The caller disposes it.
+	 */
+	async animationSession(): Promise<{ client: EngineClient; maxPasses: number; w: number; h: number } | null> {
+		if (!this.size || !this.original) return null;
+		const { w, h } = this.size;
+		const client = new EngineClient();
+		try {
+			await client.init(w, h);
+			await client.setImage(this.original);
+			if (this.tiling) await client.setTiling({ ...this.tiling }, this.engineDefs());
+			if (this.hasMask()) await client.setMaskSpec(this.maskSpec());
+			await client.configure(this.params);
+			const maxPasses = await client.maxPasses();
+			return { client, maxPasses, w, h };
+		} catch (e) {
+			client.dispose();
+			throw e;
 		}
 	}
 
@@ -739,6 +764,11 @@ class Studio {
 		return autoSaveAllowed({ autoSave: settings.autoSave, isSample: this.isSample });
 	}
 
+	/** Queues an exported animation for the next save of this exact look. */
+	attachAnimation(blob: Blob, w: number, h: number): void {
+		this.pendingAnimation = { blob, key: this.saveKey(), w, h };
+	}
+
 	/**
 	 * Stores the current look once, now (the Save button, and Export). 'unchanged' means this exact look is already in the
 	 * Archive, so nothing is sent. With `report`, a failure opens the "couldn't save" dialog; without it (Export) the
@@ -746,7 +776,7 @@ class Studio {
 	 */
 	async save(report = false): Promise<'saved' | 'unchanged' | 'failed' | 'busy'> {
 		if (!this.size || !this.original || !this.sorted || this.saving) return 'busy';
-		if (this.saveKey() === this.lastSavedKey) return 'unchanged';
+		if (this.saveKey() === this.lastSavedKey && !pendingFor(this.pendingAnimation, this.saveKey())) return 'unchanged';
 		this.isSample = false;
 		this.saving = true;
 		try {
@@ -794,6 +824,7 @@ class Studio {
 			original,
 			result,
 			thumb,
+			video: pendingFor(this.pendingAnimation, key),
 			w,
 			h,
 			title: this.customName,
@@ -802,6 +833,7 @@ class Studio {
 		// the next save in this session is a child of this one: a line of versions, each pointing at the one before
 		if (typeof saved?.id === 'number') this.parentRunId = saved.id;
 		this.lastSavedKey = key;
+		if (this.pendingAnimation?.key === key) this.pendingAnimation = null;
 		this.saveFailed = false;
 	}
 

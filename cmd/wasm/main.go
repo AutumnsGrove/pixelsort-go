@@ -184,6 +184,13 @@ func main() {
 			}
 			return result(map[string]any{"done": done, "progress": s.Progress(), "pass": s.Pass()}), nil
 		},
+		"maxPasses": func([]js.Value) (any, error) {
+			n, err := s.MaxPasses()
+			if err != nil {
+				return nil, err
+			}
+			return result(map[string]any{"passes": n}), nil
+		},
 		"instant": func([]js.Value) (any, error) { return okOr(s.FinishInstant()) },
 		"pixelsPtr": func([]js.Value) (any, error) {
 			px := s.Pixels()

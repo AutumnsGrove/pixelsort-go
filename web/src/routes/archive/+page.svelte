@@ -77,7 +77,8 @@
 			p: r.settings as RunItem['p'],
 			age: ageInDays(r.created_at, now),
 			starred: r.starred,
-			bytes: r.result.bytes
+			bytes: r.result.bytes,
+			animated: !!r.video
 		}))
 	);
 	const shown = $derived(filter(items, { q, starred: tab === 'starred' }));
@@ -488,6 +489,7 @@
 						data-testid="run-open"
 					>
 						<img src={thumb(it.id)} alt="" loading="lazy" draggable="false" />
+						{#if it.animated}<span class="animated" data-testid="run-animated">Animated</span>{/if}
 					</button>
 					<figcaption>
 						<b><RunName name={it.name} onsave={(t) => void rename(it.id, t)} /></b><small>{agoText(it.age)}</small>
@@ -733,6 +735,19 @@
 		width: 100%;
 		padding: 0;
 		cursor: pointer;
+	}
+	.animated {
+		position: absolute;
+		left: 8px;
+		bottom: 8px;
+		padding: 2px 7px;
+		font-family: var(--mono);
+		font-size: 9px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--paper);
+		background: rgba(8, 7, 6, 0.72);
+		border: 1px solid var(--gold);
 	}
 	.card img {
 		display: block;

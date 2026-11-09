@@ -47,10 +47,13 @@ type Meta struct {
 	Original      ImageMeta       `json:"original"`
 	Result        ImageMeta       `json:"result"`
 	Thumb         ImageMeta       `json:"thumb"`
+	// Video is optional: the exported animation to attach to this run.
+	Video *ImageMeta `json:"video"`
 }
 
-// Parts are the uploaded files. Original may be nil when the server already has that image.
-type Parts struct{ Original, Result, Thumb io.Reader }
+// Parts are the uploaded files. Original may be nil when the server already has that image; Video may be nil unless
+// the metadata declares one.
+type Parts struct{ Original, Result, Thumb, Video io.Reader }
 
 func invalid(format string, a ...any) error {
 	return fmt.Errorf("%w: "+format, append([]any{ErrInvalid}, a...)...)
@@ -111,6 +114,16 @@ func (s *Service) Create(ctx context.Context, m Meta, p Parts) (run Run, created
 		}
 		blobs[x.im.SHA256] = b
 	}
+	if m.Video != nil {
+		if p.Video == nil {
+			return Run{}, false, invalid("the video is declared in meta but was not uploaded")
+		}
+		b, err := put(p.Video, *m.Video)
+		if err != nil {
+			return Run{}, false, err
+		}
+		blobs[m.Video.SHA256] = b
+	}
 
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -118,14 +131,47 @@ func (s *Service) Create(ctx context.Context, m Meta, p Parts) (run Run, created
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	now := s.Now().Unix()
 	if id, found, err := findDuplicate(ctx, tx, m); err != nil {
 		return Run{}, false, err
 	} else if found {
+		var oldVideo string
+		if m.Video != nil {
+			// The look is already stored; the newest export replaces its animation. Keep the old hash so the blob it
+			// leaves behind is removed after the update.
+			var videoID sql.NullInt64
+			if err := tx.QueryRowContext(ctx, `SELECT r.video_id, COALESCE(v.sha256,'') FROM runs r
+				LEFT JOIN images v ON v.id = r.video_id WHERE r.id = ?`, id).Scan(&videoID, &oldVideo); err != nil {
+				return Run{}, false, fmt.Errorf("runs: read existing video: %w", err)
+			}
+			vid, err := ensureImage(ctx, tx, "video", *m.Video, blobs, now)
+			if err != nil {
+				return Run{}, false, err
+			}
+			if _, err := tx.ExecContext(ctx, "UPDATE runs SET video_id = ? WHERE id = ?", vid, id); err != nil {
+				return Run{}, false, fmt.Errorf("runs: replace video: %w", err)
+			}
+			if videoID.Valid {
+				// Drop the replaced image row once nothing points at it; the blob goes after the commit.
+				if _, err := tx.ExecContext(ctx, `DELETE FROM images WHERE id = ? AND NOT EXISTS
+					(SELECT 1 FROM runs WHERE original_id = ? OR result_id = ? OR thumb_id = ? OR video_id = ?)`,
+					videoID.Int64, videoID.Int64, videoID.Int64, videoID.Int64, videoID.Int64); err != nil {
+					return Run{}, false, fmt.Errorf("runs: remove old video row: %w", err)
+				}
+			}
+		}
 		if err := tx.Commit(); err != nil {
 			return Run{}, false, fmt.Errorf("runs: commit: %w", err)
 		}
 		existing, gerr := s.Get(ctx, id)
-		fresh = nil // the blobs were already known; nothing of ours to remove
+		// Anything this request uploaded but did not end up referencing (a redundant result) and the animation it
+		// replaced are removed. deleteIfUnreferenced checks the rows, so images still used elsewhere stay.
+		for _, sha := range append(fresh, oldVideo) {
+			if sha != "" {
+				_ = s.deleteIfUnreferenced(ctx, sha)
+			}
+		}
+		fresh = nil
 		return existing, false, gerr
 	}
 
@@ -138,7 +184,6 @@ func (s *Service) Create(ctx context.Context, m Meta, p Parts) (run Run, created
 			return Run{}, false, fmt.Errorf("runs: check parent: %w", err)
 		}
 	}
-	now := s.Now().Unix()
 	ids := map[string]int64{}
 	for _, x := range []struct {
 		kind string
@@ -150,9 +195,17 @@ func (s *Service) Create(ctx context.Context, m Meta, p Parts) (run Run, created
 		}
 		ids[x.kind] = id
 	}
-	res, err := tx.ExecContext(ctx, `INSERT INTO runs(created_at, original_id, result_id, thumb_id, settings_json, seed,
-		engine_version, duration_ms, parent_run_id, source_url, title) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		now, ids["original"], ids["result"], ids["thumb"], string(m.Settings), m.Seed, m.EngineVersion, m.DurationMS,
+	var videoID any
+	if m.Video != nil {
+		id, err := ensureImage(ctx, tx, "video", *m.Video, blobs, now)
+		if err != nil {
+			return Run{}, false, err
+		}
+		videoID = id
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO runs(created_at, original_id, result_id, thumb_id, video_id, settings_json, seed,
+		engine_version, duration_ms, parent_run_id, source_url, title) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		now, ids["original"], ids["result"], ids["thumb"], videoID, string(m.Settings), m.Seed, m.EngineVersion, m.DurationMS,
 		m.ParentRunID, m.SourceURL, m.Title)
 	if err != nil {
 		return Run{}, false, fmt.Errorf("runs: insert: %w", err)
@@ -187,7 +240,11 @@ func validateMeta(m *Meta) error {
 	if m.DurationMS < 0 {
 		return invalid("duration_ms must not be negative")
 	}
-	for name, im := range map[string]ImageMeta{"original": m.Original, "result": m.Result, "thumb": m.Thumb} {
+	metas := map[string]ImageMeta{"original": m.Original, "result": m.Result, "thumb": m.Thumb}
+	if m.Video != nil {
+		metas["video"] = *m.Video
+	}
+	for name, im := range metas {
 		if !blob.ValidSHA(im.SHA256) {
 			return invalid("%s.sha256 is not a 64-character lowercase hex hash", name)
 		}

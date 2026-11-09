@@ -77,7 +77,15 @@ export function slug(s: unknown): string {
 		.replace(/^-+|-+$/g, '');
 }
 
-const EXT: Record<string, string> = { png: 'png', jpeg: 'jpg', webp: 'webp' };
+const EXT: Record<string, string> = {
+	png: 'png',
+	jpeg: 'jpg',
+	webp: 'webp',
+	gif: 'gif',
+	apng: 'apng',
+	mp4: 'mp4',
+	webm: 'webm'
+};
 
 /** name-recipe-tag.ext, with the recipe word dropped when the name already says it. */
 export function fileName(name: unknown, recipe: unknown, format: string, tag: unknown): string {

@@ -1,7 +1,17 @@
 export const MAX_IMAGES = 200;
 export const MAX_MANIFEST_BYTES = 256 * 1024;
 export const MAX_OBJECT_BYTES = 30 * 1024 * 1024;
-export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+// What an album may hold: stills, GIF/APNG animations, and MP4/WebM video. The studio writes the first three itself and
+// the server sends whatever the stored animation is; the worker only checks that the type is one of these.
+export const IMAGE_TYPES = [
+	'image/png',
+	'image/jpeg',
+	'image/webp',
+	'image/gif',
+	'image/apng',
+	'video/mp4',
+	'video/webm'
+] as const;
 
 export const isAlbumId = (s: string): boolean => /^[a-z2-7]{26}$/.test(s);
 

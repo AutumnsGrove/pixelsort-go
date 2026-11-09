@@ -44,9 +44,19 @@
 	);
 	const otherEngine = $derived(run.engine_version && run.engine_version !== ENGINE_VERSION);
 	const ext = $derived(run.result.mime === 'image/jpeg' ? 'jpeg' : run.result.mime === 'image/webp' ? 'webp' : 'png');
+	const animExt = $derived(
+		run.video?.mime === 'image/gif'
+			? 'gif'
+			: run.video?.mime === 'video/mp4'
+				? 'mp4'
+				: run.video?.mime === 'video/webm'
+					? 'webm'
+					: 'apng'
+	);
 	const download = $derived(
 		fileName(name, String(run.settings.mode ?? 'sort'), ext, String(run.seed)) // the same file name Studio's export gives
 	);
+	const animDownload = $derived(fileName(name, 'anim', animExt, String(run.seed)));
 
 	let panel: HTMLDivElement | undefined = $state();
 	onMount(() => {
@@ -99,12 +109,33 @@
 	</header>
 
 	<div class="body">
-		<img
-			class="big"
-			src={api.imageUrl(run.result.sha256)}
-			alt="The sorted picture, {name}"
-			data-testid="viewer-image"
-		/>
+		{#if run.video?.mime?.startsWith('video/')}
+			<video
+				class="big"
+				src={api.imageUrl(run.video.sha256)}
+				aria-label="The animation, {name}"
+				controls
+				loop
+				muted
+				playsinline
+				autoplay
+				data-testid="viewer-video"
+			></video>
+		{:else if run.video}
+			<img
+				class="big"
+				src={api.imageUrl(run.video.sha256)}
+				alt="The animation, {name}"
+				data-testid="viewer-animation"
+			/>
+		{:else}
+			<img
+				class="big"
+				src={api.imageUrl(run.result.sha256)}
+				alt="The sorted picture, {name}"
+				data-testid="viewer-image"
+			/>
+		{/if}
 		<div class="side">
 			<h4 class="eyebrow">Recipe</h4>
 			<dl class="slate" data-testid="viewer-slate">
@@ -146,6 +177,16 @@
 					<a class="btn" href={api.imageUrl(run.result.sha256)} {download} data-testid="viewer-download"
 						><Download size={16} /> Download</a
 					>
+					{#if run.video}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- an API file, not a route -->
+						<a
+							class="btn"
+							href={api.imageUrl(run.video.sha256)}
+							download={animDownload}
+							data-testid="viewer-anim-download"><Download size={16} /> Animation</a
+						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					{/if}
 					{#if canShare}<button class="btn" type="button" onclick={onshare}><Share2 size={16} /> Share</button>{/if}
 					<button class="btn" type="button" onclick={onstar} aria-pressed={run.starred}
 						><Star size={16} /> {run.starred ? 'Unstar' : 'Star'}</button

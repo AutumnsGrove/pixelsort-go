@@ -28,6 +28,7 @@ export type Request =
 	| { id: number; type: 'setSpeed'; speed: Speed }
 	| { id: number; type: 'restart' } // back to the original pixels, keep animating
 	| { id: number; type: 'seek'; pass: number } // pause, jump to the state after `pass` passes, answer with those pixels
+	| { id: number; type: 'maxPasses' } // an upper bound on the passes a stepped sort needs, after prepare
 	| { id: number; type: 'ack' }; // the page drew the last frame; no reply
 
 export type Response =
@@ -41,6 +42,7 @@ export type Response =
 			classOf?: ArrayBuffer; // Uint8Array class per cell id (setTiling)
 			spot?: { cx: number; cy: number; w: number; h: number };
 			counts?: number[];
+			passes?: number; // maxPasses: an upper bound on the passes a stepped sort needs
 			rules?: { rule: number; note: string }[];
 			mask?: ArrayBuffer; // Uint8Array, 1 = can move (sortable); or the preview's 0/1 cells (caPreview)
 			preview?: { w: number; h: number }; // the size of the caPreview mask

@@ -14,9 +14,11 @@ const runColumns = `r.id, r.created_at, r.settings_json, r.seed, r.engine_versio
 	r.starred, r.title, r.notes, r.trashed_at,
 	o.sha256, o.mime, COALESCE(o.width,0), COALESCE(o.height,0), o.bytes,
 	x.sha256, x.mime, COALESCE(x.width,0), COALESCE(x.height,0), x.bytes,
-	t.sha256, t.mime, COALESCE(t.width,0), COALESCE(t.height,0), t.bytes`
+	t.sha256, t.mime, COALESCE(t.width,0), COALESCE(t.height,0), t.bytes,
+	COALESCE(v.sha256,''), COALESCE(v.mime,''), COALESCE(v.width,0), COALESCE(v.height,0), COALESCE(v.bytes,0)`
 
-const runJoins = `FROM runs r JOIN images o ON o.id = r.original_id JOIN images x ON x.id = r.result_id JOIN images t ON t.id = r.thumb_id`
+const runJoins = `FROM runs r JOIN images o ON o.id = r.original_id JOIN images x ON x.id = r.result_id JOIN images t ON t.id = r.thumb_id
+	LEFT JOIN images v ON v.id = r.video_id`
 
 type scanner interface{ Scan(...any) error }
 
@@ -24,15 +26,22 @@ func scanRun(s scanner) (Run, error) {
 	var r Run
 	var settings string
 	var starred int
+	var vsha, vmime string
+	var vw, vh int
+	var vbytes int64
 	err := s.Scan(&r.ID, &r.CreatedAt, &settings, &r.Seed, &r.EngineVersion, &r.DurationMS, &r.ParentRunID, &r.SourceURL,
 		&starred, &r.Title, &r.Notes, &r.TrashedAt,
 		&r.Original.SHA256, &r.Original.Mime, &r.Original.W, &r.Original.H, &r.Original.Bytes,
 		&r.Result.SHA256, &r.Result.Mime, &r.Result.W, &r.Result.H, &r.Result.Bytes,
-		&r.Thumb.SHA256, &r.Thumb.Mime, &r.Thumb.W, &r.Thumb.H, &r.Thumb.Bytes)
+		&r.Thumb.SHA256, &r.Thumb.Mime, &r.Thumb.W, &r.Thumb.H, &r.Thumb.Bytes,
+		&vsha, &vmime, &vw, &vh, &vbytes)
 	if err != nil {
 		return Run{}, err //nolint:wrapcheck // wrapped by the caller with context
 	}
 	r.Settings = json.RawMessage(settings)
+	if vsha != "" {
+		r.Video = &ImageInfo{SHA256: vsha, Mime: vmime, W: vw, H: vh, Bytes: vbytes}
+	}
 	r.Starred = starred != 0
 	r.Tags = []string{}
 	return r, nil

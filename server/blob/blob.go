@@ -32,7 +32,12 @@ type Blob struct {
 	Ext  string
 }
 
-var allowed = map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif"}
+// allowed is what the store will keep. APNG sniffs as image/png (same signature); the entry is here for declared types
+// and for callers that look a stored hash up by MIME. Video arrives in phase 4.
+var allowed = map[string]string{
+	"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif",
+	"image/apng": ".apng", "video/mp4": ".mp4", "video/webm": ".webm",
+}
 
 // Store keeps files under root/images/ab/abcdef...<ext>.
 type Store struct {

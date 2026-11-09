@@ -68,6 +68,13 @@ describe('requests', () => {
 		expect(JSON.parse(last.json)).toMatchObject({ angle: 45, seed: 9, mode: 'random' });
 	});
 
+	test('maxPasses asks the engine for its bound', async () => {
+		const p = client.maxPasses();
+		expect(workers[0]!.sent[0]).toMatchObject({ type: 'maxPasses' });
+		workers[0]!.reply({ id: 1, ok: true, passes: 42 });
+		await expect(p).resolves.toBe(42);
+	});
+
 	test('setImage does not detach the callers array', async () => {
 		const px = new Uint8ClampedArray([1, 2, 3, 255]);
 		const p = client.setImage(px);

@@ -124,8 +124,10 @@ func TestCreateOmitsKnownOriginal(t *testing.T) {
 	if _, _, err := e.tryCreate(spec{orig: 99, res: 6, thumb: 7, omitOriginal: true}); !errors.Is(err, runs.ErrInvalid) {
 		t.Fatalf("unknown original without a part: %v", err)
 	}
-	if blobFiles(t, e.root) != 5 {
-		t.Fatalf("a failed create left files: %d", blobFiles(t, e.root))
+	// The first run owns three blobs. The duplicate's redundant result and thumb are removed, and the failed create
+	// (unknown original, no part) leaves nothing.
+	if got := blobFiles(t, e.root); got != 3 {
+		t.Fatalf("%d files, want the first run's three", got)
 	}
 }
 
@@ -620,4 +622,156 @@ func TestConcurrentTrashAndList(t *testing.T) {
 		}
 	}
 	<-done
+}
+
+// A saved run may carry one animation (GIF or APNG image, or an MP4/WebM video). It is stored as kind 'video' and
+// comes back on Get; a later save of the same look attaches an animation the first run did not have.
+func TestCreateWithVideoAndDuplicateAttach(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 1)
+	rb, rs := img(nil, 2)
+	tb, ts := img(nil, 3)
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	gs := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(gs[:])
+	base := runs.Meta{
+		Settings: []byte(`{"mode":"random"}`), Seed: 4, EngineVersion: "1",
+		Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+		Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+		Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+	}
+	parts := func(video bool) runs.Parts {
+		p := runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb)}
+		if video {
+			p.Video = bytes.NewReader(gifBytes)
+		}
+		return p
+	}
+
+	first, created, err := e.svc.Create(context.Background(), base, parts(false))
+	if err != nil || !created {
+		t.Fatalf("first create: created %v err %v", created, err)
+	}
+	if first.Video != nil {
+		t.Fatal("a run without a video has one")
+	}
+
+	withVideo := base
+	withVideo.Video = &runs.ImageMeta{SHA256: gh, W: 1, H: 1}
+	second, created, err := e.svc.Create(context.Background(), withVideo, parts(true))
+	if err != nil {
+		t.Fatalf("second create: %v", err)
+	}
+	if created {
+		t.Fatal("the same look was stored twice instead of attaching the animation")
+	}
+	if second.ID != first.ID {
+		t.Fatalf("second create made run %d, want the existing %d", second.ID, first.ID)
+	}
+	if second.Video == nil {
+		t.Fatal("the animation was not attached to the existing run")
+	}
+	if second.Video.SHA256 != gh || second.Video.Mime != "image/gif" {
+		t.Fatalf("video = %+v, want the GIF", second.Video)
+	}
+	got, err := e.svc.Get(context.Background(), first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Video == nil || got.Video.SHA256 != gh {
+		t.Fatalf("Get lost the video: %+v", got.Video)
+	}
+}
+
+// Permanently deleting a run frees its animation too, not only the original, result and thumb.
+func TestDeleteTrashedFreesTheAnimation(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 11)
+	rb, rs := img(nil, 12)
+	tb, ts := img(nil, 13)
+	gifBytes := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+	gs := sha256.Sum256(gifBytes)
+	gh := hex.EncodeToString(gs[:])
+	m := runs.Meta{
+		Settings: []byte(`{"mode":"random"}`), Seed: 9, EngineVersion: "1",
+		Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+		Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+		Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+		Video:    &runs.ImageMeta{SHA256: gh, W: 1, H: 1},
+	}
+	p := runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb), Video: bytes.NewReader(gifBytes)}
+	r, _, err := e.svc.Create(context.Background(), m, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := blobFiles(t, e.root); n != 4 {
+		t.Fatalf("%d files, want original, result, thumb and animation", n)
+	}
+	if _, err := e.svc.Trash(context.Background(), []int64{r.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.DeleteTrashed(context.Background(), []int64{r.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if n := blobFiles(t, e.root); n != 0 {
+		t.Fatalf("%d files left after permanent delete", n)
+	}
+	if _, err := e.svc.Get(context.Background(), r.ID); !errors.Is(err, runs.ErrNotFound) {
+		t.Fatalf("run still readable: %v", err)
+	}
+}
+
+// A second export of the same look replaces the animation and removes the old blob and image row.
+func TestDuplicateReplacesTheAnimationAndRemovesTheOldBlob(t *testing.T) {
+	e := newEnv(t)
+	ob, os := img(nil, 21)
+	rb, rs := img(nil, 22)
+	tb, ts := img(nil, 23)
+	gif1 := []byte("GIF89a\x02\x00\x01\x00\x00\x00\x00;")
+	gif2 := []byte("GIF89a\x01\x00\x02\x00\x00\x00\x00;")
+	sha := func(b []byte) string {
+		s := sha256.Sum256(b)
+		return hex.EncodeToString(s[:])
+	}
+	meta := func(gif []byte) runs.Meta {
+		return runs.Meta{
+			Settings: []byte(`{"mode":"random"}`), Seed: 12, EngineVersion: "1",
+			Original: runs.ImageMeta{SHA256: os, W: 4, H: 4},
+			Result:   runs.ImageMeta{SHA256: rs, W: 4, H: 4},
+			Thumb:    runs.ImageMeta{SHA256: ts, W: 4, H: 4},
+			Video:    &runs.ImageMeta{SHA256: sha(gif), W: 2, H: 1},
+		}
+	}
+	parts := func(gif []byte) runs.Parts {
+		return runs.Parts{Original: bytes.NewReader(ob), Result: bytes.NewReader(rb), Thumb: bytes.NewReader(tb), Video: bytes.NewReader(gif)}
+	}
+	first, _, err := e.svc.Create(context.Background(), meta(gif1), parts(gif1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, created, err := e.svc.Create(context.Background(), meta(gif2), parts(gif2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created || second.ID != first.ID {
+		t.Fatalf("second create: created %v id %d, want existing %d", created, second.ID, first.ID)
+	}
+	if second.Video == nil || second.Video.SHA256 != sha(gif2) {
+		t.Fatalf("second video = %+v, want the new animation", second.Video)
+	}
+	if n := blobFiles(t, e.root); n != 4 {
+		t.Fatalf("%d files, want the four the first run owns", n)
+	}
+	for _, tc := range []struct {
+		sha  string
+		want int
+	}{{sha(gif1), 0}, {sha(gif2), 1}} {
+		var n int
+		if err := e.svc.DB.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM images WHERE sha256 = ?", tc.sha).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n != tc.want {
+			t.Fatalf("images rows for %s: %d, want %d", tc.sha[:8], n, tc.want)
+		}
+	}
 }

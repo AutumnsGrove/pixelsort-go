@@ -23,6 +23,8 @@ no rotated edges, no transparent corners.*
   frame is guaranteed to equal the instant result.
 - **Regions, not reassembly.** Masks and geometric segmentation are one idea: a map of cells and classes, each
   free to freeze, turn, re-key or re-cut. One pass, one buffer, no seams.
+- **Take the sort with you.** Export the process as a GIF, APNG, MP4 or WebM from the studio, or as GIF/APNG (plus a PNG sequence for ffmpeg)
+  from the CLI with `render --anim`; exports land in the Archive and share like images, frame-for-frame deterministic.
 - **Everything runs on your device.** The server serves files and stores results; it never touches pixels.
 
 ## Try it
@@ -55,7 +57,8 @@ dropped.
 ## Credits
 
 The technique descends from [satyarth/pixelsort](https://github.com/satyarth/pixelsort) (MIT) and, before it,
-Kim Asendorf's *ASDF Pixel Sort* Processing script. Icons use [Lucide](https://lucide.dev). Mockup type is
+Kim Asendorf's *ASDF Pixel Sort* Processing script. Icons use [Lucide](https://lucide.dev). GIF encoding uses
+[gifenc](https://github.com/mattdesl/gifenc) (MIT); video muxing uses [Mediabunny](https://mediabunny.dev) (MPL-2.0). Mockup type is
 [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif) and
 [DM Mono](https://fonts.google.com/specimen/DM+Mono). Studio's first-run sample is an aerial forest photograph
 from [Unsplash](https://unsplash.com) (<https://images.unsplash.com/photo-1793556119647-46da040a5a4c>), used
