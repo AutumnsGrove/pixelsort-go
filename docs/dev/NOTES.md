@@ -50,6 +50,24 @@ pi-review's: check out the merge commit, install, run, comment.
 - **Needs Autumn:** nothing. Follow-ups worth a decision: pin the model, and decide whether a review that finds
   nothing should comment at all (it does, so a green tick always means something was posted).
 
+## 2026-11-13 · the Meridian observe snippet had the wrong shape
+
+`deploy/meridian/observe.json.snippet` shipped `{"pixelsort-update.path": {"kind": "unit", ...}}`, a map keyed by
+unit name with metadata beside it. Meridian's `observe.json` is not free-form: `hostprobe.parseObserve` decodes
+`{"units": [names]}` with `DisallowUnknownFields` and does so on purpose, so a misspelled key is an error rather than
+a probe that quietly watches nothing. The old snippet therefore produced `observe.json: json: unknown field
+"pixelsort-update.path"` and the update watcher would never have been observed — silently, since the page simply has
+no row for it.
+
+- **Fixed the snippet, not Meridian.** The strict decode is the correct behaviour and the snippet was the thing that
+  was wrong. Rewritten as `{"units": ["pixelsort-update.path"]}`.
+- **`deploy/meridian/test.sh` now checks the shape, not just that the file parses.** A relaxed decode on Meridian's
+  side is what made both forms look acceptable; checking `Object.keys(doc) === ["units"]` and that the array is
+  non-empty strings is what catches it, because valid JSON was never the failing part.
+- **Nothing was applied to Meridian.** The snippet is still applied by hand. Worth knowing before pasting: Meridian
+  also harvests a `unit` from every `targets.json` entry, but ours is a compose target and has none, so
+  `pixelsort-update.path` has to be named here or the watcher is never observed.
+
 ## 2026-11-09 · pattern overlays, from the Book of Shapes
 
 Autumn found bookofshapes.com and asked whether its patterns could drive the sorter. They can, but not by shipping its
