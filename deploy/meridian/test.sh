@@ -6,6 +6,21 @@ fail=0
 for f in "$here"/*.json.snippet; do
   if node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f"; then echo "ok   $(basename "$f") parses"; else echo "FAIL $(basename "$f")"; fail=1; fi
 done
+# observe.json is not free-form: Meridian decodes it strictly as {"units": [names]} with unknown
+# fields refused, so a map keyed by unit name is rejected outright and the probe watches nothing.
+# Check the shape here, because the failure is silent on Meridian's side.
+if node -e '
+const doc = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const keys = Object.keys(doc);
+const units = doc.units;
+const ok = keys.length === 1 && keys[0] === "units" && Array.isArray(units) &&
+  units.length > 0 && units.every((u) => typeof u === "string" && u.length > 0);
+process.exit(ok ? 0 : 1);' "$here/observe.json.snippet"; then
+  echo "ok   observe.json.snippet is {\"units\": [...]}, the shape Meridian decodes"
+else
+  echo "FAIL observe.json.snippet is not {\"units\": [...]} — Meridian refuses unknown fields and would watch nothing"
+  fail=1
+fi
 if python3 -c 'import yaml' 2>/dev/null; then
   if python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))' "$here/config-snippet.yaml"; then echo "ok   config-snippet.yaml parses"; else echo "FAIL config-snippet.yaml"; fail=1; fi
 else
