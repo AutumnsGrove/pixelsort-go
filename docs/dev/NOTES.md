@@ -39,7 +39,8 @@ pi-review's: check out the merge commit, install, run, comment.
   the app token, its server refuses unless the workflow file is identical to the one on the default branch; on a
   pull request that adds or edits that file, the run is skipped with a warning and the step still goes green. So
   the review on this branch was exercised with `github_token` while the prompt was being tuned, then switched
-  back to the app token before merge. A review that skips is the thing to look for on the next pull request.
+  back to the app token before merge. A green `review` tick with no new comment is that skip: `AGENTS.md` names
+  it as the row to read, because a pull request that edits this workflow would otherwise look reviewed.
 - **Verified:** the review workflow ran end to end on this branch twice, through checkout, install, review, an
   inline comment and a summary comment (10 turns, about $0.15 on the default `claude-sonnet-5-5`). It caught the
   two real problems in the draft: the workflow token was still in the file, and `/claude-review` could check out
