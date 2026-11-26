@@ -1,5 +1,55 @@
 # Build notes
 
+## 2026-11-26 · claude-review replaces pi-review, with the whole toolchain
+
+pi-review is switched off for now and Claude reviews pull requests instead. The stock workflow this branch
+started from installed Anthropic's `code-review` plugin, whose tools were `gh` and inline comments only and
+whose rules were hard-wired; it could not run `make check`, could not read `AGENTS.md`, and could not read
+this repository's own review notes. It is gone. What runs now is a prompt-driven agent with the same shape as
+pi-review's: check out the merge commit, install, run, comment.
+
+- **Full toolchain, not a read-only guest.** The job installs Go, `golangci-lint` v2, Node 22, Corepack and the
+  `web/` and `worker/` dependencies, so `make check`, `make test`, `make wasm-test` and the web tests all work.
+  Playwright browsers and Docker are deliberately not installed: they cost more than a review is worth, and
+  `make e2e` failing on a missing browser is the environment rather than a finding. `.github/REVIEW.md` says so
+  and tells the reviewer to check `CLAUDE_REVIEW_DEPS` before claiming a run happened.
+- **The reviewer can edit nothing.** Its allow-list is `Read`, `Grep`, `Glob`, `TodoWrite`, full `Bash` and the
+  GitHub inline-comment tool; `Write`, `Edit` and `NotebookEdit` are denied outright, as are `git push`,
+  `gh pr merge`, `gh pr review`, `gh release` and `gh workflow run`. A reviewer that can fix the code stops
+  being a reviewer. Revert probes go in `git worktree add /tmp/… HEAD`, which is why the job gives those
+  commits a scratch identity.
+- **Its instructions come from the base branch.** `AGENTS.md` and `.github/REVIEW.md` are re-fetched from the
+  base commit on every run, not just for outside contributors (the action only does that automatically for
+  authors without write access). That leaves the two files modified in the tree; the prompt says so, so the
+  dirty tree is not reported as a finding. A worktree at `HEAD` brings the pull-request copies back, and
+  `REVIEW.md` says to restore them there too.
+- **Two workflows, two jobs.** `claude-review.yml` runs automatically on `opened`, `synchronize`,
+  `ready_for_review` and `reopened`, and on a maintainer's `/claude-review` comment. `@claude` stays with the
+  interactive workflow, which can edit, run and push, so the two never fire on the same comment. The review
+  workflow keeps `cancel-in-progress`, so a push supersedes the run in flight. The comment path also refuses a
+  pull request whose head is another repository, before anything is checked out, the way pi-review did: the
+  action itself skips forks, but checking one out first was still the workflow's own risk.
+- **Model left at the action's default.** The old review used a pinned model for cost; nothing here does.
+  `--model` in `claude-review.yml`'s `claude_args` is the one line to change if the default is too weak or too
+  expensive.
+- **pi-review is disabled, not dismantled.** Its workflow and settings files are gone; the history has both, so
+  bringing it back is a revert. The `pi-review` GitHub App and its `PI_REVIEW_*` secrets stay: this is a switch
+  for now, not a retirement. Nothing else referenced it. `AGENTS.md`'s review section now describes
+  `claude-review` and its `review` check.
+- **The first real run happens after merge.** When `claude-code-action` exchanges the workflow's OIDC token for
+  the app token, its server refuses unless the workflow file is identical to the one on the default branch; on a
+  pull request that adds or edits that file, the run is skipped with a warning and the step still goes green. So
+  the review on this branch was exercised with `github_token` while the prompt was being tuned, then switched
+  back to the app token before merge. A green `review` tick with no new comment is that skip: `AGENTS.md` names
+  it as the row to read, because a pull request that edits this workflow would otherwise look reviewed.
+- **Verified:** the review workflow ran end to end on this branch twice, through checkout, install, review, an
+  inline comment and a summary comment (10 turns, about $0.15 on the default `claude-sonnet-5-5`). It caught the
+  two real problems in the draft: the workflow token was still in the file, and `/claude-review` could check out
+  a fork. `actionlint` is named in `REVIEW.md` for a workflow change but is not installed in the job; the
+  reviewer is expected to `go run` it.
+- **Needs Autumn:** nothing. Follow-ups worth a decision: pin the model, and decide whether a review that finds
+  nothing should comment at all (it does, so a green tick always means something was posted).
+
 ## 2026-11-09 · pattern overlays, from the Book of Shapes
 
 Autumn found bookofshapes.com and asked whether its patterns could drive the sorter. They can, but not by shipping its
