@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/AutumnsGrove/pixelsort-go/engine"
+	"github.com/AutumnsGrove/pixelsort-go/engine/patterns"
 	"github.com/AutumnsGrove/pixelsort-go/engine/shapes"
 	"github.com/AutumnsGrove/pixelsort-go/internal/testutil"
 	"pgregory.net/rapid"
@@ -34,6 +35,10 @@ func TestGoldenLabelMaps(t *testing.T) {
 		"triangle-61": tile(shapes.Triangle, 150, 0, 61),
 		"voronoi-1":   tile(shapes.Voronoi, 120, 10, 0),
 		"custom-20":   custom,
+		// A pattern shape is drawn by engine/patterns and labelled here, so these pin the whole chain (E13).
+		"pattern-truchet-arc-0":     patternTiling("truchet", "arc", 90, 8),
+		"pattern-radial-spiral-37":  func() shapes.Tiling { tl := patternTiling("radial", "spiral", 70, 6); tl.Rotate = 37; return tl }(),
+		"pattern-interference-mesh": patternTiling("interference", "mesh", 120, 10),
 	}
 	names := make([]string, 0, len(cases))
 	for n := range cases {
@@ -80,9 +85,20 @@ func TestProp_RegionsThroughThePlanner(t *testing.T) {
 		w := rapid.IntRange(8, 70).Draw(t, "w")
 		h := rapid.IntRange(8, 70).Draw(t, "h")
 		tl := shapes.Tiling{
-			Shape: rapid.SampledFrom(allShapes).Draw(t, "shape"), Size: rapid.IntRange(60, 400).Draw(t, "size"),
-			Gap: rapid.IntRange(0, 40).Draw(t, "gap"), Rotate: rapid.IntRange(0, 359).Draw(t, "rotate"), Seed: rapid.Uint32().Draw(t, "seed"),
+			Shape: rapid.SampledFrom(append(slices.Clone(allShapes), shapes.Pattern)).Draw(t, "shape"),
+			Size:  rapid.IntRange(60, 400).Draw(t, "size"), Gap: rapid.IntRange(0, 40).Draw(t, "gap"),
+			Rotate: rapid.IntRange(0, 359).Draw(t, "rotate"), Seed: rapid.Uint32().Draw(t, "seed"),
 			Pattern: rapid.SampledFrom([]string{"all", "checker", "thirds", "random"}).Draw(t, "pattern"),
+		}
+		if tl.Shape == shapes.Pattern {
+			// A pattern shape is a stencil: the picture is cut into its areas, and the drawn lines are the gap that freezes.
+			fams := patterns.Catalog()
+			fam := fams[rapid.IntRange(0, len(fams)-1).Draw(t, "patternFamily")]
+			tl.Family = fam.Name
+			tl.Variant = fam.Variants[rapid.IntRange(0, len(fam.Variants)-1).Draw(t, "patternVariant")].Name
+			tl.Detail = rapid.IntRange(1, 16).Draw(t, "patternDetail")
+			tl.Invert = rapid.Bool().Draw(t, "patternInvert")
+			tl.Gap = 1 + tl.Gap%40 // a pattern with no line to draw is refused, and rightly so
 		}
 		reg := regionsFor(t, w, h, tl, 2, 3)
 		im := testutil.Gradient(w, h, 5)

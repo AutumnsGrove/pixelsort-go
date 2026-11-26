@@ -1,6 +1,7 @@
-// Package patterns rasterises a family of generative patterns into the 0/1 plane the engine reads along its sort
-// lines. It is the same shape of object as a cellular-automaton mask (engine/ca.go), but the pattern is drawn from
-// tiles, waves or polar coordinates instead of a Wolfram rule, which gives the sort far more intricate edges.
+// Package patterns rasterises a family of generative patterns into a 0/1 plane. engine/shapes draws it as a stencil: the
+// areas the pattern leaves become the cells that sort, and the drawn lines become the gaps between them (decision E13).
+// The plane is the same shape of object as a cellular-automaton mask (engine/ca.go), but it is drawn from tiles, waves or
+// polar coordinates instead of a Wolfram rule, which gives the sort far more intricate shapes.
 //
 // The families are our own implementations, inspired by the pattern families on bookofshapes.com (Truchet, flow,
 // interference, radial, isometric). Nothing here is copied from that site: its pattern definitions and source are not

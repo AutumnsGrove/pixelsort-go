@@ -16,8 +16,7 @@ describe('params-cases.json (shared with Go)', () => {
 
 test('the defaults are valid', () => expect(validateParams({ ...defaultParams })).toBeNull());
 
-test('clampParams repairs a pattern variant that belongs to another family', () => {
-	expect(clampParams({ pattern: 'grid', patternVariant: 'iso' }).patternVariant).toBe('iso');
-	expect(clampParams({ pattern: 'grid', patternVariant: 'arc' }).patternVariant).toBe('woven');
-	expect(clampParams({ pattern: 'nope' }).pattern).toBe(defaultParams.pattern);
+test('clampParams drops an interval mode a newer engine does not have', () => {
+	expect(clampParams({ mode: 'pattern' }).mode).toBe(defaultParams.mode);
+	expect(clampParams({ mode: 'wave' }).mode).toBe('wave');
 });

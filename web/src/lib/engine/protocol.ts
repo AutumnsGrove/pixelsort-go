@@ -20,7 +20,7 @@ export type Request =
 	| { id: number; type: 'cutOut'; x: number; y: number; tolerance: number } // a region grown from a point, with its outline
 	| { id: number; type: 'caPreview'; json: string; rule: number } // what one cellular rule looks like with this recipe
 	| { id: number; type: 'patternCatalog' } // the generative pattern families and their variants
-	| { id: number; type: 'patternPreview'; json: string } // what this recipe's pattern looks like
+	| { id: number; type: 'patternPreview'; json: string } // what a pattern shape's cells look like
 	| { id: number; type: 'sortable' } // 1 per pixel the current recipe lets move
 	| { id: number; type: 'configure'; json: string }
 	| { id: number; type: 'run'; transfer?: 'copy' | 'view' }

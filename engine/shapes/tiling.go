@@ -26,6 +26,7 @@ const (
 	Octagon  = "octagon"
 	Voronoi  = "voronoi"
 	Custom   = "custom"
+	Pattern  = "pattern" // a generative pattern from engine/patterns, used as a stencil
 )
 
 // ErrTiling means a tiling spec is invalid or produces too many cells.
@@ -33,6 +34,10 @@ var ErrTiling = errors.New("shapes: invalid tiling")
 
 // Tiling is the JSON spec of a tessellation. Size and Gap are per mille of the image width (decision E4); Rotate is
 // whole degrees; polygon coordinates are fractions of the tile.
+//
+// A Pattern shape keeps the same fields with the same meanings, because a pattern's knobs are the tiling's: Size is
+// the pattern's cell, Gap its line thickness, Rotate its turn and Seed its seed. Family, Variant, Detail and Invert
+// name the drawing (see engine/patterns), and Pattern stays what it is for every shape: how cells are classed.
 type Tiling struct {
 	Shape   string         `json:"shape"`
 	Size    int            `json:"size"`   // per mille of width, 10..1000
@@ -44,6 +49,12 @@ type Tiling struct {
 	More    [][][2]float64 `json:"more,omitempty"`
 	Pattern string         `json:"pattern"`
 	Kinds   int            `json:"kinds,omitempty"`
+	// The pattern shape's own knobs: which family and variant of engine/patterns to draw, its arms or spokes, and
+	// whether to swap which side of the drawing becomes the cells.
+	Family  string `json:"family,omitempty"`
+	Variant string `json:"variant,omitempty"`
+	Detail  int    `json:"detail,omitempty"`
+	Invert  bool   `json:"invert,omitempty"`
 }
 
 // Cells is a label map: Labels[pixel] is a cell id (0 = between shapes), and CI, CJ give each cell's grid coordinates
@@ -115,12 +126,16 @@ func Tessellate(w, h int, t Tiling) (Cells, error) {
 		return Cells{}, fmt.Errorf("shapes: %dx%d image: %w", w, h, ErrTiling)
 	}
 	switch t.Shape {
-	case Square, Hexagon, Triangle, Diamond, Circle, Octagon, Voronoi, Custom:
+	case Square, Hexagon, Triangle, Diamond, Circle, Octagon, Voronoi, Custom, Pattern:
 	default:
 		return Cells{}, fmt.Errorf("shapes: unknown shape %q: %w", t.Shape, ErrTiling)
 	}
 	if t.Size < 1 || t.Size > 1000 || t.Gap < 0 || t.Gap > 1000 {
 		return Cells{}, fmt.Errorf("shapes: size %d or gap %d out of range: %w", t.Size, t.Gap, ErrTiling)
+	}
+	if t.Shape == Pattern {
+		// A pattern is drawn, not tessellated, and its spec has its own ranges (a pattern needs a line to draw).
+		return patternCells(w, h, t)
 	}
 	S := float64(max(6, pixels(w, t.Size)))
 	gap := float64(pixels(w, t.Gap))

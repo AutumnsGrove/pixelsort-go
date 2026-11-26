@@ -76,21 +76,21 @@
 		return () => clearTimeout(timer);
 	});
 
-	// ---- the pattern preview: the same idea as the rule preview, but the recipe itself is the question ----
+	const t = $derived(studio.tiling);
+	const nClasses = $derived(t ? classCount(t.pattern, t.kinds) : 0);
+	const inPattern = $derived(showShapes && t?.shape === 'pattern');
+
+	// ---- the pattern preview: the same idea as the rule preview, but the shape spec is the question ----
 	let ppv: HTMLCanvasElement | undefined = $state();
 	let ppvFailed = $state(false);
 	let ppvSeq = 0;
-	const inPattern = $derived(
-		showShapes &&
-			(studio.params.mode === 'pattern' || studio.params.mode === 'pattern-edges' || studio.params.patternOverlay)
-	);
-	const patternFamily = $derived(studio.patternFamilies.find((f) => f.name === studio.params.pattern));
+	const patternFamily = $derived(studio.patternFamilies.find((f) => f.name === t?.family));
 	const patternVariantList = $derived(patternFamily?.variants ?? []);
 	$effect(() => {
 		if (inPattern) void studio.loadPatternFamilies();
 	});
 	$effect(() => {
-		const version = patternVersion(studio.params);
+		const version = t ? patternVersion(t) : '';
 		if (!inPattern || !ppv) return;
 		const mine = ++ppvSeq;
 		const timer = setTimeout(async () => {
@@ -114,9 +114,6 @@
 		}, 70);
 		return () => clearTimeout(timer);
 	});
-
-	const t = $derived(studio.tiling);
-	const nClasses = $derived(t ? classCount(t.pattern, t.kinds) : 0);
 
 	function edit(patch: Partial<NonNullable<typeof t>>): void {
 		if (!studio.tiling) return;
@@ -252,136 +249,6 @@
 		</section>
 	{/if}
 
-	{#if inPattern}
-		<section data-testid="pattern-section">
-			<h4 class="eyebrow">Pattern</h4>
-			<figure class="rulepv" data-testid="pattern-preview-box">
-				<canvas
-					bind:this={ppv}
-					width="320"
-					height="160"
-					aria-hidden="true"
-					data-testid="pattern-preview"
-					class:off={ppvFailed}
-				></canvas>
-				{#if ppvFailed}<p class="pvnote" data-testid="pattern-preview-unavailable">Preview unavailable</p>{/if}
-				<figcaption data-testid="pattern-preview-label">{patternLabel(studio.params)}</figcaption>
-			</figure>
-			<div class="chips" role="group" aria-label="Pattern family">
-				{#each studio.patternFamilies as f (f.name)}
-					<button
-						type="button"
-						class:on={studio.params.pattern === f.name}
-						title={f.note}
-						onclick={() => {
-							studio.params.pattern = f.name;
-							studio.params.patternVariant = f.variants[0]?.name ?? studio.params.patternVariant;
-							studio.changed();
-						}}
-						data-testid="pattern-family-{f.name}">{f.name}</button
-					>
-				{/each}
-			</div>
-			<div class="chips" role="group" aria-label="Pattern variant">
-				{#each patternVariantList as v (v.name)}
-					<button
-						type="button"
-						class:on={studio.params.patternVariant === v.name}
-						title={v.note}
-						onclick={() => {
-							studio.params.patternVariant = v.name;
-							studio.changed();
-						}}
-						data-testid="pattern-variant-{v.name}">{v.name}</button
-					>
-				{/each}
-			</div>
-			<label
-				>cell {studio.params.patternCell}
-				<input
-					type="range"
-					min="10"
-					max="300"
-					value={studio.params.patternCell}
-					oninput={(e) => {
-						studio.params.patternCell = Number(e.currentTarget.value);
-						studio.changed();
-					}}
-					aria-label="Pattern cell size"
-				/></label
-			>
-			<label
-				>thickness {studio.params.patternThickness}
-				<input
-					type="range"
-					min="1"
-					max="80"
-					value={studio.params.patternThickness}
-					oninput={(e) => {
-						studio.params.patternThickness = Number(e.currentTarget.value);
-						studio.changed();
-					}}
-					aria-label="Pattern thickness"
-				/></label
-			>
-			<label
-				>turn {studio.params.patternRotate}°
-				<input
-					type="range"
-					min="0"
-					max="359"
-					value={studio.params.patternRotate}
-					oninput={(e) => {
-						studio.params.patternRotate = Number(e.currentTarget.value);
-						studio.changed();
-					}}
-					aria-label="Turn the pattern"
-				/></label
-			>
-			<label
-				>detail {studio.params.patternDetail}
-				<input
-					type="range"
-					min="1"
-					max="16"
-					value={studio.params.patternDetail}
-					oninput={(e) => {
-						studio.params.patternDetail = Number(e.currentTarget.value);
-						studio.changed();
-					}}
-					aria-label="Pattern detail"
-				/></label
-			>
-			<label class="tog"
-				><span><b>Invert</b></span><input
-					type="checkbox"
-					bind:checked={studio.params.patternInvert}
-					onchange={() => studio.changed()}
-					data-testid="pattern-invert"
-				/></label
-			>
-			<label class="tog"
-				><span><b>Freeze the pattern</b> (an overlay, not a cut)</span><input
-					type="checkbox"
-					bind:checked={studio.params.patternOverlay}
-					onchange={() => studio.changed()}
-					data-testid="pattern-overlay"
-				/></label
-			>
-			<div class="chips" role="group" aria-label="Pattern space">
-				{#each ['image', 'line'] as s (s)}<button
-						type="button"
-						class:on={studio.params.caSpace === s}
-						onclick={() => {
-							studio.params.caSpace = s as 'image' | 'line';
-							studio.changed();
-						}}
-						data-testid="pattern-space-{s}">{s} space</button
-					>{/each}
-			</div>
-		</section>
-	{/if}
-
 	{#if showShapes}<section>
 			<h4 class="eyebrow">Cut the picture into</h4>
 			<div class="chips" role="group" aria-label="Shape">
@@ -398,8 +265,47 @@
 			<ShapeLibrary compact={phone} />
 
 			{#if t}
+				{#if t.shape === 'pattern'}
+					<div data-testid="pattern-section">
+						<figure class="rulepv" data-testid="pattern-preview-box">
+							<canvas
+								bind:this={ppv}
+								width="320"
+								height="160"
+								aria-hidden="true"
+								data-testid="pattern-preview"
+								class:off={ppvFailed}
+							></canvas>
+							{#if ppvFailed}<p class="pvnote" data-testid="pattern-preview-unavailable">Preview unavailable</p>{/if}
+							<figcaption data-testid="pattern-preview-label">{patternLabel(t)}</figcaption>
+						</figure>
+						<div class="chips" role="group" aria-label="Pattern family">
+							{#each studio.patternFamilies as f (f.name)}
+								<button
+									type="button"
+									class:on={t.family === f.name}
+									title={f.note}
+									onclick={() => edit({ family: f.name, variant: f.variants[0]?.name ?? t.variant })}
+									data-testid="pattern-family-{f.name}">{f.name}</button
+								>
+							{/each}
+						</div>
+						<div class="chips" role="group" aria-label="Pattern variant">
+							{#each patternVariantList as v (v.name)}
+								<button
+									type="button"
+									class:on={t.variant === v.name}
+									title={v.note}
+									onclick={() => edit({ variant: v.name })}
+									data-testid="pattern-variant-{v.name}">{v.name}</button
+								>
+							{/each}
+						</div>
+					</div>
+				{/if}
 				<label
-					>size {t.size}
+					>{t.shape === 'pattern' ? 'cell' : 'size'}
+					{t.size}
 					<input
 						type="range"
 						min="20"
@@ -410,16 +316,38 @@
 					/></label
 				>
 				<label
-					>gap {t.gap}
+					>{t.shape === 'pattern' ? 'line' : 'gap'}
+					{t.gap}
 					<input
 						type="range"
-						min="0"
+						min={t.shape === 'pattern' ? 1 : 0}
 						max="60"
 						value={t.gap}
 						oninput={(e) => edit({ gap: Number(e.currentTarget.value) })}
-						aria-label="Gap"
+						aria-label={t.shape === 'pattern' ? 'Line thickness' : 'Gap'}
 					/></label
 				>
+				{#if t.shape === 'pattern'}
+					<label
+						>detail {t.detail}
+						<input
+							type="range"
+							min="1"
+							max="16"
+							value={t.detail}
+							oninput={(e) => edit({ detail: Number(e.currentTarget.value) })}
+							aria-label="Pattern detail"
+						/></label
+					>
+					<label class="tog"
+						><span><b>Invert</b> (the lines become the cells)</span><input
+							type="checkbox"
+							checked={t.invert}
+							onchange={(e) => edit({ invert: e.currentTarget.checked })}
+							data-testid="pattern-invert"
+						/></label
+					>
+				{/if}
 				<label
 					>turn {t.rotate}°
 					<input

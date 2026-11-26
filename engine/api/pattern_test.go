@@ -28,15 +28,15 @@ func TestPatternCatalogNamesFourFamiliesWithNotes(t *testing.T) {
 }
 
 func TestPatternPreviewIsDeterministicAndBinary(t *testing.T) {
-	const recipe = `{"mode":"pattern","pattern":"truchet","patternVariant":"arc","seed":5}`
-	a, w, h, err := api.PatternPreview([]byte(recipe))
+	const spec = `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`
+	a, w, h, err := api.PatternPreview([]byte(spec))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if w != api.PatternPreviewW || h != api.PatternPreviewH || len(a) != w*h {
 		t.Fatalf("got %dx%d with %d bytes", w, h, len(a))
 	}
-	b, _, _, _ := api.PatternPreview([]byte(recipe))
+	b, _, _, _ := api.PatternPreview([]byte(spec))
 	if !bytes.Equal(a, b) {
 		t.Fatal("not deterministic")
 	}
@@ -48,41 +48,41 @@ func TestPatternPreviewIsDeterministicAndBinary(t *testing.T) {
 }
 
 func TestPatternPreviewFollowsTheKnobs(t *testing.T) {
-	preview := func(recipe string) []byte {
-		m, _, _, err := api.PatternPreview([]byte(recipe))
+	preview := func(spec string) []byte {
+		m, _, _, err := api.PatternPreview([]byte(spec))
 		if err != nil {
-			t.Fatalf("%s: %v", recipe, err)
+			t.Fatalf("%s: %v", spec, err)
 		}
 		return m
 	}
-	base := preview(`{"pattern":"truchet","patternVariant":"arc","seed":5,"patternCell":60}`)
-	if bytes.Equal(base, preview(`{"pattern":"truchet","patternVariant":"strand","seed":5,"patternCell":60}`)) {
-		t.Error("the variant did not change the preview")
-	}
-	if bytes.Equal(base, preview(`{"pattern":"truchet","patternVariant":"arc","seed":5,"patternCell":120}`)) {
-		t.Error("the cell size did not change the preview")
-	}
-	if bytes.Equal(base, preview(`{"pattern":"truchet","patternVariant":"arc","seed":6,"patternCell":60}`)) {
-		t.Error("the seed did not change the preview")
-	}
-	if bytes.Equal(base, preview(`{"pattern":"truchet","patternVariant":"arc","seed":5,"patternCell":60,"patternInvert":true}`)) {
-		t.Error("invert did not change the preview")
-	}
-	img := preview(`{"pattern":"radial","patternVariant":"spiral","seed":5,"patternCell":40,"angle":0,"caSpace":"image"}`)
-	line := preview(`{"pattern":"radial","patternVariant":"spiral","seed":5,"patternCell":40,"angle":37,"caSpace":"line"}`)
-	if bytes.Equal(img, line) {
-		t.Error("line space did not turn with the angle")
+	const base = `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`
+	plain := preview(base)
+	for name, spec := range map[string]string{
+		"variant": `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"strand","detail":5}`,
+		"family":  `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"radial","variant":"spiral","detail":5}`,
+		"size":    `{"shape":"pattern","size":180,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`,
+		"gap":     `{"shape":"pattern","size":90,"gap":20,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`,
+		"rotate":  `{"shape":"pattern","size":90,"gap":8,"rotate":37,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`,
+		"seed":    `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":6,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`,
+		"invert":  `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5,"invert":true}`,
+	} {
+		if bytes.Equal(plain, preview(spec)) {
+			t.Errorf("the %s did not change the preview", name)
+		}
 	}
 }
 
-func TestPatternPreviewRefusesBadRecipes(t *testing.T) {
-	for _, bad := range []string{
-		`not json`, `{"pattern":"nope"}`, `{"patternVariant":"nope"}`, `{"patternCell":0}`,
-		`{"patternThickness":501}`, `{"patternRotate":360}`, `{"patternDetail":17}`,
-		`{"pattern":"","patternOverlay":true}`, `{"nope":1}`, `[]`,
+func TestPatternPreviewRefusesBadSpecs(t *testing.T) {
+	for name, bad := range map[string]string{
+		"not json":       `not json`,
+		"empty":          `{}`,
+		"unknown field":  `{"shape":"pattern","size":90,"gap":8,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5,"nope":1}`,
+		"a square":       `{"shape":"square","size":90,"gap":8,"seed":5,"pattern":"checker"}`,
+		"unknown family": `{"shape":"pattern","size":90,"gap":8,"seed":5,"pattern":"checker","family":"nope","variant":"arc","detail":5}`,
+		"no line":        `{"shape":"pattern","size":90,"gap":0,"seed":5,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`,
 	} {
 		if _, _, _, err := api.PatternPreview([]byte(bad)); err == nil {
-			t.Errorf("recipe %q should be refused", bad)
+			t.Errorf("%s should be refused", name)
 		}
 	}
 }

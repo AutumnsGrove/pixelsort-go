@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { classCount, defaultTiling } from './regions';
+import { SHAPES, classCount, defaultTiling } from './regions';
 
 test('class counts follow the pattern', () => {
 	expect([
@@ -14,4 +14,11 @@ test('class counts follow the pattern', () => {
 
 test('a new tiling starts as checkered cells with a small gap', () => {
 	expect(defaultTiling('hexagon', 7)).toMatchObject({ shape: 'hexagon', pattern: 'checker', gap: 6, seed: 7 });
+});
+
+test('a pattern shape starts on a drawing the engine has, with room for its line', () => {
+	const t = defaultTiling('pattern', 7);
+	expect(t).toMatchObject({ shape: 'pattern', family: 'truchet', variant: 'arc', detail: 5, invert: false });
+	expect(t.gap).toBeGreaterThan(0); // a pattern with no line to draw is refused by the engine
+	expect(SHAPES).toContain('pattern');
 });

@@ -50,6 +50,37 @@ func TestSetTilingRejectsBadInput(t *testing.T) {
 	}
 }
 
+// patternSpec is a pattern shape: a generative stencil the engine tessellates like any other shape.
+const patternSpec = `{"shape":"pattern","size":90,"gap":8,"rotate":0,"seed":3,"pattern":"checker","family":"truchet","variant":"arc","detail":5}`
+
+// TestSetTilingPatternShapeSortsInsideTheCells: a pattern reaches the engine as a shape, so it builds a region map,
+// classes its cells, freezes the painted lines as the gap and sorts the areas between them.
+func TestSetTilingPatternShapeSortsInsideTheCells(t *testing.T) {
+	s := ready(t, 160, 100)
+	if err := s.SetTiling([]byte(patternSpec), nil); err != nil {
+		t.Fatal(err)
+	}
+	labels := s.Labels()
+	if labels == nil || len(labels) != 160*100 || len(s.ClassOf()) < 2 {
+		t.Fatalf("labels %d, classes %d", len(labels), len(s.ClassOf()))
+	}
+	_ = s.Configure([]byte(`{"mode":"none","randomness":0}`))
+	st, err := s.Prepare()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.FrozenPixels == 0 || st.Intervals == 0 {
+		t.Fatalf("stats %+v: the pattern froze nothing or made no intervals", st)
+	}
+	// Every cell belongs to a class, and the gap (label 0) is class 0, which the builder freezes.
+	if s.ClassOf()[0] != 0 {
+		t.Fatalf("the gap is class %d, want 0", s.ClassOf()[0])
+	}
+	if err := s.SetTiling([]byte(`{"shape":"pattern","size":90,"gap":8,"seed":3,"pattern":"checker","family":"nope","variant":"arc","detail":5}`), nil); err == nil {
+		t.Error("an unknown pattern family was accepted")
+	}
+}
+
 func TestSetMaskSpecFreezesAndFeathers(t *testing.T) {
 	s := ready(t, 60, 40)
 	spec := `{"objects":[{"kind":"rect","cx":0.5,"cy":0.5,"w":0.5,"h":1,"mode":"add"}],"feather":0.05}`

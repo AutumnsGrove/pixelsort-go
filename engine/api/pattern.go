@@ -3,8 +3,8 @@ package api
 import (
 	"fmt"
 
-	"github.com/AutumnsGrove/pixelsort-go/engine"
 	"github.com/AutumnsGrove/pixelsort-go/engine/patterns"
+	"github.com/AutumnsGrove/pixelsort-go/engine/shapes"
 )
 
 // PatternFamily is one family of generative patterns and its variants, for the panel's picker.
@@ -31,15 +31,15 @@ const (
 	PatternPreviewH = 160
 )
 
-// PatternPreview draws what the recipe's pattern looks like on a small fixed canvas, as a 0/1 mask. It is stateless:
-// no session, no picture, and it never touches a running sort, so the panel can ask on every knob change. Like the
-// cellular preview it shows the pattern's texture, not the exact mask of a picture with a region map.
-func PatternPreview(paramsJSON []byte) (mask []uint8, w, h int, err error) {
-	p, err := engine.ParseParams(paramsJSON)
-	if err != nil {
+// PatternPreview draws what a pattern shape looks like on a small fixed canvas, as a 0/1 mask of its cells. The spec
+// is the same tiling the picture gets, so the panel's picture cannot drift from the cells that sort. It is stateless:
+// no session, no picture, and it never touches a running sort, so the panel can ask on every knob change.
+func PatternPreview(tilingJSON []byte) (mask []uint8, w, h int, err error) {
+	var t shapes.Tiling
+	if err := decodeStrict(tilingJSON, &t); err != nil {
 		return nil, 0, 0, fmt.Errorf("api: pattern preview: %w", err)
 	}
-	mask, err = engine.PatternPreview(PatternPreviewW, PatternPreviewH, p)
+	mask, err = shapes.PatternPreview(PatternPreviewW, PatternPreviewH, t)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("api: %w", err)
 	}

@@ -1,4 +1,5 @@
 import { defaultParams, type Params } from './params';
+import type { Tiling } from '../regions';
 import type { Speed } from './animator';
 import { EngineDownloadFailed, type LoadProgress } from './loader';
 import type { FrameEvent, LoadingEvent, Request, Response, Stats, Timings } from './protocol';
@@ -198,11 +199,12 @@ export class EngineClient {
 	}
 
 	/**
-	 * What this recipe's pattern looks like on the panel's small canvas, drawn by the engine's own mask code. The recipe
-	 * travels with the question, so it needs no picture and no configure, and it never disturbs a running sort.
+	 * What a pattern shape's cells look like on the panel's small canvas, drawn by the engine's own tessellation code.
+	 * The shape spec travels with the question, so it needs no picture and no configure, and it never disturbs a
+	 * running sort.
 	 */
-	async patternPreview(params: Params): Promise<{ mask: Uint8Array; w: number; h: number }> {
-		const res = await this.send({ type: 'patternPreview', json: JSON.stringify(params) }, []);
+	async patternPreview(tiling: Tiling): Promise<{ mask: Uint8Array; w: number; h: number }> {
+		const res = await this.send({ type: 'patternPreview', json: JSON.stringify(tiling) }, []);
 		if (!res.ok) throw new Error(res.error);
 		if (!res.mask || !res.preview) throw new Error('patternPreview answered without a mask');
 		return { mask: new Uint8Array(res.mask), ...res.preview };
