@@ -11,5 +11,8 @@ wrote these never touched it: applying them is Autumn's step (docs/dev/phase-8.m
 
 The field names were checked against the live config on lepotato on 2026-11-05 (the earlier revision guessed
 `tiles:` / `probe:`; Meridian uses `services:` / `probes:`). Meridian does not expand `~`: the target's `dir` is
-`/home/autumn/Pixelsort`. Check each against a neighbouring entry before pasting. `test.sh` only checks that every
-snippet parses.
+`/home/autumn/Pixelsort`. Check each against a neighbouring entry before pasting.
+
+`test.sh` checks that every snippet parses, and that `observe.json.snippet` has the one shape Meridian's decoder
+accepts: `{"units": [...]}` and no other field. Meridian's `observe.json` is decoded with unknown fields refused, so
+a map keyed by unit name is an error rather than a probe that watches nothing.
