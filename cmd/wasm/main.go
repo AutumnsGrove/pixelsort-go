@@ -123,7 +123,7 @@ func main() {
 		},
 		"patternPreview": func(a []js.Value) (any, error) {
 			if len(a) < 1 {
-				return nil, errors.New("patternPreview needs the recipe")
+				return nil, errors.New("patternPreview needs the shape spec")
 			}
 			m, w, h, err := api.PatternPreview([]byte(a[0].String()))
 			if err != nil {

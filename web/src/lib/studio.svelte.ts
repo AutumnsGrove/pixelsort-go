@@ -91,7 +91,7 @@ async function fingerprint(rgba: Uint8ClampedArray): Promise<string> {
 
 class Studio {
 	params = $state<Params>({ ...defaultParams, algo: 'oddeven', mode: 'random', length: 83, randomness: 10 });
-	/** The pattern families and their variants, read from the engine once the first pattern mode is chosen. */
+	/** The pattern families and their variants, read from the engine once a pattern shape is picked. */
 	patternFamilies = $state<{ name: string; note: string; variants: { name: string; note: string }[] }[]>([]);
 	size = $state<{ w: number; h: number } | null>(null);
 	original = $state<Uint8ClampedArray | null>(null);
@@ -166,7 +166,7 @@ class Studio {
 			return null;
 		}
 	}
-	/** Load the pattern catalog once; the panel and the interval popover both read it from here. */
+	/** Load the pattern catalog once; the panel reads it from here. */
 	async loadPatternFamilies(): Promise<void> {
 		if (this.patternFamilies.length || !this.client) return;
 		try {
@@ -175,11 +175,11 @@ class Studio {
 			// the panel shows "preview unavailable" rather than pretending there is a catalog
 		}
 	}
-	/** What this recipe's pattern looks like with the knobs as they are right now; null if the engine cannot say. */
+	/** What the pattern shape looks like with the knobs as they are right now; null if the engine cannot say. */
 	async patternPreview(): Promise<{ mask: Uint8Array; w: number; h: number } | null> {
-		if (!this.client) return null;
+		if (!this.client || this.tiling?.shape !== 'pattern') return null;
 		try {
-			return await this.client.patternPreview({ ...this.params });
+			return await this.client.patternPreview({ ...this.tiling });
 		} catch {
 			return null;
 		}
@@ -559,7 +559,15 @@ class Studio {
 	}
 
 	setTilingShape(shape: Tiling['shape'] | null): void {
-		this.tiling = shape ? { ...(this.tiling ?? defaultTiling(shape, this.params.seed)), shape } : null;
+		if (!shape) {
+			this.tiling = null;
+			void this.applyRegions();
+			return;
+		}
+		const t = { ...(this.tiling ?? defaultTiling(shape, this.params.seed)), shape };
+		// A pattern with no line to draw is a recipe the engine refuses, so switching to one keeps a line's worth of gap.
+		if (shape === 'pattern') t.gap = Math.max(1, t.gap);
+		this.tiling = t;
 		void this.applyRegions();
 	}
 

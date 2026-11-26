@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { patternLabel, patternVersion, previewLabel, previewPixels, previewVersion } from './rule-preview';
-import { defaultParams } from './engine/params';
+import { defaultTiling } from './regions';
 
 describe('drawing a rule preview', () => {
 	test('cells are paper on ink, fully opaque, one pixel per cell', () => {
@@ -27,34 +27,26 @@ describe('what the preview says about itself', () => {
 });
 
 describe('the pattern preview', () => {
-	test('names the family, variant and space', () => {
-		expect(patternLabel({ ...defaultParams, pattern: 'grid', patternVariant: 'iso', caSpace: 'image' })).toContain(
-			'grid / iso'
-		);
-		expect(
-			patternLabel({ ...defaultParams, pattern: 'radial', patternVariant: 'spiral', caSpace: 'line', angle: 37 })
-		).toContain('37°');
+	test('names the drawing, and says when the lines are the cells', () => {
+		expect(patternLabel({ family: 'grid', variant: 'iso', invert: false })).toBe('grid / iso');
+		expect(patternLabel({ family: 'radial', variant: 'spiral', invert: true })).toContain('lines are the cells');
 	});
 	test('its version changes with every knob that draws the pattern', () => {
-		const base = { ...defaultParams };
+		const base = defaultTiling('pattern', 7);
 		const v = patternVersion(base);
 		for (const patch of [
-			{ pattern: 'grid' },
-			{ patternVariant: 'iso' },
-			{ patternCell: 120 },
-			{ patternThickness: 20 },
-			{ patternRotate: 45 },
-			{ patternDetail: 9 },
-			{ patternInvert: true },
-			{ caSpace: 'line' as const },
+			{ family: 'grid' },
+			{ variant: 'iso' },
+			{ size: 120 },
+			{ gap: 20 },
+			{ rotate: 45 },
+			{ detail: 9 },
+			{ invert: true },
 			{ seed: 8 }
 		])
 			expect(patternVersion({ ...base, ...patch })).not.toBe(v);
-		// the sort angle matters only in line space
-		expect(patternVersion({ ...base, angle: 45 })).toBe(v);
-		expect(patternVersion({ ...base, caSpace: 'line', angle: 45 })).not.toBe(
-			patternVersion({ ...base, caSpace: 'line', angle: 0 })
-		);
+		// how the cells are classed draws nothing, so it is not part of the picture
+		expect(patternVersion({ ...base, pattern: 'thirds' })).toBe(v);
 	});
 });
 

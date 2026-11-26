@@ -4,7 +4,16 @@
 // from an older version, or have been damaged, so it is validated and clamped, never trusted.
 import { clampParams, keys, modes, algos, type Params } from './engine/params';
 import { clampCard, newCard, type RegionCard } from './region-cards';
-import { PATTERNS, SHAPES, type MaskObject, type Stroke, type Tiling } from './regions';
+import {
+	PATTERNS,
+	SHAPES,
+	defaultTiling,
+	patternFamilies,
+	patternVariants,
+	type MaskObject,
+	type Stroke,
+	type Tiling
+} from './regions';
 
 export type MaskPart = { objects: MaskObject[]; strokes: Stroke[]; invert: boolean; feather: number };
 /** Everything that makes a picture look the way it does, apart from the original pixels. */
@@ -51,6 +60,36 @@ function readRing(v: unknown, max: number): [number, number][] | null {
 	return out;
 }
 
+/**
+ * A pattern shape's drawing, repaired against the catalog: an unknown family falls back to the first, and a variant
+ * that belongs to another family (or one that no longer exists) becomes its family's first.
+ */
+function readDrawing(v: Record<string, unknown>): Pick<Tiling, 'family' | 'variant' | 'detail' | 'invert'> {
+	const family =
+		typeof v.family === 'string' && (patternFamilies as readonly string[]).includes(v.family) ? v.family : 'truchet';
+	const variants = patternVariants[family] ?? [];
+	const variant = typeof v.variant === 'string' && variants.includes(v.variant) ? v.variant : (variants[0] ?? 'arc');
+	return { family, variant, detail: num(v.detail) ? clampInt(v.detail, 1, 16) : 5, invert: v.invert === true };
+}
+
+/**
+ * A pattern used to be an interval mode. It is a shape now (decision E13), so a run made before the move is read back
+ * as the shape it describes: the drawing, its knobs, and the pattern's seed. The mode becomes "none", because the
+ * cells are bounded by the drawn lines — which is the same cut the old mode made.
+ */
+function readLegacyPattern(o: Record<string, unknown>): Tiling | null {
+	if (o.mode !== 'pattern' && o.mode !== 'pattern-edges' && o.patternOverlay !== true) return null;
+	if (typeof o.pattern !== 'string' || !(patternFamilies as readonly string[]).includes(o.pattern)) return null;
+	const t = {
+		...defaultTiling('pattern', num(o.seed) ? clampInt(o.seed, 0, 0xffffffff) : 0),
+		...readDrawing({ family: o.pattern, variant: o.patternVariant, detail: o.patternDetail, invert: o.patternInvert })
+	};
+	if (num(o.patternCell)) t.size = clampInt(o.patternCell, 1, 1000);
+	if (num(o.patternThickness)) t.gap = clampInt(o.patternThickness, 1, 500);
+	if (num(o.patternRotate)) t.rotate = clampInt(o.patternRotate, 0, 359);
+	return t;
+}
+
 function readTiling(v: unknown): Tiling | null {
 	if (!isObj(v)) return null;
 	const shape = v.shape;
@@ -64,7 +103,8 @@ function readTiling(v: unknown): Tiling | null {
 		rotate: clampInt(v.rotate, 0, 359),
 		seed: clampInt(v.seed, 0, 0xffffffff),
 		pattern: v.pattern as Tiling['pattern'],
-		kinds: num(v.kinds) ? clampInt(v.kinds, 1, 8) : 3
+		kinds: num(v.kinds) ? clampInt(v.kinds, 1, 8) : 3,
+		...readDrawing(v)
 	};
 	if (shape === 'custom') {
 		const poly = readRing(v.poly, MAX_RING_POINTS);
@@ -80,7 +120,7 @@ function readTiling(v: unknown): Tiling | null {
 }
 
 const ORDERS = ['', 'asc', 'desc'];
-const CARD_MODE = ['random', 'wave', 'threshold', 'edges', 'ca', 'pattern', 'pattern-edges', 'none'];
+const CARD_MODE = ['random', 'wave', 'threshold', 'edges', 'ca', 'none'];
 
 function readCards(v: unknown): Record<number, RegionCard> | null {
 	if (!isObj(v)) return null;
@@ -128,9 +168,12 @@ function readMask(v: unknown): MaskPart | null {
 export function unpackRecipe(settings: unknown): OpenedLook {
 	const o = isObj(settings) ? settings : {};
 	const regions = isObj(o.regions) ? o.regions : null;
-	const tiling = regions ? readTiling(regions.tiling) : null;
+	const tiling = regions ? readTiling(regions.tiling) : readLegacyPattern(o);
+	const params = clampParams(o);
+	// An old pattern mode is the shape's cells now, so the recipe no longer cuts at anything itself.
+	if (!regions && (o.mode === 'pattern' || o.mode === 'pattern-edges')) params.mode = 'none';
 	return {
-		params: clampParams(o),
+		params,
 		tiling,
 		cards: tiling && regions ? readCards(regions.cards) : null,
 		mask: readMask(o.mask)
@@ -146,11 +189,6 @@ export function recipeSlate(settings: Record<string, unknown>): SlateRow[] {
 	const rows: SlateRow[] = [{ label: 'Intervals', value: modes.includes(p.mode) ? p.mode : String(p.mode) }];
 	if (p.mode === 'ca' || p.mode === 'ca-edges')
 		rows.push({ label: 'Cellular rule', value: `${p.rule}, in ${p.caSpace} space` });
-	else if (p.mode === 'pattern' || p.mode === 'pattern-edges')
-		rows.push({
-			label: 'Pattern',
-			value: `${p.pattern} ${p.patternVariant}${p.patternOverlay ? ', frozen' : ''}, in ${p.caSpace} space`
-		});
 	else if (p.mode === 'threshold') rows.push({ label: 'Band', value: `${p.thresholdKey} ${p.lo} to ${p.hi}` });
 	else if (p.mode === 'edges') rows.push({ label: 'Edge level', value: String(p.edge) });
 	if (p.mode === 'random' || p.mode === 'wave')
@@ -160,7 +198,13 @@ export function recipeSlate(settings: Record<string, unknown>): SlateRow[] {
 	rows.push({ label: 'Method', value: p.algo });
 	if (look.tiling) {
 		const t = look.tiling;
-		rows.push({ label: 'Shapes', value: `${t.shape === 'custom' ? 'custom shape' : t.shape}, ${t.pattern}` });
+		const shape =
+			t.shape === 'custom'
+				? 'custom shape'
+				: t.shape === 'pattern'
+					? `pattern, ${t.family} / ${t.variant}`
+					: `${t.shape}, ${t.pattern}`;
+		rows.push({ label: 'Shapes', value: shape });
 	}
 	if (look.mask) {
 		const m = look.mask;

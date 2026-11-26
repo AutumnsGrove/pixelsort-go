@@ -47,8 +47,6 @@ describe('suggest', () => {
 		}
 	});
 	test('a cellular run names its rule', () => expect(suggest({ mode: 'ca', rule: 110 })).toMatch(/cellular 110$/));
-	test('a pattern run names its family', () =>
-		expect(suggest({ mode: 'pattern', pattern: 'truchet' })).toMatch(/pattern truchet$/));
 });
 
 describe('fileName', () => {

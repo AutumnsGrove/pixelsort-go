@@ -25,7 +25,7 @@ interface PixelsortApi {
 	patternCatalog(): GoResult<{
 		families: { name: string; note: string; variants: { name: string; note: string }[] }[];
 	}>;
-	patternPreview(paramsJson: string): GoResult<{ mask: Uint8Array; w: number; h: number }>;
+	patternPreview(tilingJson: string): GoResult<{ mask: Uint8Array; w: number; h: number }>;
 	/** Grow a region from a point (fractions of the picture) and trace its outline. A refusal is data: `refused` says why. */
 	cutOut(
 		x: number,

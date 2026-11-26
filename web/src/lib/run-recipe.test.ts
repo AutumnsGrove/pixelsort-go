@@ -85,6 +85,72 @@ describe('what a saved run holds', () => {
 	});
 });
 
+describe('a pattern shape', () => {
+	const drawing = {
+		...defaultTiling('pattern', 9),
+		family: 'radial',
+		variant: 'spiral',
+		size: 70,
+		gap: 12,
+		rotate: 37,
+		detail: 9,
+		invert: true
+	};
+
+	test('stores and reads back its drawing, and a variant from the wrong family is repaired', () => {
+		const back = unpackRecipe(JSON.parse(JSON.stringify(packRecipe(look({ tiling: drawing })))));
+		expect(back.tiling).toEqual(drawing);
+		const repaired = unpackRecipe({
+			regions: { tiling: { ...drawing, family: 'template', variant: 'made-up' } }
+		}).tiling!;
+		expect(repaired.family).toBe('truchet');
+		expect(repaired.variant).toBe('arc');
+		// a drawing stored without the newer knobs still gets values the engine will accept
+		const bare = unpackRecipe({
+			regions: { tiling: { shape: 'pattern', size: 90, gap: 8, rotate: 0, seed: 1, pattern: 'checker' } }
+		}).tiling!;
+		expect(bare).toMatchObject({ family: 'truchet', variant: 'arc', detail: 5, invert: false });
+	});
+
+	test('a run saved while the pattern was an interval mode opens as the shape it describes', () => {
+		const back = unpackRecipe({
+			mode: 'pattern',
+			pattern: 'truchet',
+			patternVariant: 'arc',
+			patternCell: 60,
+			patternThickness: 8,
+			patternRotate: 15,
+			patternDetail: 4,
+			patternInvert: true,
+			seed: 7
+		});
+		expect(back.tiling).toMatchObject({
+			shape: 'pattern',
+			family: 'truchet',
+			variant: 'arc',
+			size: 60,
+			gap: 8,
+			rotate: 15,
+			detail: 4,
+			invert: true,
+			seed: 7
+		});
+		// the cells are bounded by the drawn lines, which is the cut the old mode made
+		expect(back.params.mode).toBe('none');
+	});
+
+	test('a frozen overlay becomes the same shape, and keeps the recipe it was drawn over', () => {
+		const back = unpackRecipe({ mode: 'wave', pattern: 'grid', patternVariant: 'iso', patternOverlay: true });
+		expect(back.tiling).toMatchObject({ shape: 'pattern', family: 'grid', variant: 'iso' });
+		expect(back.params.mode).toBe('wave');
+	});
+
+	test('the viewer names the drawing', () => {
+		const rows = recipeSlate(packRecipe(look({ tiling: drawing })));
+		expect(rows.find((r) => r.label === 'Shapes')?.value).toBe('pattern, radial / spiral');
+	});
+});
+
 describe('opening a run is forgiving', () => {
 	test('an old run (params only) opens with no cells and no mask', () => {
 		const back = unpackRecipe({ mode: 'edges', angle: 12, seed: 4 });

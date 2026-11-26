@@ -91,15 +91,23 @@ then `out = Lerp255(sorted, original, alpha)` per channel. The mask itself stays
 **E12. `EngineVersion` is a string constant, starting at `"1"`.** Bump it in the same commit that deliberately
 changes a golden. It is stored with every run.
 
-**E13. Generative patterns are their own package, and the overlay is a mask.** `engine/patterns` returns a 0/1 plane
-from a family/variant spec; the engine treats it exactly like a CA mask, with `pattern` / `pattern-edges` cutting
-intervals and `PatternOverlay` freezing pixels. The families are our own implementations (Truchet, interference,
-radial, grid), not assets from bookofshapes.com: that site's licence lets you use what it generates, but not
-redistribute its patterns as patterns, and its node graphs are not covered. A pattern's cell and thickness are per mille
-of the width like every other spatial parameter (E4); its own `PatternCell` keeps the CA's `Cell` default of 8 from
-turning every first pattern into noise. Per-region pattern cards are deliberately not in the first pass: the engine
-supports per-class overrides, but the card UI would need another set of controls, and the global picker is the useful
-first step.
+**E13. Generative patterns are a shape, not an interval mode.** `engine/patterns` returns a 0/1 plane from a
+family/variant spec, and `engine/shapes` uses that plane as a stencil: the areas it leaves become the cells that sort, and
+the drawn lines stay label 0 — the gap, which the class table freezes like any tiling's seam. So a pattern is chosen where
+`hexagon` is chosen, it draws cells, and it gets region cards; areas are four-connected, so two areas that only touch at a
+corner stay separate shapes. Cells are numbered in raster order of each area's first pixel like a tiling's, and a cell's
+grid coordinates are its bounding-box middle in units of the pattern's own cell, so checker and thirds alternate over the
+drawing's tiles rather than over an arbitrary id. More areas than `MaxCells` is an error naming the cell size, the same
+way a tiling refuses too many cells.
+The tiling's own fields carry the pattern's knobs, because they mean the same thing (E4): `Size` is the pattern's cell,
+`Gap` its line thickness, `Rotate` its turn and `Seed` its seed, all per mille of the width; `Family`, `Variant`, `Detail`
+and `Invert` name the drawing, and `Invert` chooses which side of it sorts. A pattern is a mask over the picture, so it
+has no line space: the drawing turns with `Rotate`.
+The families are our own implementations (Truchet, interference, radial, grid), not assets from bookofshapes.com: that
+site's licence lets you use what it generates, but not redistribute its patterns as patterns, and its node graphs are not
+covered. The `pattern` and `pattern-edges` interval modes, `PatternOverlay` and every `Params.Pattern*` field are gone, so
+there is one pattern concept in one place; a run saved under the old modes is read back as the shape it describes, with
+the mode set to `none`, because the cells are bounded by the drawn lines — the same cut the old mode made.
 
 ## Boundary between JavaScript and the engine
 

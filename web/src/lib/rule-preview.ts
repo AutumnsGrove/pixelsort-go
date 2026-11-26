@@ -1,6 +1,7 @@
 // The Pro panel's picture of a cellular rule. The cells come from the engine (its own mask code, see engine/capreview.go);
 // this file only turns them into pixels and says when a picture has gone stale.
 import type { Params } from './engine/params';
+import type { Tiling } from './regions';
 
 const ON: [number, number, number] = [236, 228, 211]; // the theater's paper
 const OFF: [number, number, number] = [20, 17, 15]; // and its ink
@@ -26,44 +27,18 @@ export function previewLabel(rule: number, space: Params['caSpace'], angle: numb
 		: `Rule ${rule} · image space`;
 }
 
-/** A one-line caption for the pattern preview, naming the family, variant and space. */
-export function patternLabel(p: Pick<Params, 'pattern' | 'patternVariant' | 'caSpace' | 'angle'>): string {
-	return p.caSpace === 'line'
-		? `${p.pattern} / ${p.patternVariant} · line space, turning with the ${p.angle}° direction`
-		: `${p.pattern} / ${p.patternVariant} · image space`;
+/** A one-line caption for the pattern preview: which drawing the shape makes, and which side of it sorts. */
+export function patternLabel(t: Pick<Tiling, 'family' | 'variant' | 'invert'>): string {
+	return `${t.family} / ${t.variant}` + (t.invert ? ' · the lines are the cells' : '');
 }
 
-/** Everything that changes what a pattern preview looks like. */
-export function patternVersion(
-	p: Pick<
-		Params,
-		| 'pattern'
-		| 'patternVariant'
-		| 'patternCell'
-		| 'patternThickness'
-		| 'patternRotate'
-		| 'patternDetail'
-		| 'patternInvert'
-		| 'caSpace'
-		| 'angle'
-		| 'seed'
-	>
-): string {
-	return [
-		p.pattern,
-		p.patternVariant,
-		p.patternCell,
-		p.patternThickness,
-		p.patternRotate,
-		p.patternDetail,
-		p.patternInvert,
-		p.caSpace,
-		p.caSpace === 'line' ? p.angle : '-',
-		p.seed
-	].join('|');
+/** Everything that changes what a pattern preview looks like. A pattern shape is drawn over the picture, so the sort
+ * angle plays no part: the drawing turns with the tiling's own rotate. */
+export function patternVersion(t: Tiling): string {
+	return [t.family, t.variant, t.size, t.gap, t.rotate, t.detail, t.invert, t.seed].join('|');
 }
 
-/** Everything that changes what a preview looks like. The sort angle only counts in line space, where the pattern turns with it. */
+/** Everything that changes what a cellular rule preview looks like. The sort angle only counts in line space. */
 export function previewVersion(
 	p: Pick<Params, 'caSpace' | 'angle' | 'cell' | 'caBoundary' | 'seed'>,
 	rule: number
