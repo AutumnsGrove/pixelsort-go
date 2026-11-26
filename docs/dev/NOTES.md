@@ -32,9 +32,10 @@ pi-review's: check out the merge commit, install, run, comment.
 - **Model left at the action's default.** The old review used a pinned model for cost; nothing here does.
   `--model` in `claude-review.yml`'s `claude_args` is the one line to change if the default is too weak or too
   expensive.
-- **pi-review is deleted, not disabled in place.** `.github/workflows/pi-review.yml` and `.github/pi-review.json`
-  are gone; the history has both, so bringing it back is a revert. Nothing else referenced it. `AGENTS.md`'s
-  review section now describes `claude-review` and its `review` check.
+- **pi-review is disabled, not dismantled.** Its workflow and settings files are gone; the history has both, so
+  bringing it back is a revert. The `pi-review` GitHub App and its `PI_REVIEW_*` secrets stay: this is a switch
+  for now, not a retirement. Nothing else referenced it. `AGENTS.md`'s review section now describes
+  `claude-review` and its `review` check.
 - **The first real run happens after merge.** When `claude-code-action` exchanges the workflow's OIDC token for
   the app token, its server refuses unless the workflow file is identical to the one on the default branch; on a
   pull request that adds or edits that file, the run is skipped with a warning and the step still goes green. So
