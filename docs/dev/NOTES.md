@@ -29,8 +29,8 @@ the same job from the same base-branch guidance for less, so it is the only read
 - **Nothing to enable server-side.** The `pi-review` workflow record was gone with the file, so there was no
   `disabled_manually` flag to clear: the merge that adds `pi-review.yml` back creates an active workflow.
 - **Verified:** `sync.ts --check` on the restored settings, `gh secret list`, and the workflow listing above.
-  What cannot be verified from here is that a review posts — pi-review has no `workflow_dispatch`, so the first
-  real evidence is the `review` job on the next human pull request.
+  The caller runs from a pull request's merge ref, so it reviewed this pull request too — the `review` check
+  here was the first real evidence that it posts, not the next human pull request as this entry first said.
 - **Needs Autumn:** uninstall the Claude GitHub App from this repository if it should be gone everywhere
   (`https://github.com/AutumnsGrove/pixelsort-go/settings/installations`), revoke the `claude setup-token` token
   in the Claude account if it should die outside CI too, and delete the three inert workflow records in the web

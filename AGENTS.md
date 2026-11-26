@@ -95,7 +95,11 @@ Read the `review` row and act on the state it reports:
 | failed, or cancelled by a push that was not yours | It will not post for this head. Say so on the thread, then push.                                               |
 | still pending, and it has no start time | The run is queued for a runner, not late. GitHub enforces the 33-minute job timeout itself, so a job that is *running* cannot sit past it — it ends cancelled or failed, which is the row above. A run with no start (`gh run view <id> --json status,startedAt`) is waiting and will start, so wait. |
 
-A green `review` tick means a review was posted — the job exits non-zero when it cannot post — so read the
-review rather than trusting the tick. A red check from CI is the one exception to all of the above: fix it
-and push. `@pi` in a pull request comment asks for another review once the findings are addressed; only an
-owner, member or collaborator can trigger it, and it refuses a fork before anything is checked out.
+A green `review` tick normally means a review was posted — the job exits non-zero when it cannot post.
+`skipBots` is `false` here, so a bot's pull request (Dependabot, usually) does run this job, and if that
+trigger carried no repository secrets the job concludes green having reviewed nothing. On a bot's pull
+request, read the summary comment rather than the tick.
+
+A red check from CI is the one exception to all of the above: fix it and push. `@pi` in a pull request
+comment asks for another review once the findings are addressed; only an owner, member or collaborator can
+trigger it, and it refuses a fork before anything is checked out.

@@ -22,7 +22,8 @@ missing linter.
   error is the environment.
 - **Docker.** `make image`, `make image-test` and `make compose-test` cannot run here.
 
-Check `PI_REVIEW_DEPS` before claiming you ran something: `installed` means the dependencies are ready,
+Check `PI_REVIEW_DEPS` before claiming you ran something: `installed` means the install step ran without
+failing, which here is the Go module alone — it is not a statement that the whole toolchain is ready.
 `unavailable` means an install failed and anything that needs the network may fail too, `none` means the
 repository had nothing to install. Say which one it was in the review.
 
