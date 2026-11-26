@@ -93,9 +93,9 @@ Read the `review` row and act on the state it reports:
 | green, but no summary comment appeared           | The workflow file differs from the one on `main`, so the action validated it against `main`, skipped, and still went green. A pull request that edits `claude-review.yml` is not reviewed by it: review that one by hand. |
 | still pending, and it has no start time | The run is queued for a runner, not late. GitHub enforces the 33-minute job timeout itself, so a job that is *running* cannot sit past it — it ends cancelled or failed, which is the row above. A run with no start (`gh run view <id> --json status,startedAt`) is waiting and will start, so wait. |
 
-A green `review` tick means the reviewer posted its summary — the job exits non-zero when it cannot post — so
-read the comment rather than trusting the tick. A red check from CI is the one exception to all of the above:
-fix it and push.
+A green `review` tick normally means the reviewer posted its summary — the job exits non-zero when it cannot
+post — so read the comment rather than trusting the tick, and treat a green tick with no new comment as the
+skip in the table. A red check from CI is the one exception to all of the above: fix it and push.
 
 `/claude-review` in a pull request comment asks for another review once the findings are addressed. For the
 work itself, mention `@claude`: that is the other workflow, and it can edit files, run the tests and push the
