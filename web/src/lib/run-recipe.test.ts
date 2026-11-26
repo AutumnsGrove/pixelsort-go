@@ -145,6 +145,21 @@ describe('a pattern shape', () => {
 		expect(back.params.mode).toBe('wave');
 	});
 
+	test('a run that has cells of its own keeps them, and its mode still does not fall back to a random cut', () => {
+		const tiling = defaultTiling('hexagon', 7);
+		const back = unpackRecipe({
+			mode: 'pattern-edges',
+			pattern: 'truchet',
+			patternVariant: 'arc',
+			patternCell: 60,
+			patternThickness: 8,
+			regions: { tiling }
+		});
+		// one shape slot, and the run's own tiling is the one it was made with
+		expect(back.tiling).toEqual(tiling);
+		expect(back.params.mode).toBe('none');
+	});
+
 	test('the viewer names the drawing', () => {
 		const rows = recipeSlate(packRecipe(look({ tiling: drawing })));
 		expect(rows.find((r) => r.label === 'Shapes')?.value).toBe('pattern, radial / spiral');

@@ -170,8 +170,10 @@ export function unpackRecipe(settings: unknown): OpenedLook {
 	const regions = isObj(o.regions) ? o.regions : null;
 	const tiling = regions ? readTiling(regions.tiling) : readLegacyPattern(o);
 	const params = clampParams(o);
-	// An old pattern mode is the shape's cells now, so the recipe no longer cuts at anything itself.
-	if (!regions && (o.mode === 'pattern' || o.mode === 'pattern-edges')) params.mode = 'none';
+	// An old pattern mode is the shape's cells now, so the recipe no longer cuts at anything itself. That holds whether
+	// or not the run has cells of its own: a run that has a tiling keeps it (there is one shape slot, and its own drawing
+	// is the one it was made with), and its mode still must not fall through to the default it would otherwise get.
+	if (o.mode === 'pattern' || o.mode === 'pattern-edges') params.mode = 'none';
 	return {
 		params,
 		tiling,

@@ -37,8 +37,11 @@ now, and two ways to use one idea is one too many. So patterns moved to the shap
 - **Old runs are migrated on open, not left broken.** A stored `settings.mode` of `pattern` or `pattern-edges` now reads
   back as the shape it described — family, variant, cell, thickness, turn, detail, invert, seed — with the mode set to
   `none`, because cells bounded by the drawn lines are the same cut the old mode made. An overlay run keeps its own mode.
-  Done in `web/src/lib/run-recipe.ts`, which is where untrusted settings are already clamped; the engine still refuses an
-  unknown mode, so a stale client cannot smuggle one in.
+  A run that also had cells of its own keeps its tiling instead (there is one shape slot, and its own drawing is the one it
+  was made with), so its pattern is dropped — but its mode still becomes `none` rather than falling through to the default,
+  which would have re-opened it with a random cut it never had. Done in `web/src/lib/run-recipe.ts`, which is where
+  untrusted settings are already clamped; the engine still refuses an unknown mode, so a stale client cannot smuggle one
+  in.
 - **Goldens moved with the feature.** The three pattern engine goldens are replaced by three shape goldens
   (`shape-pattern-*`), which pin the drawn plane and the labelling together, and the engine's own goldens are unchanged
   otherwise — so no `EngineVersion` bump: no recipe that still exists produces different bytes. `recipes.json` was
