@@ -1,5 +1,9 @@
 name: Claude Code
 
+# `@claude` in a comment or an issue asks for work to be done: a fix, an
+# explanation, a change on a branch. The automatic review lives in
+# claude-review.yml; this is the interactive one, and it gets the whole
+# toolchain so it can run the tests it touches.
 on:
   issue_comment:
     types: [created]
@@ -10,41 +14,41 @@ on:
   pull_request_review:
     types: [submitted]
 
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+  actions: read # required for Claude to read CI results on pull requests
+
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && github.event.comment.user.type != 'Bot' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && github.event.comment.user.type != 'Bot' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+    timeout-minutes: 45
     steps:
-      - name: Checkout repository
+      - name: Check out the repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
-
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
-
+          claude_args: |
+            --permission-mode acceptEdits
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash,mcp__github_inline_comment__create_inline_comment"
+            --disallowedTools "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(gh release:*),Bash(gh workflow run:*)"
+            --append-system-prompt "You are working in pixelsort-go. Read AGENTS.md and docs/dev/ before you change code, and run \`make check\` before you say a change is done. Autumn merges pull requests in the GitHub UI: never merge, release or approve. Bash is available, so run the tests instead of guessing."
