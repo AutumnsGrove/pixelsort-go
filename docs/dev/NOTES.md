@@ -1,5 +1,41 @@
 # Build notes
 
+## 2026-11-26 · the claude-review trial is over and pi-review reads again
+
+The switch in the two entries below lasted a day. `claude-code-action` reviewed fast and read well, but it
+reviewed by reading: it cost about $0.15 a run and found two real problems in the draft that installed it, and
+it still could not reproduce a bug or run the arithmetic the way a reviewer with a shell can. pi-review does
+the same job from the same base-branch guidance for less, so it is the only reader again.
+
+- **Regenerated, not reverted.** `.github/pi-review.json` came back out of `c4f2bef^` and
+  `pi-extensions/extensions/pi-review/sync.ts` wrote `pi-review.yml` from it; `--check` passes, and the file is
+  byte-identical to the caller that PR #30 had committed. Reverting PR #32 would have fought the merge and
+  taken the Claude workflows with it in ways that were harder to read.
+- **Both Claude workflows went.** `claude-review.yml` and the `@claude` mention bot in `claude.yml` have nothing
+  left to do now, and a workflow left behind would keep a token alive. The repository secret
+  `CLAUDE_CODE_OAUTH_TOKEN` was deleted after the files, in case a queued job still held one.
+- **The Pi App and its `PI_REVIEW_*` secrets were never removed**, which is why this is a restore and not a
+  reinstall. Do not "tidy" them.
+- **`REVIEW.md` kept its Claude-era shell half.** Reproduce the bug, run what the body claims, derive the
+  arithmetic, delete the changed lines and watch the test still pass, and check an `actionlint` run on a
+  workflow change: none of that was about Claude, and all of it is the better reviewer's instructions. What
+  went was the parts that named the job's tooling — `CLAUDE_REVIEW_DEPS` is `PI_REVIEW_DEPS` here, and this
+  job installs no `golangci-lint`, so `make check` stops at `lint` and the frontend toolchain is absent because
+  both lockfiles live under `web/` and `worker/` and the installer only reads a root lockfile.
+- **The old workflow records could not be deleted.** `gh api -X DELETE .../actions/workflows/<id>` answered 404
+  for all three, before and after disabling them, so `Claude Code Review`, `claude-review` and `Claude Code`
+  are still listed as `disabled_manually` with no file on `main`. They run nothing; deleting them needs the web
+  UI, which is Autumn's.
+- **Nothing to enable server-side.** The `pi-review` workflow record was gone with the file, so there was no
+  `disabled_manually` flag to clear: the merge that adds `pi-review.yml` back creates an active workflow.
+- **Verified:** `sync.ts --check` on the restored settings, `gh secret list`, and the workflow listing above.
+  What cannot be verified from here is that a review posts — pi-review has no `workflow_dispatch`, so the first
+  real evidence is the `review` job on the next human pull request.
+- **Needs Autumn:** uninstall the Claude GitHub App from this repository if it should be gone everywhere
+  (`https://github.com/AutumnsGrove/pixelsort-go/settings/installations`), revoke the `claude setup-token` token
+  in the Claude account if it should die outside CI too, and delete the three inert workflow records in the web
+  UI.
+
 ## 2026-11-26 · a pattern is a shape, and the interval modes are gone (issue #28)
 
 `618e1ad` shipped generative patterns as two interval modes plus an overlay checkbox. That was the wrong shape: it made a
@@ -101,6 +137,9 @@ pi-review's: check out the merge commit, install, run, comment.
   reviewer is expected to `go run` it.
 - **Needs Autumn:** nothing. Follow-ups worth a decision: pin the model, and decide whether a review that finds
   nothing should comment at all (it does, so a green tick always means something was posted).
+
+*Superseded later the same day: this was a one-day trial, and the entry at the top of this file puts
+`pi-review` back as the only reader.*
 
 ## 2026-11-13 · the Meridian observe snippet had the wrong shape
 
